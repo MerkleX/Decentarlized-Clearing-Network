@@ -1,0 +1,69 @@
+pragma solidity ^0.4.23;
+
+contract MerkleX {
+  uint64 constant PENDING_TRADE_BLOCKS = 1440; // ~5 hours
+
+  mapping(uint16 => address) token_addresses;
+  mapping(uint32 => address) user_sessions;
+  mapping(address => mapping(uint16 => uint256)) balances;
+  mapping(uint256 => bytes32) data;
+
+  uint256 base_timestamp;
+
+  uint256 write_head;
+  uint256 read_head;
+
+  address owner;
+
+  function push_data(uint256 position, uint8 word_count, bytes32[7] words) public {
+    require (msg.sender == owner);
+    require (write_head == position);
+    require (write_head - read_head < 65538 - word_count);
+    require (words[0][0] & 192 == 64);
+
+    uint256 current_time = block.timestamp;
+    uint256 time_offset = (current_time - base_timestamp) / 100;
+
+    // Insert a timestamp if offset would overflow
+    if (time_offset >= 256) {
+      data[position & 65535] = bytes32(current_time & uint256(
+          0x3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+      )); // mod for sanity check
+      
+      base_timestamp = current_time;
+      time_offset = 0;
+      position += 1;
+    }
+
+    uint256 timestamp = time_offset << 232;
+
+    for (uint8 i = 0; i < word_count; i++) {
+      bytes32 word = words[i];
+
+      // is trade
+      if (word[0] & 192 == 64) {
+        // state is pending
+        require(word[1] & 3 == 0);
+
+        // set timestamp_offset
+        word = bytes32(uint256(
+            word & 
+            0xFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+        ) | timestamp);
+      }
+      else {
+        // is trade_continue
+        require(word[0] & 192 == 128);
+      }
+
+      data[position & 65535] = word;
+      position += 1;
+    }
+
+    write_head = position;
+  }
+
+  constructor() public {
+    owner = msg.sender;
+  }
+}

@@ -1,0 +1,36 @@
+  struct Signature {
+    bytes32 hash;
+    uint8 v;
+    bytes32 r;
+    bytes s;
+  }
+
+  struct Order {
+    uint64 expire_block;
+    uint32 order_id;
+    uint16 buy_token;
+    uint16 cost_token;
+    Amount buy_amount;
+    Amount cost_amount;
+  }
+
+  struct OrderProof {
+    Order order;
+    Signature signature;
+  }
+
+  struct Cancel {
+    uint64 expire_block;
+    uint32 order_id;
+  }
+
+  struct CancelProof {
+    Cancel cancel;
+    Signature signature;
+  }
+
+  address owner;
+  uint64 next_trade_id;
+  uint64 next_process_trade_id;
+
+
