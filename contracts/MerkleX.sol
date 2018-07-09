@@ -1,16 +1,33 @@
 pragma solidity ^0.4.23;
 
+import './ERC20.sol';
+
 contract MerkleX {
+  // MerkleX's address
   address owner;
 
+  // Store a ring buffer of 2^16 length
+  // for all updates to the accounting
+  mapping(uint256 => bytes32) updates;
+
+  // Pointers into the updates ring buffer
   uint256 write_head;
   uint256 read_head;
 
+  // Allows us to keep compresed timestamps in trade updates
   uint256 write_timestamp;
   uint256 read_timestamp;
 
-  mapping(uint256 => bytes32) updates;
+  // Key = 24 session_id | 12 token_id
   mapping(uint256 => uint256) balances;
+
+  struct Session {
+    address owner_address;
+    address trade_address;
+    uint256 end_time;
+  }
+
+  mapping(uint256 => Session) trade_sessions;
 
   /*
      Hex helpers
@@ -62,6 +79,154 @@ contract MerkleX {
     if (_apply_update()) {
       read_head = pos + 1;
     }
+  }
+
+  function batch_update(bytes indexes) public {
+    // contains data for netting updates
+    uint256[256] memory account_ids;
+    int256[256] memory balance_changes;
+
+    // stack variables 
+    uint256 temp_1;
+    uint256 temp_2;
+    uint256 temp_3;
+    uint256 temp_4;
+    uint256 temp_5;
+
+    // track where were we are in indexes
+    uint256 index_pos = 0;
+
+    // expensive temps
+    uint256[4] memory local_memory; // [read_timestamp, end, pos, market2_id]
+    local_memory[0] = read_timestamp;
+    local_memory[1] = write_head;
+
+    // Only process as long as we have indexes
+    temp_1 = indexes.length / 6;
+    temp_2 = read_head;
+    if (temp_1 < local_memory[1] - temp_2) {
+      local_memory[1] = temp_2 + temp_1;
+    }
+    local_memory[2] = temp_2;
+
+    for (; local_memory[2] < local_memory[1]; local_memory[2]++) {
+      bytes32 entry = updates[local_memory[2]];
+
+      // Handle timestamp updates
+      if ((entry & 0x8000000000000000000000000000000000000000000000000000000000000000) != 0) {
+        local_memory[0] = uint256(entry & 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
+        continue;
+      }
+
+      // Ensure trade has a chance to be contested
+      if (block.timestamp <= local_memory[0] + uint256(entry[2]) * 100 + 7200) {
+        return;
+      }
+
+      // Verify indexes are correctly setup
+
+      // TAKER
+      temp_5 = uint256((entry >> 242) & 0xFFF);
+
+      // Verify taker quote account
+      temp_3 = uint256((entry >> 192) & 0xFFFFFF0000);
+      temp_4 = uint256(indexes[index_pos]);
+      if (account_ids[temp_4] == 0) { account_ids[temp_4] = temp_3; }
+      else { require(account_ids[temp_4] == temp_3); }
+
+      // Verify taker base account
+      temp_4 = uint256(indexes[index_pos]);
+      temp_3 = temp_3 | temp_5;
+      if (account_ids[temp_4] == 0) { account_ids[temp_4] = temp_3; }
+      else { require(account_ids[temp_4] == temp_3); }
+
+      // MAKER 1
+
+      // Verify maker 1 quote account
+      temp_3 = uint256((entry >> 152) & 0xFFFFFF0000);
+      temp_4 = uint256(indexes[index_pos]);
+      if (account_ids[temp_4] == 0) { account_ids[temp_4] = temp_3; }
+      else { require(account_ids[temp_4] == temp_3); }
+
+      // Verify maker 1 base account
+      temp_4 = uint256(indexes[index_pos]);
+      temp_3 = temp_3 | temp_5;
+      if (account_ids[temp_4] == 0) { account_ids[temp_4] = temp_3; }
+      else { require(account_ids[temp_4] == temp_3); }
+
+      // MAKER 2
+
+      // Verify maker 2 quote account
+      temp_3 = uint256((entry >> 56) & 0xFFFFFF0000);
+      local_memory[3] = temp_3;
+      temp_4 = uint256(indexes[index_pos]);
+      if (account_ids[temp_4] == 0) { account_ids[temp_4] = temp_3; }
+      else { require(account_ids[temp_4] == temp_3); }
+
+      // Verify maker 2 base account
+      temp_4 = uint256(indexes[index_pos]);
+      temp_3 = temp_3 | temp_5;
+      if (account_ids[temp_4] == 0) { account_ids[temp_4] = temp_3; }
+      else { require(account_ids[temp_4] == temp_3); }
+
+      // MAKER 1 TRADE
+
+      // quant := temp_1, total := temp_2
+      temp_1 = uint256((entry >> 125) & 0x7FFFFFF) * (uint256(10) ** uint256((entry >> 120) & 0x1F));
+      temp_2 = uint256((entry >> 100) & 0xFFFFF) * (uint256(10) ** uint256((entry >> 96) & 0xF));
+      temp_2 = (temp_1 * temp_2) / 100000000;
+
+      // Verify taker account ids
+
+      temp_4 = (entry & 0x4000000000000000000000000000000000000000000000000000000000000000) == 0 ? uint256(1) : uint256(-1);
+
+      // taker quote balance
+      balance_changes[uint256(indexes[index_pos])] += int256(temp_4) * int256(temp_1);
+      balance_changes[uint256(indexes[index_pos + 1])] -= int256(temp_4) * int256(temp_2);
+
+      balance_changes[uint256(indexes[index_pos + 2])] -= int256(temp_4) * int256(temp_1);
+      balance_changes[uint256(indexes[index_pos + 3])] += int256(temp_4) * int256(temp_2);
+
+      // MAKER 2 TRADE
+
+      if (local_memory[3] == 0) {
+        index_pos += 4;
+      }
+      else {
+        temp_1 = uint256((entry >> 29) & 0x7FFFFFF) * (uint256(10) ** uint256((entry >> 24) & 0x1F));
+        temp_2 = uint256((entry >> 4) & 0xFFFFF) * (uint256(10) ** uint256(entry & 0xF));
+        temp_2 = (temp_1 * temp_2) / 100000000;
+
+        balance_changes[uint256(indexes[index_pos])] += int256(temp_4) * int256(temp_1);
+        balance_changes[uint256(indexes[index_pos + 1])] -= int256(temp_4) * int256(temp_2);
+
+        balance_changes[uint256(indexes[index_pos + 4])] -= int256(temp_4) * int256(temp_1);
+        balance_changes[uint256(indexes[index_pos + 5])] += int256(temp_4) * int256(temp_2);
+
+        index_pos += 6;
+      }
+    }
+
+    for (temp_1 = 0; temp_1 < 256; ++temp_1) {
+      temp_2 = account_ids[temp_1];
+      if (temp_2 == 0) {
+        break;
+      }
+
+      temp_3 = uint256(balance_changes[temp_1]);
+
+      if (int256(temp_3) < 0) {
+        assert(balances[temp_2] >= uint256(-int256(temp_3)));
+      }
+
+      balances[temp_2] = uint256(int256(balances[temp_2]) + int256(temp_3));
+    }
+
+    if (read_timestamp != local_memory[0]) {
+      read_timestamp = local_memory[0];
+    }
+
+    read_head = local_memory[2];
   }
 
   function _apply_update(uint256 clock) internal returns (bool success) {
@@ -167,78 +332,6 @@ contract MerkleX {
       assert(balance >= balance_deltas[5]);
       balances[account_index] += balance_deltas[4];
       balances[account_index | token_id] = balance - balance_deltas[5];
-    }
-
-    return true;
-  }
-
-  function _apply_update(uint256 clock) internal returns (bool success) {
-    bytes32 entry = updates[read_head & 65535];
-
-    // is_timestamp
-    if ((entry & 0x8000000000000000000000000000000000000000000000000000000000000000) != 0) {
-      read_timestamp = uint256(entry & 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
-      return true;
-    }
-
-    uint256 token_id = uint256((entry >> 242) & 0xFFF);
-
-    uint256 timestamp = read_timestamp + uint256(entry[2]) * 100;
-    if (clock <= timestamp + 7200) {
-      return false;
-    }
-
-    uint8 state = uint8(entry[1] & 0x3);
-    if (state == 3) {
-      return true;
-    }
-
-    if (state == 2) {
-      return false;
-    }
-
-    uint256 taker = uint256((entry >> 208) & 0xFFFFFF);
-    uint256 maker = uint256((entry >> 168) & 0xFFFFFF);
-
-    uint256 quant = uint256((entry >> 125) & 0x7FFFFFF) * uint256(10 ** uint256((entry >> 120) & 0x1F));
-    uint256 price = uint256((entry >> 100) & 0xFFFFF) * uint256(10 ** uint256((entry >> 96) & 0xF));
-    uint256 total = (quant * price) / 100000000;
-
-    uint256 taker_weth_index = taker << 16;
-    uint256 taker_token_index = taker_weth_index | token_id;
-
-    uint256 maker_weth_index = maker << 16;
-    uint256 maker_token_index = maker_weth_index | token_id;
-
-    uint256 taker_weth_balance = balances[taker_weth_index];
-    uint256 taker_token_balance = balances[taker_token_index];
-
-    uint256 maker_weth_balance = balances[maker_weth_index];
-    uint256 maker_token_balance = balances[maker_token_index];
-
-    // is sell
-    if ((entry & 0x4000000000000000000000000000000000000000000000000000000000000000) == 0) {
-      if (taker_token_balance < quant || maker_weth_balance < total) {
-        return false;
-      }
-
-      balances[taker_weth_index] = taker_weth_balance + total;
-      balances[taker_token_index] = taker_token_balance - quant;
-
-      balances[maker_weth_index] = maker_weth_balance - total;
-      balances[maker_token_index] = maker_token_balance + quant;
-    }
-    // is buy
-    else {
-      if (maker_token_balance < quant || taker_weth_balance < total) {
-        return false;
-      }
-
-      balances[taker_weth_index] = taker_weth_balance - total;
-      balances[taker_token_index] = taker_token_balance + quant;
-
-      balances[maker_weth_index] = maker_weth_balance + total;
-      balances[maker_token_index] = maker_token_balance - quant;
     }
 
     return true;
