@@ -189,10 +189,7 @@ contract MerkleX {
 
       // MAKER 2 TRADE
 
-      if (local_memory[3] == 0) {
-        index_pos += 4;
-      }
-      else {
+      if (local_memory[3] != 0) {
         temp_1 = uint256((entry >> 29) & 0x7FFFFFF) * (uint256(10) ** uint256((entry >> 24) & 0x1F));
         temp_2 = uint256((entry >> 4) & 0xFFFFF) * (uint256(10) ** uint256(entry & 0xF));
         temp_2 = (temp_1 * temp_2) / 100000000;
@@ -202,9 +199,9 @@ contract MerkleX {
 
         balance_changes[uint256(indexes[index_pos + 4])] -= int256(temp_4) * int256(temp_1);
         balance_changes[uint256(indexes[index_pos + 5])] += int256(temp_4) * int256(temp_2);
-
-        index_pos += 6;
       }
+
+      index_pos += 6;
     }
 
     for (temp_1 = 0; temp_1 < 256; ++temp_1) {
