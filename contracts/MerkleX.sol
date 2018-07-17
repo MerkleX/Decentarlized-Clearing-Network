@@ -20,14 +20,21 @@ contract MerkleX {
 
   // Key = 24 session_id | 12 token_id
   mapping(uint256 => uint256) balances;
+  mapping(uint256 => address) token_addresses;
 
   struct Session {
     address owner_address;
     address trade_address;
-    uint256 end_time;
   }
 
-  mapping(uint256 => Session) trade_sessions;
+  mapping(uint256 => Session) sessions;
+
+  function create_session(address trade_address) public {
+
+  }
+
+  function deposit_eth() public {
+  }
 
   /*
      Hex helpers
@@ -72,15 +79,6 @@ contract MerkleX {
      | mk2_price_pow |   4 |    256 |
    */
 
-  function apply_update() public {
-    uint256 pos = read_head;
-    require(write_head > pos);
-
-    if (_apply_update()) {
-      read_head = pos + 1;
-    }
-  }
-
   function batch_update(bytes indexes) public {
     // contains data for netting updates
     uint256[256] memory account_ids;
@@ -114,12 +112,12 @@ contract MerkleX {
 
       // Handle timestamp updates
       if ((entry & 0x8000000000000000000000000000000000000000000000000000000000000000) != 0) {
-        local_memory[0] = uint256(entry & 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
+        /* read_timestamp */ local_memory[0] = uint256(entry & 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
         continue;
       }
 
       // Ensure trade has a chance to be contested
-      if (block.timestamp <= local_memory[0] + uint256(entry[2]) * 100 + 7200) {
+      if (block.timestamp <= /* read_timestamp */ local_memory[0] + uint256(entry[2]) * 100 + 7200) {
         return;
       }
 
@@ -204,18 +202,22 @@ contract MerkleX {
       index_pos += 6;
     }
 
+    // Update balances
     for (temp_1 = 0; temp_1 < 256; ++temp_1) {
       temp_2 = account_ids[temp_1];
       if (temp_2 == 0) {
         break;
       }
 
+      // Balance change
       temp_3 = uint256(balance_changes[temp_1]);
 
+      // Ensure balance can cover delta
       if (int256(temp_3) < 0) {
         assert(balances[temp_2] >= uint256(-int256(temp_3)));
       }
 
+      // Update balance
       balances[temp_2] = uint256(int256(balances[temp_2]) + int256(temp_3));
     }
 
@@ -224,114 +226,6 @@ contract MerkleX {
     }
 
     read_head = local_memory[2];
-  }
-
-  function _apply_update(uint256 clock) internal returns (bool success) {
-    {
-      bytes32 entry = updates[read_head & 65535];
-
-      // is_timestamp
-      if ((entry & 0x8000000000000000000000000000000000000000000000000000000000000000) != 0) {
-        read_timestamp = uint256(entry & 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
-        return true;
-      }
-
-      uint256 timestamp = read_timestamp + uint256(entry[2]) * 100;
-      if (clock <= timestamp + 7200) {
-        return false;
-      }
-
-      // Skip broken trade
-      uint8 state = uint8(entry[1] & 0x3);
-      if (state == 3) {
-        return true;
-      }
-
-      if (state == 2) {
-        return false;
-      }
-    }
-
-    uint256[6] memory balance_deltas;
-
-    {
-      uint256 quant = uint256((entry >> 125) & 0x7FFFFFF) * (uint256(10) ** uint256((entry >> 120) & 0x1F));
-      uint256 price = uint256((entry >> 100) & 0xFFFFF) * (uint256(10) ** uint256((entry >> 96) & 0xF));
-      uint256 total = (quant * price) / 100000000;
-
-      balance_deltas[0] = total;
-      balance_deltas[2] = total;
-      balance_deltas[1] = quant;
-      balance_deltas[3] = quant;
-
-      quant = uint256((entry >> 29) & 0x7FFFFFF) * (uint256(10) ** uint256((entry >> 24) & 0x1F));
-      price = uint256((entry >> 4) & 0xFFFFF) * (uint256(10) ** uint256(entry & 0xF));
-      total = (quant * price) / 100000000;
-
-      balance_deltas[4] = total;
-      balance_deltas[0] += total;
-      balance_deltas[5] = quant;
-      balance_deltas[1] += quant;
-    }
-
-    uint256 token_id = uint256((entry >> 242) & 0xFFF);
-
-    // Apply balance updates
-
-    // is sell
-    if ((entry & 0x4000000000000000000000000000000000000000000000000000000000000000) == 0) {
-      // taker
-      uint256 account_index = uint256((entry >> 192) & 0xFFFFFF0000);
-      uint256 balance = balances[account_index | token_id];
-
-      assert(balance >= balance_deltas[1]);
-      balances[account_index] += balance_deltas[0];
-      balances[account_index | token_id] = balance - balance_deltas[1];
-
-      // maker 1
-      account_index = uint256((entry >> 152) & 0xFFFFFF0000);
-      balance = balances[account_index];
-
-      assert(balance >= balance_deltas[2]);
-      balances[account_index] = balance - balance_deltas[2];
-      balances[account_index | token_id] += balance_deltas[3];
-
-      // maker 2
-      account_index = uint256((entry >> 152) & 0xFFFFFF0000);
-      balance = balances[account_index];
-
-      assert(balance >= balance_deltas[4]);
-      balances[account_index] = balance - balance_deltas[4];
-      balances[account_index | token_id] += balance_deltas[5];
-    }
-    // is buy
-    else {
-      // taker
-      account_index = uint256((entry >> 192) & 0xFFFFFF0000);
-      balance = balances[account_index];
-
-      assert(balance >= balance_deltas[0]);
-      balances[account_index] = balance - balance_deltas[0];
-      balances[account_index | token_id] += balance_deltas[1];
-
-      // maker 1
-      account_index = uint256((entry >> 152) & 0xFFFFFF0000);
-      balance = balances[account_index | token_id];
-
-      assert(balance >= balance_deltas[3]);
-      balances[account_index] += balance_deltas[2];
-      balances[account_index | token_id] = balance - balance_deltas[3];
-
-      // maker 2
-      account_index = uint256((entry >> 152) & 0xFFFFFF0000);
-      balance = balances[account_index | token_id];
-
-      assert(balance >= balance_deltas[5]);
-      balances[account_index] += balance_deltas[4];
-      balances[account_index | token_id] = balance - balance_deltas[5];
-    }
-
-    return true;
   }
 
   function push_updates(uint256 position, uint8 word_count, bytes32[8] words) public {
