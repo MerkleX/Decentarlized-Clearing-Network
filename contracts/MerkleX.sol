@@ -134,10 +134,10 @@ contract MerkleX {
        token_id      :  12,
        state         :   2,
        timestamp     :   8,
-       taker_user :  24,
+       taker_user    :  24,
        taker_order   :  16,
 
-       mk1_user   :  24,
+       mk1_user      :  24,
        mk1_order     :  16,
 
        mk1_quant_sig :  27,
@@ -145,7 +145,7 @@ contract MerkleX {
        mk1_price_sig :  20,
        mk1_price_pow :   4,
 
-       mk2_user   :  24,
+       mk2_user      :  24,
        mk2_order     :  16,
 
        mk2_quant_sig :  27,
