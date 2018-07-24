@@ -7,33 +7,24 @@ contract ERC20 {
 
 contract MerkleX {
   struct User {
+    uint256 trade_allowed;
     uint256 owner_address;
     uint256 trade_address;
-  }
-
-  struct Settings {
-    uint256 trade_fee;
-    uint256 user_create_fee;
   }
 
   uint256 owner;
   uint256 fee_balance;
 
   // State
-  bytes32[2**16] updates;
-  uint256[2**(24+12)] balances;
-  uint256[2**12] token_addresses;
-  User[2**24] users;
+  bytes32[2**20]  settlement_windows_data;
+  uint256         write_pos;
+  uint256         read_pos;
+
+  uint256[2**15]        token_addresses;
+  uint256[(2**32) * 3]  users;
+  uint256[2**(15+32)]   balances;
+
   uint256 next_user_pointer;
-
-  // Pointers into the updates ring buffer
-  uint256 write_pos;
-  uint256 read_pos;
-
-  // Manage settings and updating
-  Settings current_settings;
-  Settings next_settings;
-  uint256 next_settings_unlock;
 
   constructor() public {
     assembly {
@@ -41,6 +32,58 @@ contract MerkleX {
       sstore(next_user_pointer_slot, 64)
     }
   }
+
+  /*
+     TRADE_DEF {
+       f_is_long       :   1,
+       f_token_id      :  15,
+       f_user_id       :  32,
+       f_ether_qty_sig :  24,
+       f_ether_qty_pow :   8,
+       f_token_qty_sig :  24,
+       f_token_qty_pow :   8,
+       f_ether_fee     :   8,
+       f_allowance_id  :   8,
+
+       s_is_long       :   1,
+       s_token_id      :  15,
+       s_user_id       :  32,
+       s_ether_qty_sig :  24,
+       s_ether_qty_pow :   8,
+       s_token_qty_sig :  24,
+       s_token_qty_pow :   8,
+       s_ether_fee     :   8,
+       f_allowance_id  :   8,
+     }
+   */
+
+  function submit_block(bytes data) public {
+    require(msg.sender == owner);
+
+    int256      net_eth;
+    int256[127] net_tokens;
+
+    assembly {
+      let pos := sload(write_pos)
+      pos := and(pos, 1048575)
+      let cursor := add(update, pos)
+
+      // set timestamp at begining 
+      sstore(cursor, timestamp)
+
+      // ensure we don't try and add too much
+      let entries := calldataload(0)
+      if gt(entries, 255) {
+        stop()
+      }
+
+      // store data into block
+      for { let i := 0 } lt(i, entries) { i := add(i, 1) } {
+
+      }
+    }
+  }
+
 
   function create_user(address trade_address) public payable returns (uint256) {
     assembly {
@@ -120,47 +163,6 @@ contract MerkleX {
     }
 
     return false;
-  }
-
-
-  /*
-     TRADE_DEF {
-       p_token_id      :  16,
-       p_buyer_id      :  28,
-       p_seller_id     :  28,
-       p_quantity      :  32,
-       p_price         :  24,
-
-       s_token_id      :  16,
-       s_buyer_id      :  28,
-       s_seller_id     :  28,
-       s_quantity      :  32,
-       s_price         :  24,
-     }
-   */
-
-  function submit_trade_block(bytes data) public {
-    require(msg.sender == owner);
-
-    assembly {
-      let pos := sload(write_pos)
-      pos := and(pos, 65535)
-      let cursor := add(update, pos)
-
-      // set timestamp at begining 
-      sstore(cursor, timestamp)
-
-      // ensure we don't try and add too much
-      let entries := calldataload(0)
-      if gt(entries, 255) {
-        stop()
-      }
-
-      // store data into block
-      for { let i := 0 } lt(i, entries) { i := add(i, 1) } {
-
-      }
-    }
   }
 
   function batch_update(bytes indexes) public {
