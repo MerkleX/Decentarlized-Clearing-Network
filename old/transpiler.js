@@ -7,7 +7,6 @@ const end_index = data.indexOf('}', start_index);
 
 const def_body = data.substr(start_index + 1, end_index - start_index - 1);
 
-
 const attributes = def_body.match(/([\w_\d]+)\s*:\s*(\d+)/g);
 
 const def = {};
