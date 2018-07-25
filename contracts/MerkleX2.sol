@@ -34,7 +34,7 @@ contract MerkleX {
   }
 
   /*
-  TRADE_DEF {
+     TRADE_DEF {
 is_long       :   1,
 token_id      :  15,
 user_id       :  32,
@@ -49,7 +49,7 @@ _padding      : 128,
 }
    */
 
-  function submit_window(bytes32[4] token_indexes, bytes window_data) public {
+  function submit_window(bytes32[4] token_indexes, bytes submit_data) public {
     require(uint256(msg.sender) == owner);
 
     int256  [1]     memory net_eth_ptr;
@@ -70,87 +70,30 @@ _padding      : 128,
       // set timestamp at begining of window
       sstore(window_ptr, timestamp)
 
-      let window_data_size := mload(window_data)
-      let window_ptr := add(window_data, 32)
-      let window_end_ptr := add(window_ptr, window_data_size)
+      let submit_data_size := mload(submit_data)
+      let submit_ptr := add(submit_data, 32)
+      let submit_end_ptr := add(submit_ptr, submit_data_size)
 
-      for {} lt(window_ptr, add(window_data, window_data_size)) { entries_ptr := add(window_ptr, 16) } {
-        let trade_data := mload(window_ptr)
+      for {} lt(submit_ptr, add(submit_data, submit_data_size)) { submit_ptr := add(submit_ptr, 16) } {
+        let trade_data := mload(submit_ptr)
 
-          let eth_qty := mul(TRADE(trade_data, ether_qty_sig), exp(10, TRADE(trade_data, ether_qty_pow)))
-          let tkn_qty := mul(TRADE(trade_data, token_qty_sig), exp(10, TRADE(trade_data, token_qty_pow)))
-      }
+        let eth_qty := mul(TRADE(trade_data, ether_qty_sig), exp(10, TRADE(trade_data, ether_qty_pow)))
+        let tkn_qty := mul(TRADE(trade_data, token_qty_sig), exp(10, TRADE(trade_data, token_qty_pow)))
 
-      // Ensure we have the correct amount of data in the payload
-      if not(eq(mload(data_ptr), mul(entry_count, 16))) {
-        stop()
-      }
-
-      let entry_ptr := add(data_ptr, 32)
-      let entry_end_ptr := add(entry_ptr, mul(entry_count, 16))
-      let index_ptr := sub(entry_end_ptr, 30)
-
-      let net_eth := 0
-
-      for {} lt(entry_ptr, entry_end_ptr) {} {
-        {
-          let trade_data := mload(entry_ptr)
-          let entry_indexes := mload(index_ptr)
-
-          window_ptr := add(window_ptr, 32)
-          sstore(window_ptr, trade_data)
-
-          // Calc net for first trade
-          for {} gt(trade_data, 0) { trade_data := div(trade_data, 0x100000000000000000000000000000000) } {
-            let eth_qty := mul(TRADE(trade_data, ether_qty_sig), exp(10, TRADE(trade_data, ether_qty_pow)))
-            let tkn_qty := mul(TRADE(trade_data, token_qty_sig), exp(10, TRADE(trade_data, token_qty_pow)))
-
-            // Prevent overflow, cannot be larger than (2^256 / 128)
-            if gt(eth_qty, 0x200000000000000000000000000000000000000000000000000000000000000) {
-              revert(0, 0)
-            }
-            if gt(tkn_qty, 0x200000000000000000000000000000000000000000000000000000000000000) {
-              revert(0, 0)
-            }
-
-            switch TRADE(trade_data, is_long)
-            case 0 {
-              tkn_qty := sub(0, tkn_qty)
-            }
-            default {
-              eth_qty := sub(0, eth_qty)
-            }
-
-            net_eth := add(net_eth, eth_qty)
-
-            let tkn_idx := and(div(entry_indexes, 256), 0xFF)
-
-            // ensure that tkn_idx is properly setup
-            {
-              let trade_token := TRADE(trade_data, token_id)
-              let tkn_idx_ptr := add(toket_id_ptr, mul(tkn_idx, 32))
-              let tkn_idx_value := mload(tkn_idx_ptr)
-
-              switch iszero(tkn_idx_value)
-              case 0 {
-                mstore(tkn_idx_ptr, trade_token)
-              }
-              default {
-                if not(eq(trade_token, tkn_idx_value)) {
-                  revert(0, 0)
-                }
-              }
-            }
-
-            let net_tkn_ptr := add(net_tokens_ptr, tkn_idx_ptr)
-            mstore(net_tkn_ptr, add(mload(net_tkn_ptr), tkn_qty))
-          }
+        // Prevent overflow, cannot be larger than (2^256 / 128)
+        if gt(eth_qty, 0x200000000000000000000000000000000000000000000000000000000000000) {
+          revert(0, 0)
         }
-
-        entries_ptr := add(entries_ptr, 32)
-        index_ptr := add(index_ptr, 2)
+        if gt(tkn_qty, 0x200000000000000000000000000000000000000000000000000000000000000) {
+          revert(0, 0)
+        }
       }
+
+      //    // Ensure we have the correct amount of data in the payload
+      //    if not(eq(mload(data_ptr), mul(entry_count, 16))) {
+      //      stop()
+      //    }
     }
   }
-  }
+}
 
