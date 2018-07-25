@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const data = fs.readFileSync('contracts/MerkleX.sol', 'utf-8');
+const data = fs.readFileSync('contracts/MerkleX2.sol', 'utf-8');
 
 const start_index = data.indexOf('{', data.indexOf('TRADE_DEF'));
 const end_index = data.indexOf('}', start_index);
