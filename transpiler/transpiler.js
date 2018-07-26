@@ -77,6 +77,8 @@ module.exports = function(source) {
     }
 
     if (def.attributes.length !== args.length) {
+      console.error('invalid number of args', name, def.attributes.length, args.length);
+      console.error(args_source, args);
       return og;
     }
 
@@ -123,6 +125,20 @@ module.exports = function(source) {
     }
 
     return expr.join('') + expr_post.join('');
+  });
+
+  // Process shift commands
+  source = SourceProcessor(source, /(l|r)shift\s*\((\w+|\w+\s*\([\w\),\(]+\)),\s*(\d+)\)/, instance => {
+    const [ og, type, subject, shift_amount ] = instance;
+
+    if (type === 'r') {
+      return `div(${subject}, 0x${(1n << BigInt(shift_amount)).toString(16)})`;
+    }
+    else if (type === 'l') {
+      return `mul(${subject}, 0x${(1n << BigInt(shift_amount)).toShift(16)})`;
+    }
+
+    return og;
   });
 
   return source;
