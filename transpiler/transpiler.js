@@ -23,13 +23,24 @@ module.exports = function(source) {
     }
 
     const offset = BigInt(shift_offset || 0);
-    const shift = 256n - BigInt(attr.end_offset) + offset;
-    const value = 1n << shift;
-    const mask = ((1n << BigInt(attr.size)) - 1n) << offset;
+    const shift = 256n - BigInt(attr.end_offset) - offset;
 
-    const word_part = shift == 0 ? word : `div(${word}, 0x${value.toString(16)})`;
-    const res = `and(${word_part}, 0x${mask.toString(16)})`;
-    return `/* ${og} */ ${res}`;
+    if (shift < 0) {
+      const value = 1n << (-shift);
+      const mask = ((1n << BigInt(attr.size)) - 1n) << offset;
+
+      const word_part = shift == 0 ? word : `mul(${word}, 0x${value.toString(16)})`;
+      const res = `and(${word_part}, 0x${mask.toString(16)})`;
+      return `/* ${og} */ ${res}`;
+    }
+    else {
+      const value = 1n << shift;
+      const mask = ((1n << BigInt(attr.size)) - 1n) << offset;
+
+      const word_part = shift == 0 ? word : `div(${word}, 0x${value.toString(16)})`;
+      const res = `and(${word_part}, 0x${mask.toString(16)})`;
+      return `/* ${og} */ ${res}`;
+    }
   });
 
   // Process constants
