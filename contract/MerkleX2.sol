@@ -11,46 +11,35 @@ contract MerkleX {
 
   /*
      ALLOWANCE_DEF {
-      long_qty         :  60,
-      long_qty_pow     :   4,
-
+      long_qty         :  64,
       long_price       :  28,
       long_price_pow   :   4,
 
-      short_qty        :  60,
-      short_qty_pow    :   4,
-
+      short_qty        :  64,
       short_price      :  28,
       short_price_pow  :   4,
 
-      fees             :  28,
-      fee_pow          :   4,
+      fees             :  32,
 
       expire_time      :  32,
      }
 
      POSITION_DEF {
+      _padding         :  95,
       is_long          :   1,
-      update_count     :  31,
-
-      ether_qty        :  60,
-      ether_qty_pow    :   4,
-
-      token_qty        :  60,
-      token_qty_pow    :   4,
-
-      fees             :  28,
-      fees_pow         :   4,
+      eth_qty          :  64,
+      tkn_qty          :  64,
+      fees             :  32,
      }
-
    */
 
   /*
   struct UserPosition {
-    uint256 allowance_1;
     uint256 position_1;
-    uint256 allowance_2;
+    uint256 allowance_1;
+
     uint256 position_2;
+    uint256 allowance_2;
 
     uint256 balance;
     uint256 _padding_1;
@@ -69,10 +58,10 @@ contract MerkleX {
     }
   }
 
-  function set_balance(uint32 user_id, uint16 token_id, uint64 balance_sig, uint64 pow) public {
+  function set_balance(uint32 user_id, uint16 token_id, uint64 new_balance) public {
     assembly {
       let ptr := add(user_positions_slot, add(or(mul(user_id, 524288), mul(token_id, 8)), 4))
-      sstore(ptr, add(sload(ptr), mul(balance_sig, exp(10, pow))))
+      sstore(ptr, add(sload(ptr), new_balance))
     }
   }
 
@@ -98,14 +87,10 @@ contract MerkleX {
 
       user_id      : 32,
 
-      eth_qty      : 60,
-      eth_qty_pow  :  4,
+      eth_qty      : 64,
+      tkn_qty      : 64,
 
-      tkn_qty      : 60,
-      tkn_qty_pow  :  4,
-
-      fee          : 28,
-      fee_pow      :  4,
+      fee          : 32,
      }
    */
 
@@ -115,8 +100,9 @@ contract MerkleX {
     // used to verify a group nets to 0
     uint256[2] memory total_eth_qty;
     uint256[2] memory total_tkn_qty;
-
     uint256[1] memory collected_fees;
+
+    uint256[1] memory position;
 
     assembly {
       let cursor_end := mload(data)
@@ -138,13 +124,8 @@ contract MerkleX {
         for {} lt(cursor, group_end) { cursor := add(cursor, SETTLE.BYTES) } {
           let settlement := mload(cursor)
 
-          let eth_qty := 0
-          {
-            let eth_qty_sig := SETTLE(settlement).eth_qty
-            let eth_qty_pow := SETTLE(settlement).eth_qty_pow
-            eth_qty := mul(eth_qty_sig, exp(10, eth_qty_pow))
-          }
-          let tkn_qty := mul(SETTLE(settlement).tkn_qty, exp(10, SETTLE(settlement).tkn_qty_pow))
+          let eth_qty := SETTLE(settlement).eth_qty
+          let tkn_qty := SETTLE(settlement).tkn_qty
 
           let is_long := SETTLE(settlement).is_long
 
@@ -163,7 +144,7 @@ contract MerkleX {
           }
 
           // update fee total
-          let fee := mul(SETTLE(settlement).fee, exp(10, SETTLE(settlement).fee_pow))
+          let fee := SETTLE(settlement).fee
           mstore(collected_fees, add(mload(collected_fees), fee))
 
           // extract position pointers
@@ -201,6 +182,30 @@ contract MerkleX {
                 revert(0,0)
               }
               sstore(tkn_balance_ptr, sub(tkn_balance, tkn_qty))
+            }
+
+            if SETTLE(settlement).allowance_id {
+              tkn_position_ptr := add(tkn_position_ptr, 2)
+            }
+
+            let current_position := sload(tkn_position_ptr)
+
+            switch POSITION(current_position).is_long
+            case 0 {
+              let position_eth_qty := and(add(POSITION(current_position).eth_qty, eth_qty), 0xFFFFFFFFFFFFFFFF)
+              let position_tkn_qty := and(add(POSITION(current_position).tkn_qty, tkn_qty), 0xFFFFFFFFFFFFFFFF)
+              let position_fees := and(add(POSITION(current_position).fees, fee), 0xFFFFFFFF)
+
+              // Protect eth and tkn from overflow
+              // Note, not doing the same for fees. User would be happy if it overflowed :P
+              // Note, using or because its cheaper than another conditional jump
+              if or(lt(position_eth_qty, eth_qty), lt(position_tkn_qty, tkn_qty)) {
+                revert(0,0)
+              }
+
+              current_position := BUILD_POSITION(0, 0, position_eth_qty, position_tkn_qty, position_fees)
+            }
+            default {
             }
           }
           default {
