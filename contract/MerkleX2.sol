@@ -1,9 +1,9 @@
 pragma solidity ^0.4.23;
 
-contract ERC20 {
-  function transferFrom(address from, address to, uint256 value) public returns (bool);
-  function approve(address spender, uint256 value) public returns (bool);
-}
+// contract ERC20 {
+//   function transferFrom(address from, address to, uint256 value) public returns (bool);
+//   function approve(address spender, uint256 value) public returns (bool);
+// }
 
 contract MerkleX {
   uint256 owner;
@@ -61,12 +61,27 @@ contract MerkleX {
 
   uint256[2**32] user_addresses;
   uint256[2**16] token_addresses;
-  uint256[2**(/* user_id */ 32 + /* token_id */ 16 + /* 8 attr */ 3)] user_positions;
+  uint256[2**32][2**16][2**3] user_positions;
 
   constructor() public {
     assembly {
       sstore(owner_slot, address)
     }
+  }
+
+  // DEBUG
+
+  /*
+    SET_BALANCE_DEF {
+      user_id : 32,
+      token_id: 16,
+      balance: 64,
+      balance_pow : 64,
+    }
+  */
+
+  function set_balance(uint32 user_id, uint16 token_id, uint64 balance, uint64 pow) {
+    user_positions[user_id][token_id][4] += balance * (10 ** pow);
   }
 
   /*
@@ -146,8 +161,8 @@ contract MerkleX {
           mstore(collected_fees, add(mload(collected_fees), fee))
 
           // extract position pointers
-          let eth_balance_ptr := SETTLE(settlement).user_id(19)
-          let tkn_position_ptr := or(eth_balance_ptr, mul(token_id, 8))
+          let eth_balance_ptr := SETTLE(settlement).user_id(/* 5 container + 16 token_id + 3 count */ 24)
+          let tkn_position_ptr := or(eth_balance_ptr, mul(token_id, 256))
           eth_balance_ptr := add(eth_balance_ptr, 128)
 
           // apply balance updates
