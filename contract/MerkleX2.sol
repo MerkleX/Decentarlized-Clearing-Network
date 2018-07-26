@@ -45,17 +45,23 @@ contract MerkleX {
 
    */
 
+  /*
   struct UserPosition {
-    uint256 balance;
     uint256 allowance_1;
-    uint256 allowance_2;
     uint256 position_1;
+    uint256 allowance_2;
     uint256 position_2;
+
+    uint256 balance;
+    uint256 _padding_1;
+    uint256 _padding_2;
+    uint256 _padding_3;
   }
+  */
 
   uint256[2**32] user_addresses;
-  uint256[2**15] token_addresses;
-  UserPosition[(2**(15+32))] user_positions;
+  uint256[2**16] token_addresses;
+  uint256[2**(/* user_id */ 32 + /* token_id */ 16 + /* 8 attr */ 3)] user_positions;
 
   constructor() public {
     assembly {
@@ -65,8 +71,7 @@ contract MerkleX {
 
   /*
      WINDOW_HDR_DEF {
-      _padding     :  1,
-      token_id     : 15,
+      token_id     : 16,
       count        :  8,
      }
 
@@ -91,8 +96,9 @@ contract MerkleX {
   function submit_group(bytes data) public {
     // uint256[1] memory token_id;
 
-    uint256[2] memory eth_qty;
-    uint256[2] memory tkn_qty;
+    // used to verify a group nets to 0
+    uint256[2] memory total_eth_qty;
+    uint256[2] memory total_tkn_qty;
 
     assembly {
       let cursor_end := add(data, mload(data))
@@ -116,19 +122,36 @@ contract MerkleX {
           let eth_qty := mul(SETTLE(settlement).eth_qty, exp(10, SETTLE(settlement).eth_qty_pow))
           let tkn_qty := mul(SETTLE(settlement).tkn_qty, exp(10, SETTLE(settlement).tkn_qty_pow))
 
+          let is_long := SETTLE(settlement).is_long
+
           // update group totals
           {
-            let eth_ptr := eth_qty
-            let tkn_ptr := tkn_qty
+            let eth_ptr := total_eth_qty
+            let tkn_ptr := total_tkn_qty
 
-            if SETTLE(settlement).is_long {
-              eth_ptr := add(eth_qty, 32)
-              tkn_ptr := add(tkn_qty, 32)
+            if is_long {
+              eth_ptr := add(total_eth_qty, 32)
+              tkn_ptr := add(total_tkn_qty, 32)
             }
 
             mstore(eth_ptr, add(mload(eth_ptr), eth_qty))
             mstore(tkn_ptr, add(mload(eth_ptr), tkn_qty))
           }
+
+          // update position
+          let eth_balance_ptr := SETTLE(settlement).user_id(19)
+          let tkn_position_ptr := or(eth_balance_ptr, mul(token_id, 8))
+          eth_balance_ptr := add(eth_balance_ptr, 128)
+
+          // update eth balance
+          switch is_long
+          case 0 {
+            // update eth balance
+            sstore(eth_balance_ptr, add(sload(eth_balance_ptr), eth_qty))
+          }
+          default {
+          }
+
 
           /* 
              check against allowance
