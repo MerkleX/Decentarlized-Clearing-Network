@@ -62,6 +62,7 @@ contract MerkleX {
   uint256[2**32] user_addresses;
   uint256[2**16] token_addresses;
   uint256[2**32][2**16][2**3] user_positions;
+  // uint256[2**(32+16+3)] user_positions;
 
   constructor() public {
     assembly {
@@ -69,19 +70,28 @@ contract MerkleX {
     }
   }
 
-  // DEBUG
-
-  /*
-    SET_BALANCE_DEF {
-      user_id : 32,
-      token_id: 16,
-      balance: 64,
-      balance_pow : 64,
+  function set_balance(uint32 user_id, uint16 token_id, uint64 balance_sig, uint64 pow) public {
+    assembly {
+      let ptr := add(user_positions_slot, add(or(mul(user_id, 524288), mul(token_id, 8)), 4))
+      sstore(ptr, add(sload(ptr), mul(balance_sig, exp(10, pow))))
     }
-  */
+  }
 
-  function set_balance(uint32 user_id, uint16 token_id, uint64 balance, uint64 pow) {
-    user_positions[user_id][token_id][4] += balance * (10 ** pow);
+  function get_balance(uint32 user_id, uint16 token_id) constant returns (uint256) {
+    uint256[1] memory return_value;
+    assembly {
+      let ptr := add(user_positions_slot, add(or(mul(user_id, 524288), mul(token_id, 8)), 4))
+      mstore(return_value, sload(ptr))
+      return(return_value, 32)
+    }
+  }
+
+  function get_balance2(uint32 user_id, uint16 token_id) constant returns (uint256) {
+    return user_positions[user_id][token_id][4];
+  }
+
+  function set_balance2(uint32 user_id, uint16 token_id, uint256 balance) public {
+    user_positions[user_id][token_id][4] = balance;
   }
 
   /*
@@ -161,7 +171,8 @@ contract MerkleX {
           mstore(collected_fees, add(mload(collected_fees), fee))
 
           // extract position pointers
-          let eth_balance_ptr := SETTLE(settlement).user_id(/* 5 container + 16 token_id + 3 count */ 24)
+          /* 5 container + 16 token_id + 3 count */ 
+          let eth_balance_ptr := SETTLE(settlement).user_id(24)
           let tkn_position_ptr := or(eth_balance_ptr, mul(token_id, 256))
           eth_balance_ptr := add(eth_balance_ptr, 128)
 
@@ -208,7 +219,6 @@ contract MerkleX {
               sstore(eth_balance_ptr, sub(eth_balance, eth_change))
             }
           }
-
 
           /* 
              check against allowance
