@@ -14,11 +14,11 @@ contract MerkleX {
       long_qty         :  60,
       long_qty_pow     :   4,
 
-      short_qty        :  60,
-      short_qty_pow    :   4,
-
       long_price       :  28,
       long_price_pow   :   4,
+
+      short_qty        :  60,
+      short_qty_pow    :   4,
 
       short_price      :  28,
       short_price_pow  :   4,
@@ -100,9 +100,12 @@ contract MerkleX {
     uint256[2] memory total_eth_qty;
     uint256[2] memory total_tkn_qty;
 
+    uint256[1] memory collected_fees;
+
     assembly {
-      let cursor_end := add(data, mload(data))
+      let cursor_end := mload(data)
       let cursor := add(data, 32)
+      cursor_end := add(cursor, cursor_end)
 
       for {} lt(cursor, cursor_end) {} {
         let header := mload(cursor)
@@ -138,18 +141,57 @@ contract MerkleX {
             mstore(tkn_ptr, add(mload(eth_ptr), tkn_qty))
           }
 
-          // update position
+          // update fee total
+          let fee := mul(SETTLE(settlement).fee, exp(10, SETTLE(settlement).fee_pow))
+          mstore(collected_fees, add(mload(collected_fees), fee))
+
+          // extract position pointers
           let eth_balance_ptr := SETTLE(settlement).user_id(19)
           let tkn_position_ptr := or(eth_balance_ptr, mul(token_id, 8))
           eth_balance_ptr := add(eth_balance_ptr, 128)
 
-          // update eth balance
+          // apply balance updates
           switch is_long
           case 0 {
-            // update eth balance
-            sstore(eth_balance_ptr, add(sload(eth_balance_ptr), eth_qty))
+            {
+              let eth_balance := sload(eth_balance_ptr)
+
+              // is the fee larger than the received ETH?
+              switch gt(fee, eth_qty)
+              case 0 {
+                // nope, increase the balance with the difference
+                sstore(eth_balance_ptr, add(eth_balance, sub(eth_qty, fee)))
+              }
+              default {
+                // yup, make sure user has enough $
+                let eth_sub := sub(fee, eth_qty)
+                if lt(eth_balance, eth_sub) {
+                  revert(0,0)
+                }
+                sstore(eth_balance_ptr, sub(eth_balance, eth_sub))
+              }
+
+              let tkn_balance_ptr := add(tkn_position_ptr, 128)
+              let tkn_balance := sload(tkn_balance_ptr)
+
+              // make sure user has enough token
+              if lt(tkn_balance, tkn_qty) {
+                revert(0,0)
+              }
+              sstore(tkn_balance_ptr, sub(tkn_balance, tkn_qty))
+            }
           }
           default {
+            {
+              let tkn_balance_ptr := add(tkn_position_ptr, 128)
+              sstore(tkn_balance_ptr, add(sload(tkn_balance_ptr), tkn_qty))
+              let eth_balance := sload(eth_balance_ptr)
+              let eth_change := add(eth_qty, fee)
+              if lt(eth_balance, eth_change) {
+                revert(0,0)
+              }
+              sstore(eth_balance_ptr, sub(eth_balance, eth_change))
+            }
           }
 
 
