@@ -61,8 +61,7 @@ contract MerkleX {
 
   uint256[2**32] user_addresses;
   uint256[2**16] token_addresses;
-  uint256[2**32][2**16][2**3] user_positions;
-  // uint256[2**(32+16+3)] user_positions;
+  uint256[2**(32+16+3)] user_positions;
 
   constructor() public {
     assembly {
@@ -77,21 +76,13 @@ contract MerkleX {
     }
   }
 
-  function get_balance(uint32 user_id, uint16 token_id) constant returns (uint256) {
+  function get_balance(uint32 user_id, uint16 token_id) public constant returns (uint256) {
     uint256[1] memory return_value;
     assembly {
       let ptr := add(user_positions_slot, add(or(mul(user_id, 524288), mul(token_id, 8)), 4))
       mstore(return_value, sload(ptr))
       return(return_value, 32)
     }
-  }
-
-  function get_balance2(uint32 user_id, uint16 token_id) constant returns (uint256) {
-    return user_positions[user_id][token_id][4];
-  }
-
-  function set_balance2(uint32 user_id, uint16 token_id, uint256 balance) public {
-    user_positions[user_id][token_id][4] = balance;
   }
 
   /*
@@ -147,7 +138,12 @@ contract MerkleX {
         for {} lt(cursor, group_end) { cursor := add(cursor, SETTLE.BYTES) } {
           let settlement := mload(cursor)
 
-          let eth_qty := mul(SETTLE(settlement).eth_qty, exp(10, SETTLE(settlement).eth_qty_pow))
+          let eth_qty := 0
+          {
+            let eth_qty_sig := SETTLE(settlement).eth_qty
+            let eth_qty_pow := SETTLE(settlement).eth_qty_pow
+            eth_qty := mul(eth_qty_sig, exp(10, eth_qty_pow))
+          }
           let tkn_qty := mul(SETTLE(settlement).tkn_qty, exp(10, SETTLE(settlement).tkn_qty_pow))
 
           let is_long := SETTLE(settlement).is_long
@@ -171,10 +167,10 @@ contract MerkleX {
           mstore(collected_fees, add(mload(collected_fees), fee))
 
           // extract position pointers
-          /* 5 container + 16 token_id + 3 count */ 
-          let eth_balance_ptr := SETTLE(settlement).user_id(24)
-          let tkn_position_ptr := or(eth_balance_ptr, mul(token_id, 256))
-          eth_balance_ptr := add(eth_balance_ptr, 128)
+          /* 16 token_id + 3 count */ 
+          let eth_balance_ptr := add(user_positions_slot, SETTLE(settlement).user_id(19))
+          let tkn_position_ptr := or(eth_balance_ptr, mul(token_id, 8))
+          eth_balance_ptr := add(eth_balance_ptr, 4)
 
           // apply balance updates
           switch is_long
@@ -197,7 +193,7 @@ contract MerkleX {
                 sstore(eth_balance_ptr, sub(eth_balance, eth_sub))
               }
 
-              let tkn_balance_ptr := add(tkn_position_ptr, 128)
+              let tkn_balance_ptr := add(tkn_position_ptr, 4)
               let tkn_balance := sload(tkn_balance_ptr)
 
               // make sure user has enough token
@@ -209,7 +205,7 @@ contract MerkleX {
           }
           default {
             {
-              let tkn_balance_ptr := add(tkn_position_ptr, 128)
+              let tkn_balance_ptr := add(tkn_position_ptr, 4)
               sstore(tkn_balance_ptr, add(sload(tkn_balance_ptr), tkn_qty))
               let eth_balance := sload(eth_balance_ptr)
               let eth_change := add(eth_qty, fee)
