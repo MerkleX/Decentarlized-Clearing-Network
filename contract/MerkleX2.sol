@@ -75,6 +75,36 @@ contract MerkleX {
   }
 
   /*
+     GET_POS_RETURN_DEF {
+      is_long :  8,
+      is_loss :  8,
+      pnl     : 64,
+      eth_qty : 64,
+      tkn_qty : 64,
+      fees    : 32,
+     }
+  */
+
+  function get_position(uint32 user_id, uint16 token_id, bool first) public constant
+  returns (uint8 is_long, uint8 is_loss, uint64 pnl, uint64 eth_qty, uint64 tkn_qty, uint32 fees) {
+    assembly {
+      let ptr := add(user_positions_slot, or(mul(user_id, 524288), mul(token_id, 8)))
+      if iszero(first) {
+        ptr := add(ptr, 2)
+      }
+
+      let data := sload(ptr)
+
+      is_long := POSITION(data).is_long
+      is_loss := POSITION(data).is_loss
+      pnl := POSITION(data).pl_value
+      eth_qty := POSITION(data).eth_qty
+      tkn_qty := POSITION(data).tkn_qty
+      fees := POSITION(data).fees
+    }
+  }
+
+  /*
      WINDOW_HDR_DEF {
       token_id     : 16,
       count        :  8,
@@ -210,6 +240,7 @@ contract MerkleX {
           // Update position's total fee
           {
             // Note, don't care about overflow. If we do user will be happy.
+            // TODO: store in memory, better than all of these ORs and ANDs if cannot fit on stack
             let position_fees := and(add(POSITION(current_position).fees, fee), 0xFFFFFFFF)
             current_position := or(and(current_position, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000), position_fees)
           }
@@ -248,11 +279,9 @@ contract MerkleX {
                   profit := add(profit, gross)
                   position_eth_qty := 0
                 }
-                // Sold all tkn have more eth than cost
+                // Decrease position size in purchase amount for long
                 default {
-                  let loss := sub(eth_qty, position_eth_qty)
-                  profit := sub(profit, loss)
-                  position_eth_qty := 0
+                  position_eth_qty := sub(eth_qty, position_eth_qty)
                 }
 
                 position_is_long := 1
@@ -268,10 +297,9 @@ contract MerkleX {
                   position_eth_qty := 0
                 }
                 // Sold all tkn have more eth than cost
+                // Apply towards lowering capital cost of long
                 default {
-                  let gross := sub(eth_qty, position_eth_qty)
-                  profit := add(profit, gross)
-                  position_eth_qty := 0
+                  position_eth_qty := sub(eth_qty, position_eth_qty)
                 }
 
                 position_is_long := 0
@@ -314,14 +342,14 @@ contract MerkleX {
             }
           }
 
-          current_position := BUILD_POSITION{
+          current_position := BUILD_POSITION {
             0,
             position_is_long,
             rshift(profit, 255),
             and(profit, 0xFFFFFFFFFFFFFFFF),
             position_eth_qty,
             position_tkn_qty,
-            0
+            POSITION(current_position).fees
           }
 
           sstore(tkn_position_ptr, current_position)

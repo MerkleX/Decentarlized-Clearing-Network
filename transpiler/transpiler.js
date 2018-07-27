@@ -61,16 +61,17 @@ module.exports = function(source) {
   });
 
 
-  const arg_regex = /\s*(\w+|(\w+\([\(\)\w,\s]+\)))\s*(,|$)/;
-
   // Process builders
-  source = SourceProcessor(source, /BUILD_([A-Z_]+)\s*{([\(\)\w\s,]+)}(#MASK)?/, instance => {
+  source = SourceProcessor(source, /BUILD_([A-Z_]+)\s*{([\/\*\._\(\)\w\d\s,]+)}(#MASK)?/, instance => {
     const [ og, name, args_source, want_mask ] = instance;
+
+    console.error(name);
 
     const args = CommaParser(args_source);
 
     const def = defs[name];
     if (!def) {
+      console.error('could not find build def', name);
       return og;
     }
 
