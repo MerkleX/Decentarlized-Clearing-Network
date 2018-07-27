@@ -26,7 +26,7 @@ contract MerkleX {
       _padding         :  30,
       is_long          :   1,
       is_loss          :   1,
-      pl_value         :  64,
+      pnl_value        :  64,
       eth_qty          :  64,
       tkn_qty          :  64,
       fees             :  32,
@@ -97,7 +97,7 @@ contract MerkleX {
 
       is_long := POSITION(data).is_long
       is_loss := POSITION(data).is_loss
-      pnl := POSITION(data).pl_value
+      pnl := POSITION(data).pnl_value
       eth_qty := POSITION(data).eth_qty
       tkn_qty := POSITION(data).tkn_qty
       fees := POSITION(data).fees
@@ -121,6 +121,12 @@ contract MerkleX {
       tkn_qty      : 64,
 
       fee          : 32,
+     }
+
+     TMP_PROFIT_DEF {
+      sign : 1,
+      overflow : 191,
+      data : 64,
      }
    */
 
@@ -246,90 +252,49 @@ contract MerkleX {
           }
 
           let position_is_long := POSITION(current_position).is_long
-          // construct signed profit number
-          let profit := or(POSITION(current_position).pl_value, POSITION(current_position).is_loss(255))
-
           let position_eth_qty := POSITION(current_position).eth_qty
           let position_tkn_qty := POSITION(current_position).tkn_qty
 
-          switch eq(position_is_long, is_long)
-          // Different direction
-          case 0 {
+          // Tracked from position_is_long perspective
+          let profit := 0
 
-            // If tkn_qty >= position_tkn_qty we closed our position
+          switch eq(position_is_long, is_long)
+          /* if (position_is_long != is_long) */ case 0 {
 
             switch lt(tkn_qty, position_tkn_qty)
-            // Close position
-            case 0 {
-              // Note, tkn_qty >= position_tkn_qty
-
+            /* if (tkn_qty >= position_tkn_qty) */ case 0 {
               // Quantity in new position
               position_tkn_qty := sub(tkn_qty, position_tkn_qty)
+              position_is_long := and(not(position_is_long), 0x1)
 
-              // Apply profit / loss from closed position
-
-              switch position_is_long
-              // SHORT -> LONG
-              case 0 {
-                // Profit or loss?
-                switch lt(position_eth_qty, eth_qty)
-                // Purcahsed all tkn back and have left overs
-                case 0 {
-                  let gross := sub(position_eth_qty, eth_qty)
-                  profit := add(profit, gross)
-                  position_eth_qty := 0
-                }
-                // Decrease position size in purchase amount for long
-                default {
-                  position_eth_qty := sub(eth_qty, position_eth_qty)
-                }
-
-                position_is_long := 1
+              switch lt(eth_qty, position_eth_qty)
+              // Purcahsed all tkn back and have left overs
+              /* if (eth_qty >= position_eth_qty) { */ case 0 {
+                // New position is larger so we can swing over to it
+                // after decrementing by our current position
+                position_eth_qty := sub(eth_qty, position_eth_qty)
               }
-              // LONG -> SHORT
+              // Decrease position size in purchase amount for long
               default {
-                // Profit or loss?
-                switch lt(position_eth_qty, eth_qty)
-                // Sold all tkn have have cost left over
-                case 0 {
-                  let loss := sub(position_eth_qty, eth_qty)
-                  profit := sub(profit, loss)
-                  position_eth_qty := 0
-                }
-                // Sold all tkn have more eth than cost
-                // Apply towards lowering capital cost of long
-                default {
-                  position_eth_qty := sub(eth_qty, position_eth_qty)
-                }
+                // Old position is too large, need to log into profit/loss
 
-                position_is_long := 0
+                // position_eth_qty = cost to open position
+                // eth_qty = $ from selling tkn
+                // profit received from trade: eth_qty - position_eth_qty
+                // Note, opposite for short position
+                profit := sub(eth_qty, position_eth_qty)
               }
             }
             default {
+              // Decrease position
               position_tkn_qty := sub(position_tkn_qty, tkn_qty)
 
-              switch lt(position_eth_qty, eth_qty)
-              case 0 {
-                position_eth_qty := sub(position_eth_qty, eth_qty)
-              }
-              default {
-                switch position_is_long
-                // SHORT, don't have enough $ when buying back
-                case 0 {
-                  let loss := sub(eth_qty, position_eth_qty)
-                  profit := sub(profit, loss)
-                  position_eth_qty := 0
-                }
-                // LONG, sold and got more $ than started with
-                default {
-                  let gross := sub(eth_qty, position_eth_qty)
-                  profit := add(profit, gross)
-                  position_eth_qty := 0
-                }
+              if lt(position_eth_qty, eth_qty) {
+                profit := sub(eth_qty, position_eth_qty)
+                position_eth_qty := 0
               }
             }
           }
-          
           // Same direction
           default {
             position_eth_qty := and(add(position_eth_qty, eth_qty), 0xFFFFFFFFFFFFFFFF)
@@ -342,11 +307,20 @@ contract MerkleX {
             }
           }
 
+          if is_long {
+            profit := sub(0, profit)
+          }
+          profit := add(or(POSITION(current_position).is_loss(255), POSITION(current_position).pnl_value), profit)
+
+          if TMP_PROFIT(profit).overflow {
+            revert(0,0)
+          }
+
           current_position := BUILD_POSITION {
             0,
             position_is_long,
-            rshift(profit, 255),
-            and(profit, 0xFFFFFFFFFFFFFFFF),
+            TMP_PROFIT(profit).sign,
+            TMP_PROFIT(profit).data,
             position_eth_qty,
             position_tkn_qty,
             POSITION(current_position).fees
