@@ -1,5 +1,6 @@
 const ParseDefs = require('./def');
 const SourceProcessor = require('./source_processor');
+const CommaParser = require('./comma_parser');
 
 module.exports = function(source) {
   const defs = ParseDefs(source);
@@ -63,13 +64,10 @@ module.exports = function(source) {
   const arg_regex = /\s*(\w+|(\w+\([\(\)\w,\s]+\)))\s*(,|$)/;
 
   // Process builders
-  source = SourceProcessor(source, /BUILD_([A-Z_]+)\s*\(([\(\)\w\s,]+)\)(#MASK)?/, instance => {
+  source = SourceProcessor(source, /BUILD_([A-Z_]+)\s*{([\(\)\w\s,]+)}(#MASK)?/, instance => {
     const [ og, name, args_source, want_mask ] = instance;
 
-    const args = [];
-    SourceProcessor(args_source, arg_regex, arg_instance => {
-      args.push(arg_instance[1]);
-    });
+    const args = CommaParser(args_source);
 
     const def = defs[name];
     if (!def) {
@@ -82,8 +80,7 @@ module.exports = function(source) {
       return og;
     }
 
-    const expr = [];
-    const expr_post = [];
+    const or_parts = [];
 
     const attrs = def.attributes;
     for (let i = 0; i < attrs.length;) {
@@ -98,10 +95,10 @@ module.exports = function(source) {
 
       if (attr.end_offset === 256) {
         if (want_mask) {
-          expr.push(`and(/* ${attr.name} */ ${arg}, 0x${((1n << BigInt(attr.size)) - 1n).toString(16)}`);
+          or_parts.push(`and(/* ${attr.name} */ ${arg}, 0x${((1n << BigInt(attr.size)) - 1n).toString(16)}`);
         }
         else {
-          expr.push(arg);
+          or_parts.push(arg);
         }
 
         if (i < attrs.length) {
@@ -115,13 +112,26 @@ module.exports = function(source) {
 
       if (want_mask) {
         const mask = '0x' + (1n << BigInt(attr.size)).toString(16);
-        expr.push(`or(mul(and(/* ${attr.name} */ ${arg}, ${mask}), ${shift_mul}), `);
+        or_parts.push(`mul(and(/* ${attr.name} */ ${arg}, ${mask}), ${shift_mul})`);
       }
       else {
-        expr.push(`or(mul(/* ${attr.name} */ ${arg}, ${shift_mul}), `);
+        or_parts.push(`mul(/* ${attr.name} */ ${arg}, ${shift_mul})`);
       }
+    }
 
-      expr_post.push(')');
+    const expr = [];
+    const expr_post = [];
+
+    for (let i = 0; i < or_parts.length; ) {
+      const part = or_parts[i++];
+
+      if (i === or_parts.length) {
+        expr.push(part);
+      }
+      else {
+        expr.push(`or(${part}, `);
+        expr_post.push(')');
+      }
     }
 
     return expr.join('') + expr_post.join('');
