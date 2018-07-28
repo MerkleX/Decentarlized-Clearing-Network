@@ -10,16 +10,13 @@ contract MerkleX {
   uint256 fee_balance;
 
   /*
-     ALLOWANCE_DEF {
-      long_qty         :  64,
-      long_price       :  28,
-      long_price_pow   :   4,
-
-      short_qty        :  64,
-      short_price      :  28,
-      short_price_pow  :   4,
-
-      max_loss         :  64,
+     POS_LIMIT_DEF {
+      qty              :  64,
+      price            :  28,
+      price_pow        :   4,
+      expire_time      :  32,
+      max_eth_loss     :  64,
+      max_tkn_loss     :  64,
      }
 
      POSITION_DEF {
@@ -36,15 +33,15 @@ contract MerkleX {
   /*
   struct UserPosition {
     uint256 position_1;
-    uint256 allowance_1;
+    uint256 limit_1_long;
+    uint256 limit_1_short;
 
     uint256 position_2;
-    uint256 allowance_2;
+    uint256 limit_2_long;
+    uint256 limit_2_short;
 
     uint256 balance;
     uint256 _padding_1;
-    uint256 _padding_2;
-    uint256 _padding_3;
   }
   */
 
@@ -58,9 +55,11 @@ contract MerkleX {
     }
   }
 
+//  function set_position_limit(uint64 long_qty, uint32 long_price, uint8 long_price_pow, 
+
   function set_balance(uint32 user_id, uint16 token_id, uint64 new_balance) public {
     assembly {
-      let ptr := add(user_positions_slot, add(or(mul(user_id, 524288), mul(token_id, 8)), 4))
+      let ptr := add(user_positions_slot, add(or(mul(user_id, 524288), mul(token_id, 8)), 6))
       sstore(ptr, add(sload(ptr), new_balance))
     }
   }
@@ -68,7 +67,7 @@ contract MerkleX {
   function get_balance(uint32 user_id, uint16 token_id) public constant returns (uint256) {
     uint256[1] memory return_value;
     assembly {
-      let ptr := add(user_positions_slot, add(or(mul(user_id, 524288), mul(token_id, 8)), 4))
+      let ptr := add(user_positions_slot, add(or(mul(user_id, 524288), mul(token_id, 8)), 6))
       mstore(return_value, sload(ptr))
       return(return_value, 32)
     }
@@ -112,7 +111,7 @@ contract MerkleX {
 
      SETTLE_DEF {
       is_long      :  1,
-      allowance_id :  1,
+      limit_id     :  1,
       _padding     :  6,
 
       user_id      : 32,
@@ -188,7 +187,7 @@ contract MerkleX {
             /* shift of 19 because 16 bits for token_id + 3 bits for data space */ 
             let eth_balance_ptr := add(user_positions_slot, SETTLE(settlement).user_id(19))
             tkn_position_ptr := or(eth_balance_ptr, tkn_position_ptr)
-            eth_balance_ptr := add(eth_balance_ptr, 4)
+            eth_balance_ptr := add(eth_balance_ptr, 6)
 
             switch is_long
             case 0 {
@@ -210,7 +209,7 @@ contract MerkleX {
                   sstore(eth_balance_ptr, sub(eth_balance, eth_sub))
                 }
 
-                let tkn_balance_ptr := add(tkn_position_ptr, 4)
+                let tkn_balance_ptr := add(tkn_position_ptr, 6)
                 let tkn_balance := sload(tkn_balance_ptr)
 
                 // make sure user has enough token
@@ -221,24 +220,23 @@ contract MerkleX {
               }
             }
             default {
-              {
-                let tkn_balance_ptr := add(tkn_position_ptr, 4)
-                sstore(tkn_balance_ptr, add(sload(tkn_balance_ptr), tkn_qty))
-                let eth_balance := sload(eth_balance_ptr)
-                let eth_change := add(eth_qty, fee)
-                if lt(eth_balance, eth_change) {
-                  revert(0,0)
-                }
-                sstore(eth_balance_ptr, sub(eth_balance, eth_change))
+              let tkn_balance_ptr := add(tkn_position_ptr, 6)
+              sstore(tkn_balance_ptr, add(sload(tkn_balance_ptr), tkn_qty))
+              let eth_balance := sload(eth_balance_ptr)
+              let eth_change := add(eth_qty, fee)
+              if lt(eth_balance, eth_change) {
+                revert(0,0)
               }
+              sstore(eth_balance_ptr, sub(eth_balance, eth_change))
             }
           }
 
           // UPDATE POSITION
 
           // point into position
-          if SETTLE(settlement).allowance_id {
-            tkn_position_ptr := add(tkn_position_ptr, 2)
+          let limit_id := SETTLE(settlement).limit_id
+          if limit_id {
+            tkn_position_ptr := add(tkn_position_ptr, 3)
           }
 
           let current_position := sload(tkn_position_ptr)
@@ -327,6 +325,19 @@ contract MerkleX {
           }
 
           sstore(tkn_position_ptr, current_position)
+
+          let position_limit := add(tkn_position_ptr, 1)
+          if limit_id {
+            position_limit := add(position_limit, 1)
+          }
+
+          position_limit := sload(position_limit)
+
+          // Ensure position size is under limit
+          if gt(position_tkn_qty, POS_LIMIT_DEF(position_limit).qty) {
+            revert(0, 0)
+          }
+
 
           /* 
              check against allowance
