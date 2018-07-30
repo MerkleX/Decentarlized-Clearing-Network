@@ -326,25 +326,66 @@ contract MerkleX {
 
           sstore(tkn_position_ptr, current_position)
 
-          let position_limit := add(tkn_position_ptr, 1)
-          if limit_id {
-            position_limit := add(position_limit, 1)
+          let position_limit := tkn_position_ptr
+          {
+            switch is_long
+            case 0 {
+              position_limit := add(position_limit, 2)
+            }
+            default {
+              position_limit := add(position_limit, 1)
+            }
+            position_limit := sload(position_limit)
           }
 
-          position_limit := sload(position_limit)
-
           // Ensure position size is under limit
-          if gt(position_tkn_qty, POS_LIMIT_DEF(position_limit).qty) {
+          if gt(position_tkn_qty, POS_LIMIT(position_limit).qty) {
             revert(0, 0)
           }
 
+          switch is_long
+          case 0 {
+            let max_loss := POS_LIMIT(position_limit).max_eth_loss
+            if gt(position_eth_qty, max_loss) {
+              position_eth_qty := sub(position_eth_qty, max_loss)
 
-          /* 
-             check against allowance
-             update memory totals
-             update user balance
-             update position
-          */
+              let pos_price := div(
+                mul(position_tkn_qty, exp(10, POS_LIMIT(position_limit).price_pow)),
+                position_eth_qty
+              )
+              if gt(pos_price, POS_LIMIT(position_limit).price) {
+                revert(0, 0)
+              }
+            }
+          }
+          default {
+            let max_loss := POS_LIMIT(position_limit).max_tkn_loss
+            if gt(position_tkn_qty, max_loss) {
+              position_tkn_qty := sub(position_tkn_qty, max_loss)
+
+              let pos_price := div(
+                mul(position_tkn_qty, exp(10, POS_LIMIT(position_limit).price_pow)),
+                position_eth_qty
+              )
+              if lt(pos_price, POS_LIMIT(position_limit).price) {
+                revert(0, 0)
+              }
+            }
+          }
+
+          if gt(mul(POS_LIMIT(position_limit).expire_time, 1000), timestamp) {
+            revert(0, 0)
+          }
+        }
+
+        // Ensure group nets to 0
+
+        if not(eq(mload(total_eth_ptr), mload(add(total_eth_ptr, 32)))) {
+          revert(0, 0)
+        }
+
+        if not(eq(mload(total_tkn_ptr), mload(add(total_tkn_ptr, 32)))) {
+          revert(0, 0)
         }
       }
     }
