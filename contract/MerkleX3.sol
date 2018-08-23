@@ -21,6 +21,9 @@ contract MerkleX {
   */
 
   /*
+
+    TODO: Need to have update_nonce unique for each position limit
+    
      SESSION_DEF {
       user_id           :  32,
       exchange_id       :  32,
