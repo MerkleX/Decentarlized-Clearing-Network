@@ -11,6 +11,18 @@ repositories {
     mavenCentral()
 }
 
+sourceSets {
+    main {
+        java {
+            srcDirs += 'src/main/generated'
+        }
+    }
+}
+
+ext.web3jVersion = '3.5.0'
+
 dependencies {
+    compile group: 'org.web3j', name: 'core', version: web3jVersion
+    testCompile group: 'org.web3j', name: 'codegen', version: web3jVersion
     testCompile group: 'junit', name: 'junit', version: '4.12'
 }
