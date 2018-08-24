@@ -30,7 +30,7 @@ module.exports = function(source) {
       const value = 1n << (-shift);
       const mask = ((1n << BigInt(attr.size)) - 1n) << offset;
 
-      const word_part = shift == 0 ? word : `mul(${word}, 0x${value.toString(16)})`;
+      const word_part = shift === 0 ? word : `mul(${word}, 0x${value.toString(16)})`;
       const res = `and(${word_part}, 0x${mask.toString(16)})`;
       return `/* ${og} */ ${res}`;
     }
@@ -38,7 +38,7 @@ module.exports = function(source) {
       const value = 1n << shift;
       const mask = ((1n << BigInt(attr.size)) - 1n) << offset;
 
-      const word_part = shift == 0 ? word : `div(${word}, 0x${value.toString(16)})`;
+      const word_part = shift === 0 ? word : `div(${word}, 0x${value.toString(16)})`;
       const res = `and(${word_part}, 0x${mask.toString(16)})`;
       return `/* ${og} */ ${res}`;
     }
