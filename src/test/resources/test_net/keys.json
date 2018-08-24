@@ -1,22 +1,22 @@
-[
-  {
+{
+  "bob": {
     "address": "0x09332b1e45e6172fb26e46b3db4411201547560a",
     "private_key": "0xb94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
   },
-  {
+  "alice": {
     "address": "0x88ca9ddbc51a904dcaa5c4d1f8f65f3b2347fed8",
     "private_key": "0xfb86b7f98924ee68e3c9847462f6f2d91afd1eb1d2c435a62232a103a0a5d76b"
   },
-  {
+  "jack": {
     "address": "0x322a85e6d2cafcc9115f1f35c69808ab9a034c54",
     "private_key": "0x23ddda4810068cc44360dffd31b6c5a9ad13fb9e6a69c9354a5d1b07f1b9843f"
   },
-  {
+  "henry": {
     "address": "0x84678cd88dd42419ad46fd259ba0cee3d9be7d82",
     "private_key": "0x527aa9f431539da8e151d5434d1d5e611d973f601d8e970790882624554146b0"
   },
-  {
+  "merkle": {
     "address": "0xe461b28af8b49ddb413ef8ecfe8104cd360d17ae",
     "private_key": "0xcc8321d6375c494d043fdd0260f21bc0ec51dacc9f6abb7f909cdcd3041b78bf"
   }
-]
+}

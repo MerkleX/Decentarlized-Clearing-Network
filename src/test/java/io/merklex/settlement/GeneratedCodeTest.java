@@ -33,8 +33,6 @@ public class GeneratedCodeTest {
             actual = actual.replaceFirst("package [\\w_.]+;", "");
             actual = actual.replaceFirst("(private static final String BINARY = \"[0-9abcdef]+)[0-9abcdef]{68}(\";)", "$1$2");
 
-            System.out.println(actual);
-
             Assert.assertEquals(expected, actual);
         } finally {
             Utils.DeleteDir(compareOut);
