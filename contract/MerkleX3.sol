@@ -66,7 +66,7 @@ contract MerkleX {
       asset_id          :  16,
      }
 
-     SESSION_DATA(18 words) {
+     SESSION_DATA(34 words) {
        0: SESSION
        1: ETHER_BALANCE
 
@@ -88,6 +88,22 @@ contract MerkleX {
       15: POS_LIMIT
       16: POSITION
       17: POS_LIMIT
+      18: POSITION
+      19: POS_LIMIT
+      20: POSITION
+      21: POS_LIMIT
+      22: POSITION
+      23: POS_LIMIT
+      24: POSITION
+      25: POS_LIMIT
+      26: POSITION
+      27: POS_LIMIT
+      28: POSITION
+      29: POS_LIMIT
+      30: POSITION
+      31: POS_LIMIT
+      32: POSITION
+      33: POS_LIMIT
      }
 
      GROUP_HEADER_DEF {
@@ -97,8 +113,8 @@ contract MerkleX {
 
      SETTLE_DEF {
       session_id        : 32,
-      position_id       :  3,
-      ether_fee         : 29,
+      position_id       :  4,
+      ether_fee         : 28,
       ether_qty         : 64,
       asset_qty         : 64,
      }
@@ -107,7 +123,7 @@ contract MerkleX {
   uint256[2**32] exchange_addresses;
   uint256[2**32] user_addresses;
   uint256[2**16] asset_addresses;
-  uint256[(2**32) * 18] sessions;
+  uint256[(2**32) * 34] sessions;
 
   constructor() public {
     assembly {
@@ -205,7 +221,7 @@ contract MerkleX {
           let settlement := mload(cursor)
 
           // Load position
-          let session_ptr := add(sessions, mul(SETTLE(settlement).session_id, /* position size */ 18))
+          let session_ptr := add(sessions, mul(SETTLE(settlement).session_id, /* position size */ 34))
           let position_ptr := add(session_ptr, add(2, mul(SETTLE(settlement).position_id, 2)))
           let position := mload(position_ptr)
 
