@@ -3,6 +3,7 @@ contract DCN {
 
     uint32 user_count;
     uint32 exchange_count;
+    uint16 asset_count;
 
     uint256[2 * (2 ** 32)] exchanges;
     uint256[2 ** 16] assets;
@@ -171,7 +172,6 @@ contract DCN {
           stop()
         }
 
-
         let exchange_ptr := add(exchanges_slot, mul(id, 2))
         let exchange_data := sload(exchange_ptr)
 
@@ -191,11 +191,56 @@ contract DCN {
       }
     }
 
-    function add_asset() public {
+    function add_asset(string symbol, uint64 unit_scale, address contract_address) public {
+      uint256[1] memory return_value;
+
+      assembly {
+        let creator_addr := sload(creator_slot)
+
+        if iszero(eq(address, creator_addr)) {
+          stop()
+        }
+
+        let asset_count := add(sload(asset_count_slot), 1)
+        if iszero(lt(asset_count, 65536)) {
+          stop()
+        }
+
+        let symbol_len := mload(symbol)
+        if iszero(eq(symbol_len, 4)) {
+          stop()
+        }
+
+        let asset_symbol := mload(add(symbol, 32))
+        let data := or(asset_symbol, BUILD_ASSET{ 0, unit_scale, contract_address })
+        sstore(add(assets_slot, asset_count), data)
+        sstore(asset_count_slot, asset_count)
+
+        mstore(return_value, asset_count)
+        log0(add(return_value, 30), 2)
+      }
     }
 
-    function add_user() public {
+    function get_asset(uint16 asset_id) public constant
+    returns (string symbol, uint64 unit_scale, address contract_address) {
+      uint256[5] memory return_value;
+
+      assembly {
+        let data := sload(add(assets_slot, asset_id))
+
+        mstore(return_value, 96)
+        mstore(add(return_value, 96), 4)
+        mstore(add(return_value, 128), data)
+
+        mstore(add(return_value, 32), ASSET(data).unit_scale)
+        mstore(add(return_value, 64), ASSET(data).address)
+
+        return(return_value, 132)
+      }
     }
+
+    // function add_user() public {
+    // }
 
     // function get_balance(uint32 user_id, uint8 asset_index) public constant returns (uint256) {
     //   uint256[1] memory return_value;
