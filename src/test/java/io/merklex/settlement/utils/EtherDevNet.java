@@ -2,10 +2,13 @@ package io.merklex.settlement.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.merklex.settlement.contracts.MerkleX;
+import io.merklex.settlement.contracts.DCN;
 import org.web3j.protocol.Web3j;
+import org.web3j.protocol.core.DefaultBlockParameterNumber;
 import org.web3j.protocol.core.RemoteCall;
+import org.web3j.protocol.core.methods.response.*;
 import org.web3j.protocol.ipc.UnixIpcService;
+import org.web3j.tuples.generated.Tuple3;
 
 import java.io.*;
 import java.math.BigInteger;
@@ -13,7 +16,6 @@ import java.math.BigInteger;
 public class EtherDevNet implements Closeable {
     private final Process geth;
     private final File networkDir;
-    private final String ipcPath;
 
     private final Web3j web3j;
 
@@ -21,7 +23,7 @@ public class EtherDevNet implements Closeable {
 
     public EtherDevNet() throws IOException, InterruptedException {
         networkDir = Utils.TempDir();
-        ipcPath = Utils.TempDir().getAbsolutePath();
+        String ipcPath = Utils.TempDir().getAbsolutePath();
 
         ProcessBuilder setupNetwork = new ProcessBuilder("geth",
                 "--datadir", networkDir.getAbsolutePath(),
@@ -52,7 +54,7 @@ public class EtherDevNet implements Closeable {
                 try {
                     int read = stream.read(buffer);
                     if (read > 0) {
-                        System.out.print(new String(buffer, 0, read));
+                        logs.append(new String(buffer, 0, read));
                     }
                 } catch (IOException e) {
                     break;
@@ -74,24 +76,36 @@ public class EtherDevNet implements Closeable {
 
     public static void main(String[] args) throws Exception {
         try (EtherDevNet net = new EtherDevNet()) {
+            Web3j web3 = net.web3j;
+            RemoteCall<DCN> merklex = DCN.deploy(web3, Keys.get("merkle"), BigInteger.ONE, BigInteger.valueOf(3000000));
+            DCN dcn = merklex.send();
             System.out.println("SETUP");
-            RemoteCall<MerkleX> merkle = MerkleX.deploy(net.web3j, Keys.get("merkle"), BigInteger.ONE, BigInteger.valueOf(3000000));
-            MerkleX merkleXContract = merkle.send();
-            System.out.println("DEPLOYED");
+
+            for (int i = 0; i < 3; i++) {
+                RemoteCall<TransactionReceipt> result = dcn.add_exchange("MerkleX     ", Keys.get("merkle").getAddress());
+                TransactionReceipt send1 = result.send();
+
+                System.out.println("Results");
+                for (Log log : send1.getLogs()) {
+                    System.out.println(log.getData());
+                }
+            }
+
+
+            Tuple3<String, String, BigInteger> send = dcn.get_exchange(BigInteger.valueOf(1)).send();
+//
+//            System.out.println("Queried");
         }
     }
 
     @Override
     public void close() {
-        System.out.println("STOP");
         geth.destroy();
         try {
-            System.out.println("WAIT");
             geth.waitFor();
         } catch (InterruptedException e) {
             geth.destroyForcibly();
         }
-        System.out.println("DELTE");
         Utils.DeleteDir(networkDir);
     }
 }

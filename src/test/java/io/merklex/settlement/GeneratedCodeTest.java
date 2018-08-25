@@ -16,7 +16,7 @@ public class GeneratedCodeTest {
 
         try {
             GenerateContractCode.ContractToJava(
-                    new File("src/main/resources/contract/MerkleX2.sol"),
+                    new File("src/main/resources/contract/DCN.sol"),
                     compareOut,
                     "out"
             );
@@ -29,7 +29,7 @@ public class GeneratedCodeTest {
             expected = expected.replaceFirst("package [\\w_.]+;", "");
             expected = expected.replaceFirst("(private static final String BINARY = \"[0-9abcdef]+)[0-9abcdef]{68}(\";)", "$1$2");
 
-            String actual = Utils.ReadAll(new FileInputStream("src/main/generated/io/merklex/settlement/contracts/MerkleX.java"));
+            String actual = Utils.ReadAll(new FileInputStream("src/main/generated/io/merklex/settlement/contracts/DCN.java"));
             actual = actual.replaceFirst("package [\\w_.]+;", "");
             actual = actual.replaceFirst("(private static final String BINARY = \"[0-9abcdef]+)[0-9abcdef]{68}(\";)", "$1$2");
 
@@ -41,7 +41,7 @@ public class GeneratedCodeTest {
 
     public static void main(String[] args) {
         GenerateContractCode.ContractToJava(
-                new File("src/main/resources/contract/MerkleX2.sol"),
+                new File("src/main/resources/contract/DCN.sol"),
                 new File("src/main/generated"),
                 "io.merklex.settlement.contracts"
         );
