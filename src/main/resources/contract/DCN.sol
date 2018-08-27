@@ -60,26 +60,26 @@ contract DCN {
    //
    // SESSION {
    //   0: SESSION_DEF
-   //   1: asset ids
-   //   2: ETHER_DEF
+   //   1: ETHER_DEF
    //
-   //   3: POSITION_DEF
-   //   4: LIMIT_DEF
+   //   2: POSITION_DEF
+   //   3: LIMIT_DEF
    //
-   //   5: POSITION_DEF
-   //   6: LIMIT_DEF
+   //   4: POSITION_DEF
+   //   5: LIMIT_DEF
    //
    //   ...
    //
-   //   31: POSITION_DEF
-   //   32: LIMIT_DEF
+   //   30: POSITION_DEF
+   //   31: LIMIT_DEF
    //
-   //   33: POSITION_DEF
-   //   34: LIMIT_DEF
+   //   32: POSITION_DEF
+   //   33: LIMIT_DEF
    // }
 
    SESSION_DEF {
-    _                 :  64,
+    _                 :  60,
+    position_count    :   4,
     user_id           :  32,
     exchange_id       :  32,
     max_ether_fees    :  64,
@@ -317,12 +317,9 @@ contract DCN {
   }
 
   function start_session(uint32 session_id, uint32 user_id,
-                         uint32 exchange_id, uint64 expire_time,
-                         uint256 asset_ids) public {
-    uint256[1] memory return_value;
-
+                         uint32 exchange_id, uint64 expire_time) public {
     assembly {
-      let session_ptr := add(sessions_slot, mul(session_id, 35))
+      let session_ptr := add(sessions_slot, mul(session_id, 34))
       let session_data := sload(session_ptr)
 
       if SESSION(session_data).expire_time {
@@ -330,10 +327,45 @@ contract DCN {
       }
 
       session_data := BUILD_SESSION {
+        0,
+        0,
         user_id,
         exchange_id,
         0,
         expire_time,
+      }
+
+      sstore(session_ptr, session_data)
+    }
+  }
+
+  function close_session(uint32 session_id) {
+    assembly {
+      let session_ptr := add(sessions_slot, mul(session_id, 35))
+      let session_data := sload(session_ptr)
+
+      // Session still active
+      if gt(SESSION(session_data).timestamp, timestamp) {
+        stop()
+      }
+
+      let user_ptr := add(users_slot, mul(SESSION(session_data).user_id, 65539))
+      let position_count := SESSION(session_data).position_count
+      let positions_ptr := add(session_ptr, 2)
+
+      let user_assets_ptr := add(user_ptr, 2)
+
+      // Extract balances and clear used data
+      for { let i := 0 } lt(i, position_count) { i := add(i, 1) } {
+        let position_ptr := add(positions_ptr, mul(i, 2))
+        let position_data := sload(position_ptr)
+
+        // Update user balance with asset_balance in position
+        let user_asset_ptr := add(user_assets_ptr, POSITION(position_data).asset_id)
+        sstore(user_asset_ptr, add(sload(user_asset_ptr), POSITION(position_data).asset_balance))
+
+        sstore(positions_ptr, 0)
+        sstore(add(position_ptr, 1), 0)
       }
     }
   }
