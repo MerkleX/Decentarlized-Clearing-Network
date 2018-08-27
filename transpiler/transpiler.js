@@ -62,7 +62,7 @@ module.exports = function(source) {
 
 
   // Process builders
-  source = SourceProcessor(source, /BUILD_([A-Z_]+)\s*{([\/\*\._\(\)\w\d\s,]+)}(#MASK)?/, instance => {
+  source = SourceProcessor(source, /BUILD_([A-Z_]+)\s*{(["\/\*\._\(\)\w\d\s,]+)}(#MASK)?/, instance => {
     const [ og, name, args_source, want_mask ] = instance;
 
     console.error(name);
