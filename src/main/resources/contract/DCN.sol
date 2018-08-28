@@ -87,7 +87,8 @@ contract DCN {
    }
 
    ETHER_DEF {
-    _                 : 192,
+    _                 :  32,
+    trade_address     : 160,
     balance           :  64,
    }
 
@@ -325,6 +326,19 @@ contract DCN {
     }
   }
 
+  function update_user_trade_addresses(uint32 user_id, address trade_address) public {
+    assembly {
+      let user_ptr := add(users_slot, mul(user_id, 65539))
+
+      let manage_address := sload(user_ptr)
+      if iszero(eq(manage_address, caller)) {
+        stop()
+      }
+
+      sstore(add(user_ptr, 1), trade_address)
+    }
+  }
+
   function deposit_eth(uint32 user_id, bool check_self) public payable {
     assembly {
       let user_ptr := add(users_slot, mul(user_id, 65539))
@@ -347,6 +361,51 @@ contract DCN {
       let current_balance := sload(eth_ptr)
 
       sstore(eth_ptr, add(current_balance, callvalue))
+    }
+  }
+
+  function withdraw_eth(uint32 user_id, address destination, bool check_self, uint256 quantity) public {
+    uint256[1] memory empty_return;
+
+    assembly {
+      let user_ptr := add(users_slot, mul(user_id, 65539))
+
+      // Authenticate caller
+      let manage_address := sload(user_ptr)
+      if iszero(eq(manage_address, caller)) {
+        stop()
+      }
+
+      // Do we want to withdraw to self
+      if and(check_self, iszero(eq(manage_address, check_self))) {
+        stop()
+      }
+
+      // Do we have enough balance
+      let ether_ptr := add(user_ptr, 2)
+      let ether_balance := sload(ether_ptr)
+      if gt(quantity, ether_balance) {
+        stop()
+      }
+
+      // Update balance
+      sstore(ether_ptr, sub(ether_balance, quantity))
+
+      // Send funds
+      let result := call(
+        /* do not forward any gas, use min for transfer */
+        0,
+        destination,
+        quantity,
+        empty_return,
+        0,
+        empty_return,
+        0
+      )
+
+      if iszero(result) {
+        revert(0, 0)
+      }
     }
   }
 
@@ -399,6 +458,11 @@ contract DCN {
       }
 
       sstore(session_ptr, session_data)
+      sstore(add(session_ptr, 1), BUILD_ETHER {
+        /* padding */ 0,
+        /* trade_address */ sload(add(user_ptr, 1)),
+        /* ether_balance */ 0
+      })
     }
   }
 

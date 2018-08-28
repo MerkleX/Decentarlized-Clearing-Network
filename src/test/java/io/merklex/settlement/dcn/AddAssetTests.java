@@ -10,7 +10,7 @@ import org.web3j.tuples.generated.Tuple3;
 import java.math.BigInteger;
 import java.util.List;
 
-public class AssetTests extends TestBase {
+public class AddAssetTests extends TestBase {
     @Test
     public void etherShouldAlreadyExist() throws Exception {
         Tuple3<String, BigInteger, String> asset = dcn.get_asset(BigInteger.valueOf(0)).send();
