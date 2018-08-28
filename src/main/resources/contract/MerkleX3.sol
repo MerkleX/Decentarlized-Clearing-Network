@@ -312,7 +312,7 @@ contract MerkleX {
           let pos_ether_balance := ETHER_BALANCE(ether_balance).ether_balance
           pos_ether_balance := add(pos_ether_balance, ether_qty)
 
-          // Did ether balance overflow?
+          // Did dcn balance overflow?
           if gt(pos_ether_balance, 0x7FFFFFFFFFFFFFFF) {
             revert(0, 0)
           }
