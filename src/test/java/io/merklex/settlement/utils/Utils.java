@@ -31,6 +31,9 @@ public class Utils {
     }
 
     public static void DeleteDir(File file) {
+        if (!file.exists()) {
+            return;
+        }
         try {
             Files.walk(file.toPath())
                     .sorted(Comparator.reverseOrder())

@@ -1,8 +1,10 @@
-package io.merklex.settlement.utils;
+package io.merklex.settlement.networks;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.merklex.settlement.contracts.DCN;
+import io.merklex.settlement.utils.Genesis;
+import io.merklex.settlement.utils.Utils;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.RemoteCall;
 import org.web3j.protocol.core.methods.response.Log;
@@ -10,11 +12,14 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.ipc.UnixIpcService;
 import org.web3j.tuples.generated.Tuple3;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class EtherDevNet implements Closeable {
+public class EtherPrivateNet implements Web3Provider {
     private final Process geth;
     private final File networkDir;
 
@@ -22,7 +27,7 @@ public class EtherDevNet implements Closeable {
 
     private final StringBuilder logs = new StringBuilder();
 
-    public EtherDevNet() throws IOException, InterruptedException {
+    public EtherPrivateNet() throws IOException, InterruptedException {
         networkDir = Utils.TempDir();
         String ipcPath = Utils.TempDir().getAbsolutePath();
 
@@ -88,13 +93,13 @@ public class EtherDevNet implements Closeable {
     }
 
     public static void main(String[] args) throws Exception {
-        try (EtherDevNet net = new EtherDevNet()) {
-            RemoteCall<DCN> merklex = DCN.deploy(net.web3(), Keys.get("merkle"), BigInteger.ONE, BigInteger.valueOf(3000000));
+        try (EtherPrivateNet net = new EtherPrivateNet()) {
+            RemoteCall<DCN> merklex = DCN.deploy(net.web3(), Genesis.GetKey("merkle"), BigInteger.ONE, BigInteger.valueOf(3000000));
             DCN dcn = merklex.send();
             System.out.println("SETUP");
 
             for (int i = 0; i < 3; i++) {
-                RemoteCall<TransactionReceipt> result = dcn.add_exchange("MerkleX     ", Keys.get("merkle").getAddress());
+                RemoteCall<TransactionReceipt> result = dcn.add_exchange("MerkleX     ", Genesis.GetKey("merkle").getAddress());
                 TransactionReceipt send1 = result.send();
 
                 System.out.println("Results");
