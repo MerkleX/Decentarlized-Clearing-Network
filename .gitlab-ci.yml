@@ -1,0 +1,9 @@
+image: merklex/java8-jdk
+
+tests:
+  stage: test
+  script:
+  - ./gradlew test
+  artifacts:
+    reports:
+      junit: build/test-results/test/*.xml
