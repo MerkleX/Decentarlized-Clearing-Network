@@ -638,4 +638,82 @@ contract DCN {
       }
     }
   }
+
+  /*
+    WITHDRAW_DEF {
+      session_id  :  32,
+      _padding_1  :   4,
+      position_id :   4,
+      quantity    :  64,
+      _padding_2  : 152,
+    }
+  */
+
+  function process_withdraws(bytes requests) {
+    assembly {
+      let end := mload(requests)
+      let cursor := add(requests, 32)
+      end := add(cursor, end)
+
+      for {} lt(cursor, end) { cursor := add(cursor, 13) } {
+        let data := mload(cursor)
+
+        let session_id := WITHDRAW(data).session_id
+        let position_id := WITHDRAW(data).position_id
+        let quantity := WITHDRAW(data).quantity
+
+        let session_ptr := add(sessions_slot, mul(session_id, 34))
+        let session_data := sload(session_ptr)
+
+        let user_ptr := add(users_slot, mul(SESSION(session_data).user_id, 65539))
+
+        switch position_id
+        // Ethereum
+        case 0 {
+          let ether_ptr := add(session_ptr, 1)
+          let ether_balance := sload(ether_ptr)
+
+          if gt(quantity, ether_balance) {
+            revert(0, 0)
+          }
+
+          // Decrement balance from position
+          sstore(ether_ptr, sub(ether_balance, quantity))
+
+          // TODO, think about overflow
+
+          let user_ether_ptr := add(user_ptr, 2)
+          let amount := mul(quantity, 100000000)
+          sstore(user_ether_ptr, add(sload(user_ether_ptr), amount))
+        }
+        // Asset (not ethereum)
+        default {
+          if gt(position_id, SESSION(session_data).position_count) {
+            revert(0, 0)
+          }
+
+          let position_ptr := add(session_ptr, mul(position_id, 2))
+          let position_data := sload(position_ptr)
+          let position_balance := POSITION(position_data).asset_balance
+
+          if gt(quantity, position_balance) {
+            revert(0, 0)
+          }
+
+          // Decrement balance from position
+          position_balance := sub(position_balance, quantity)
+          position_data := and(position_data, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
+          position_data := or(position_data, position_balance)
+          sstore(position_ptr, position_data)
+
+          let asset_id := POSITION(position_data).asset_id
+          let asset_data := sload(add(assets_slot, asset_id))
+          let amount := mul(quantity, ASSET(asset_data).unit_scale)
+
+          let user_asset_ptr := add(add(user_ptr, 2), asset_id)
+          sstore(user_asset_ptr, add(sload(user_asset_ptr), amount))
+        }
+      }
+    }
+  }
 }
