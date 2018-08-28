@@ -1,4 +1,4 @@
-image: merklex/java8-jdk
+image: merklex/ether-test-base
 
 tests:
   stage: test
