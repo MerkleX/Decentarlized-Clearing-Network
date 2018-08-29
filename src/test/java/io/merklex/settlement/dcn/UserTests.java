@@ -29,6 +29,10 @@ public class UserTests {
             String henryAddress = Genesis.GetKey("henry").getAddress();
             String aliceAddress = Genesis.GetKey("alice").getAddress();
 
+            it("user count should be zero", () -> {
+                Assert.assertEquals(BigInteger.ZERO, bob.get_user_count().send());
+            });
+
             describe("should able to add user with same management and trade key", () -> {
                 it("should add user with id 0", () -> {
                     TransactionReceipt receipt = bob.add_user(bobAddress, bobAddress).send();
@@ -36,6 +40,10 @@ public class UserTests {
                     List<Log> logs = receipt.getLogs();
                     Assert.assertEquals(1, logs.size());
                     Assert.assertEquals("0x00000000", logs.get(0).getData());
+                });
+
+                it("user count should now be 1", () -> {
+                    Assert.assertEquals(BigInteger.valueOf(1), bob.get_user_count().send());
                 });
 
                 it("should be able to query user", () -> {
@@ -52,6 +60,10 @@ public class UserTests {
                     List<Log> logs = receipt.getLogs();
                     Assert.assertEquals(1, logs.size());
                     Assert.assertEquals("0x00000001", logs.get(0).getData());
+                });
+
+                it("user count should now be 2", () -> {
+                    Assert.assertEquals(BigInteger.valueOf(2), bob.get_user_count().send());
                 });
 
                 it("should be able to query user", () -> {
@@ -79,6 +91,10 @@ public class UserTests {
                         Tuple2<String, String> user = bob.get_user(BigInteger.valueOf(0)).send();
                         Assert.assertEquals(bobAddress, user.getValue1());
                         Assert.assertEquals(aliceAddress, user.getValue2());
+                    });
+
+                    it("user count should still be 2", () -> {
+                        Assert.assertEquals(BigInteger.valueOf(2), bob.get_user_count().send());
                     });
                 });
 
