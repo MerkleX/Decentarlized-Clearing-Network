@@ -45,5 +45,11 @@ public class GeneratedCodeTest {
                 new File("src/main/generated"),
                 "io.merklex.settlement.contracts"
         );
+
+        GenerateContractCode.ContractToJava(
+                new File("src/test/resources/contracts/ERC20.sol"),
+                new File("src/test/generated"),
+                "io.merklex.settlement.contracts"
+        );
     }
 }

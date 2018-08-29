@@ -17,6 +17,11 @@ sourceSets {
             srcDirs += 'src/main/generated'
         }
     }
+    test {
+        java {
+            srcDirs += 'src/test/generated'
+        }
+    }
 }
 
 ext.web3jVersion = '3.5.0'

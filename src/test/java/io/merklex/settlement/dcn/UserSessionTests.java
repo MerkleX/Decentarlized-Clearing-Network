@@ -7,7 +7,6 @@ import io.merklex.settlement.utils.Genesis;
 import org.junit.Assert;
 import org.junit.runner.RunWith;
 import org.web3j.crypto.Credentials;
-import org.web3j.protocol.core.RemoteCall;
 import org.web3j.tuples.generated.Tuple7;
 
 import java.math.BigInteger;

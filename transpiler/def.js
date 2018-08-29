@@ -8,7 +8,7 @@ module.exports = function(source) {
   const def_regex_all = new RegExp(def_regex, 'g');
   const def_attr_regex_all = new RegExp(def_attr_regex, 'g');
 
-  const defs = source.match(def_regex_all);
+  const defs = source.match(def_regex_all) || [];
 
   const def_res = {};
 
