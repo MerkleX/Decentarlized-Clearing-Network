@@ -178,11 +178,6 @@ contract DCN {
     uint256[5] memory return_value;
 
     assembly {
-      let exchange_count := sload(exchange_count_slot)
-      if iszero(lt(id, exchange_count)) {
-        stop()
-      }
-
       let exchange_ptr := add(exchanges_slot, mul(id, 2))
       let exchange_data := sload(exchange_ptr)
 
