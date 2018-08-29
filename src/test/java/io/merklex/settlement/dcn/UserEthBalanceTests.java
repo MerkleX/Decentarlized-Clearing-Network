@@ -14,7 +14,7 @@ import static com.greghaskins.spectrum.dsl.specification.Specification.*;
 import static io.merklex.settlement.utils.BetterAssert.assertEquals;
 
 @RunWith(Spectrum.class)
-public class UserBalanceTests {
+public class UserEthBalanceTests {
     {
         StaticNetwork.DescribeCheckpoint();
 
