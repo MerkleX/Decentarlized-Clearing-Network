@@ -377,7 +377,7 @@ contract DCN {
       }
 
       // Do we want to withdraw to self
-      if and(check_self, iszero(eq(manage_address, check_self))) {
+      if and(check_self, iszero(eq(manage_address, destination))) {
         stop()
       }
 

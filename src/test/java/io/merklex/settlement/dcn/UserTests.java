@@ -1,10 +1,10 @@
 package io.merklex.settlement.dcn;
 
+import com.greghaskins.spectrum.Spectrum;
 import io.merklex.settlement.contracts.DCN;
 import io.merklex.settlement.utils.Genesis;
 import org.junit.Assert;
-import org.junit.Test;
-import org.web3j.crypto.Credentials;
+import org.junit.runner.RunWith;
 import org.web3j.protocol.core.methods.response.Log;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.tuples.generated.Tuple2;
@@ -12,112 +12,106 @@ import org.web3j.tuples.generated.Tuple2;
 import java.math.BigInteger;
 import java.util.List;
 
-public class UserTests extends TestBase {
-    @Test
-    public void addUser() throws Exception {
-        DCN bob = StaticNetwork.DCN("bob");
-        String bobAddress = Genesis.GetKey("bob").getAddress();
+import static com.greghaskins.spectrum.dsl.specification.Specification.describe;
+import static com.greghaskins.spectrum.dsl.specification.Specification.it;
 
-        TransactionReceipt receipt = bob.add_user(bobAddress, bobAddress).send();
-        {
-            List<Log> logs = receipt.getLogs();
-            Assert.assertEquals(1, logs.size());
-            Assert.assertEquals("0x00000000", logs.get(0).getData());
-        }
+@RunWith(Spectrum.class)
+public class UserTests {
+    {
+        StaticNetwork.DescribeCheckpoint();
 
-        Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0)).send();
-        {
-            Assert.assertEquals(bobAddress, userData.getValue1());
-            Assert.assertEquals(bobAddress, userData.getValue2());
-        }
-    }
+        describe("add user", () -> {
+            DCN bob = StaticNetwork.DCN("bob");
+            DCN henry = StaticNetwork.DCN("henry");
+            DCN alice = StaticNetwork.DCN("alice");
 
-    @Test
-    public void addUserWithDifferentTradeKey() throws Exception {
-        DCN bob = StaticNetwork.DCN("bob");
-        String bobAddress = Genesis.GetKey("bob").getAddress();
-        String henryAddress = Genesis.GetKey("henry").getAddress();
+            String bobAddress = Genesis.GetKey("bob").getAddress();
+            String henryAddress = Genesis.GetKey("henry").getAddress();
+            String aliceAddress = Genesis.GetKey("alice").getAddress();
 
-        TransactionReceipt receipt = bob.add_user(bobAddress, henryAddress).send();
-        {
-            List<Log> logs = receipt.getLogs();
-            Assert.assertEquals(1, logs.size());
-            Assert.assertEquals("0x00000000", logs.get(0).getData());
-        }
+            describe("should able to add user with same management and trade key", () -> {
+                it("should add user with id 0", () -> {
+                    TransactionReceipt receipt = bob.add_user(bobAddress, bobAddress).send();
 
-        Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0)).send();
-        {
-            Assert.assertEquals(bobAddress, userData.getValue1());
-            Assert.assertEquals(henryAddress, userData.getValue2());
-        }
-    }
+                    List<Log> logs = receipt.getLogs();
+                    Assert.assertEquals(1, logs.size());
+                    Assert.assertEquals("0x00000000", logs.get(0).getData());
+                });
 
-    @Test
-    public void shouldNotBeAbleToAddUserWithDifferentManagementKey() throws Exception {
-        DCN bob = StaticNetwork.DCN("bob");
-        String bobAddress = Genesis.GetKey("bob").getAddress();
-        String henryAddress = Genesis.GetKey("henry").getAddress();
+                it("should be able to query user", () -> {
+                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0)).send();
+                    Assert.assertEquals(bobAddress, userData.getValue1());
+                    Assert.assertEquals(bobAddress, userData.getValue2());
+                });
+            });
 
-        TransactionReceipt receipt = bob.add_user(henryAddress, bobAddress).send();
-        {
-            Assert.assertEquals(0, receipt.getLogs().size());
-        }
+            describe("should able to add user with different management and trade key", () -> {
+                it("should add user with id 0", () -> {
+                    TransactionReceipt receipt = bob.add_user(bobAddress, henryAddress).send();
 
-        Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0)).send();
-        {
-            Assert.assertEquals("0x0000000000000000000000000000000000000000", userData.getValue1());
-            Assert.assertEquals("0x0000000000000000000000000000000000000000", userData.getValue2());
-        }
-    }
+                    List<Log> logs = receipt.getLogs();
+                    Assert.assertEquals(1, logs.size());
+                    Assert.assertEquals("0x00000001", logs.get(0).getData());
+                });
 
-    @Test
-    public void changeTradeAddress() throws Exception {
-        addUser();
+                it("should be able to query user", () -> {
+                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(1)).send();
+                    Assert.assertEquals(bobAddress, userData.getValue1());
+                    Assert.assertEquals(henryAddress, userData.getValue2());
+                });
 
-        DCN bob = StaticNetwork.DCN("bob");
-        Credentials alice = Genesis.GetKey("alice");
-        bob.update_user_trade_addresses(BigInteger.valueOf(0), alice.getAddress()).send();
+                it("first user should not be modified", () -> {
+                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0)).send();
+                    Assert.assertEquals(bobAddress, userData.getValue1());
+                    Assert.assertEquals(bobAddress, userData.getValue2());
+                });
+            });
 
-        Tuple2<String, String> user = bob.get_user(BigInteger.valueOf(0)).send();
-        {
-            Assert.assertEquals(Genesis.GetKey("bob").getAddress(), user.getValue1());
-            Assert.assertEquals(alice.getAddress(), user.getValue2());
-        }
-    }
+            describe("update user trade address", () -> {
+                describe("should be able to update", () -> {
+                    StaticNetwork.DescribeCheckpoint();
 
-    @Test
-    public void onlyManagerAddressCanUpdate() throws Exception {
-        addUser();
+                    it("update address", () -> {
+                        bob.update_user_trade_addresses(BigInteger.valueOf(0), aliceAddress).send();
+                    });
 
-        DCN bob = StaticNetwork.DCN("bob");
-        DCN alice = StaticNetwork.DCN("alice");
+                    it("update should be applied", () -> {
+                        Tuple2<String, String> user = bob.get_user(BigInteger.valueOf(0)).send();
+                        Assert.assertEquals(bobAddress, user.getValue1());
+                        Assert.assertEquals(aliceAddress, user.getValue2());
+                    });
+                });
 
-        Credentials bobKey = Genesis.GetKey("bob");
-        Credentials aliceKey = Genesis.GetKey("alice");
-        Credentials jackKey = Genesis.GetKey("jack");
+                describe("should be protected", () -> {
+                    it("should not be able to update user 1", () -> {
+                        alice.update_user_trade_addresses(BigInteger.valueOf(1), bobAddress).send();
 
-        alice.update_user_trade_addresses(BigInteger.valueOf(0), aliceKey.getAddress()).send();
+                        Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(1)).send();
+                        Assert.assertEquals(bobAddress, userData.getValue1());
+                        Assert.assertEquals(henryAddress, userData.getValue2());
 
-        Tuple2<String, String> user = bob.get_user(BigInteger.valueOf(0)).send();
-        {
-            Assert.assertEquals(bobKey.getAddress(), user.getValue1());
-            Assert.assertEquals(bobKey.getAddress(), user.getValue2());
-        }
+                        henry.update_user_trade_addresses(BigInteger.valueOf(1), bobAddress).send();
 
-        bob.update_user_trade_addresses(BigInteger.valueOf(0), aliceKey.getAddress()).send();
+                        userData = bob.get_user(BigInteger.valueOf(1)).send();
+                        Assert.assertEquals(bobAddress, userData.getValue1());
+                        Assert.assertEquals(henryAddress, userData.getValue2());
+                    });
 
-        user = bob.get_user(BigInteger.valueOf(0)).send();
-        {
-            Assert.assertEquals(Genesis.GetKey("bob").getAddress(), user.getValue1());
-            Assert.assertEquals(aliceKey.getAddress(), user.getValue2());
-        }
+                    it("should not be able to update user 0", () -> {
+                        alice.update_user_trade_addresses(BigInteger.valueOf(0), henryAddress).send();
 
-        alice.update_user_trade_addresses(BigInteger.valueOf(0), jackKey.getAddress()).send();
+                        Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0)).send();
+                        Assert.assertEquals(bobAddress, userData.getValue1());
+                        Assert.assertEquals(bobAddress, userData.getValue2());
 
-        user = bob.get_user(BigInteger.valueOf(0)).send();
-        {
-            Assert.assertEquals(Genesis.GetKey("bob").getAddress(), user.getValue1());
-            Assert.assertEquals(aliceKey.getAddress(), user.getValue2());
-        }
+                        henry.update_user_trade_addresses(BigInteger.valueOf(0), henryAddress).send();
+
+                        userData = bob.get_user(BigInteger.valueOf(0)).send();
+                        Assert.assertEquals(bobAddress, userData.getValue1());
+                        Assert.assertEquals(bobAddress, userData.getValue2());
+                    });
+                });
+            });
+        });
     }
 }
