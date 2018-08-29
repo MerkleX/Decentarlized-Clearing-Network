@@ -429,6 +429,8 @@ contract DCN {
 
       // Verify session is empty
 
+      // TODO: ensure expire_time is in the future and that not too far in the future (max 30 days)
+
       if SESSION(session_data).expire_time {
         stop()
       }
@@ -467,35 +469,52 @@ contract DCN {
   }
 
   function position_deposit(uint32 session_id, uint32 user_id, uint16 asset_id, uint8 position_id, uint64 quantity) {
+    uint256[1] memory exit_id;
+
     assembly {
       /*
        * Validate Input
        */
 
-      // Check for valid user_id
-      let asset_count := sload(asset_count_slot)
-      if gt(asset_id, asset_count) {
-        stop()
+      {
+        let asset_count := sload(asset_count_slot)
+        if gt(asset_id, asset_count) {
+          stop()
+        }
       }
 
       let user_ptr := add(users_slot, mul(user_id, 65539))
 
-      // Authenticate user
-      let manage_address := sload(user_ptr)
-      if iszero(eq(manage_address, caller)) {
-        stop()
+      {
+        // Authenticate user
+        let manage_address := sload(user_ptr)
+        if iszero(eq(manage_address, caller)) {
+
+          mstore(exit_id, 1)
+          log0(exit_id, 32)
+
+          stop()
+        }
       }
 
       let session_ptr := add(sessions_slot, mul(session_id, 34))
       let session_data := sload(session_ptr)
 
       // Ensure session is valid
-      if gt(SESSION(session_data).expire_time, timestamp) {
+      if gt(timestamp, SESSION(session_data).expire_time) {
+
+        mstore(exit_id, 2)
+        log0(exit_id, 32)
+
         stop()
       }
 
       // Autenticate session
       if iszero(eq(SESSION(session_data).user_id, user_id)) {
+
+        mstore(exit_id, 3)
+        log0(exit_id, 32)
+
         stop()
       }
 
@@ -511,6 +530,10 @@ contract DCN {
 
       // Ensure use has enough balance for deposit
       if gt(amount, user_balance) {
+
+        mstore(exit_id, 4)
+        log0(exit_id, 32)
+
         stop()
       }
 
@@ -524,23 +547,36 @@ contract DCN {
       if iszero(position_id) {
         // Asset id must be 0 (ETH)
         if asset_id {
+
+          mstore(exit_id, 5)
+          log0(exit_id, 32)
+
           stop()
         }
 
-        let session_eth_ptr := add(session_ptr, 1)
-        let current_balance := sload(session_eth_ptr)
+        let ether_ptr := add(session_ptr, 1)
+        let ether_data := sload(ether_ptr)
+        let current_balance := ETHER(ether_data).balance
 
         current_balance := add(current_balance, quantity)
 
         // Protect against overflow
         if gt(current_balance, /* 2^64 - 1 */ 0xffffffffffffffff) {
+
+          mstore(exit_id, 6)
+          log0(exit_id, 32)
+
           stop()
         }
 
         sstore(user_asset_ptr, new_user_balance)
-        sstore(session_eth_ptr, current_balance)
+        sstore(ether_ptr, or(and(ether_data, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000), current_balance))
 
         // TODO: log about success
+
+        mstore(exit_id, 7)
+        log0(exit_id, 32)
+
         stop()
       }
 
@@ -548,6 +584,10 @@ contract DCN {
 
       // Cannot deposit into a position that doesn't exist
       if or(gt(position_id, position_count), gt(position_id, 16)) {
+
+        mstore(exit_id, 8)
+        log0(exit_id, 32)
+
         stop()
       }
 
@@ -575,6 +615,10 @@ contract DCN {
         })
 
         // TODO: log about success
+
+        mstore(exit_id, 9)
+        log0(exit_id, 32)
+
         stop()
       }
 
@@ -584,6 +628,10 @@ contract DCN {
 
       // Protect against overflow
       if gt(current_balance, /* 2^64 - 1 */ 0xffffffffffffffff) {
+
+        mstore(exit_id, 10)
+        log0(exit_id, 32)
+
         stop()
       }
 
@@ -593,13 +641,16 @@ contract DCN {
       sstore(user_asset_ptr, new_user_balance)
       sstore(position_ptr, position_data)
 
+      mstore(exit_id, 11)
+      log0(exit_id, 32)
+
       // TODO: log about success
     }
   }
 
   function get_session(uint32 session_id) public constant
-  returns (uint256 position_count, uint256 user_id, uint256 exchange_id, uint256 max_ether_fees, uint256 expire_time, uint256 ether_balance) {
-    uint256[6] memory return_values;
+  returns (uint256 position_count, uint256 user_id, uint256 exchange_id, uint256 max_ether_fees, uint256 expire_time, address trade_address, uint256 ether_balance) {
+    uint256[7] memory return_values;
 
     assembly {
       let session_ptr := add(sessions_slot, mul(session_id, 34))
@@ -610,9 +661,12 @@ contract DCN {
       mstore(add(return_values, 64), SESSION(session_data).exchange_id)
       mstore(add(return_values, 96), SESSION(session_data).max_ether_fees)
       mstore(add(return_values, 128), SESSION(session_data).expire_time)
-      mstore(add(return_values, 160), sload(add(session_ptr, 1)))
 
-      return(return_values, 192)
+      let ether_data := sload(add(session_ptr, 1))
+      mstore(add(return_values, 160), ETHER(ether_data).trade_address)
+      mstore(add(return_values, 192), ETHER(ether_data).balance)
+
+      return(return_values, 224)
     }
   }
 
