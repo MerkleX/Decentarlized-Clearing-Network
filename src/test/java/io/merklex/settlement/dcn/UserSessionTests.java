@@ -4,6 +4,7 @@ package io.merklex.settlement.dcn;
 import com.greghaskins.spectrum.Spectrum;
 import io.merklex.settlement.contracts.DCN;
 import io.merklex.settlement.utils.Genesis;
+import org.junit.Assert;
 import org.junit.runner.RunWith;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.core.RemoteCall;
@@ -13,6 +14,7 @@ import java.math.BigInteger;
 
 import static com.greghaskins.spectrum.dsl.specification.Specification.*;
 import static io.merklex.settlement.utils.BetterAssert.assertEquals;
+import static io.merklex.settlement.utils.BetterAssert.assertNotEquals;
 
 @RunWith(Spectrum.class)
 public class UserSessionTests {
@@ -40,8 +42,6 @@ public class UserSessionTests {
         });
 
         describe("start session", () -> {
-            System.out.println(expireTime);
-
             it("start session with id 123", () -> {
                 bob.start_session(BigInteger.valueOf(123), BigInteger.valueOf(0),
                         BigInteger.valueOf(0), expireTime).send();
@@ -96,12 +96,24 @@ public class UserSessionTests {
                 });
             });
 
-            describe("owner should not be able to close session", () -> {
+            describe("should not be able to close active session", () -> {
                 it("close session attempt", () -> {
-                    bob.close_session(BigInteger.valueOf(123));
+                    henry.close_session(BigInteger.valueOf(123));
                 });
 
-                it("session should be open", () -> {
+                it("session should be active", () -> {
+                    Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
+                    session = bob.get_session(BigInteger.valueOf(123)).send();
+                    assertEquals(expireTime, session.getValue5());
+                });
+            });
+
+            describe("owner should not be able to end session", () -> {
+                it("end session attempt", () -> {
+                    bob.end_session(BigInteger.valueOf(123));
+                });
+
+                it("session should be active", () -> {
                     Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
                     session = bob.get_session(BigInteger.valueOf(123)).send();
                     assertEquals(expireTime, session.getValue5());
@@ -109,29 +121,45 @@ public class UserSessionTests {
             });
 
             describe("rando should not be able to close session", () -> {
-                it("close session attempt", () -> {
-                    henry.close_session(BigInteger.valueOf(123));
+                it("end session attempt", () -> {
+                    henry.end_session(BigInteger.valueOf(123));
                 });
 
-                it("session should be open", () -> {
+                it("session should be active", () -> {
                     Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
                     session = bob.get_session(BigInteger.valueOf(123)).send();
                     assertEquals(expireTime, session.getValue5());
                 });
             });
 
-            // TODO
-//            describe("exchange should not be able to close session", () -> {
-//                it("close session", () -> {
-//                    StaticNetwork.DCN().close_session(BigInteger.valueOf(123));
-//                });
-//
-//                it("session should be closed", () -> {
-//                    Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
-//                    session = bob.get_session(BigInteger.valueOf(123)).send();
-//                    assertEquals(0, session.getValue5());
-//                });
-//            });
+            describe("exchange should be able to end session", () -> {
+                it("end session", () -> {
+                    StaticNetwork.DCN().end_session(BigInteger.valueOf(123)).send();
+                });
+
+                it("session should be closed", () -> {
+                    Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
+                    session = bob.get_session(BigInteger.valueOf(123)).send();
+                    assertNotEquals(expireTime, session.getValue5());
+
+                    Assert.assertTrue(session.getValue5().compareTo(expireTime) < 0);
+                    Assert.assertTrue(session.getValue5().compareTo(BigInteger.valueOf(System.currentTimeMillis() / 1000 + 1)) < 0);
+                });
+            });
+
+            describe("close expired session", () -> {
+                it("close session", () -> {
+                    henry.close_session(BigInteger.valueOf(123)).send();
+                });
+
+                it("session should be closed", () -> {
+                    Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
+                    session = bob.get_session(BigInteger.valueOf(123)).send();
+                    assertEquals(0, session.getValue5());
+                });
+
+                // TODO: check balances have been transferred over
+            });
         });
     }
 }

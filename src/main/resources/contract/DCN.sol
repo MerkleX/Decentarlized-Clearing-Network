@@ -78,7 +78,7 @@ contract DCN {
    // }
 
    SESSION_DEF {
-    _                 :  60,
+    turn_over         :  60,
     position_count    :   4,
     user_id           :  32,
     exchange_id       :  32,
@@ -726,33 +726,70 @@ contract DCN {
     }
   }
 
+  function end_session(uint32 session_id) public {
+    assembly {
+      let session_ptr := add(sessions_slot, mul(session_id, 34))
+      let session_data := sload(session_ptr)
+
+      // Check that caller is the exchange
+      {
+        let exchange_id := SESSION(session_data).exchange_id
+        let exchange_ptr := add(exchanges_slot, mul(exchange_id, 2))
+        let exchange_data := sload(exchange_ptr)
+
+        if iszero(eq(EXCHANGE(exchange_data).address, caller)) {
+          stop()
+        }
+      }
+
+      session_data := and(session_data, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
+      session_data := or(session_data, and(timestamp, 0xffffffffffffffff))
+      sstore(session_ptr, session_data)
+    }
+  }
+
   function close_session(uint32 session_id) public {
     assembly {
       let session_ptr := add(sessions_slot, mul(session_id, 34))
       let session_data := sload(session_ptr)
 
-      // Session still active
-      if gt(SESSION(session_data).expire_time, timestamp) {
+      // Cannot process if session is still active or closed
+      let session_expire_time := SESSION(session_data).expire_time
+      if or(gt(session_expire_time, timestamp), iszero(session_expire_time)) {
         stop()
       }
 
+      // Reset session
+      sstore(session_ptr, BUILD_SESSION{
+        add(SESSION(session_data).turn_over, 1),
+        0, 0, 0, 0, 0
+      })
+
       let user_ptr := add(users_slot, mul(SESSION(session_data).user_id, 65539))
+      let user_assets_ptr := add(user_ptr, 2)
+
+      // Update user's ether balance
+      let ether_balance := sload(user_assets_ptr)
+      let session_ether_data := sload(add(session_data, 1))
+      ether_balance := add(ether_balance, mul(ETHER(session_ether_data).balance, 100000000))
+      sstore(user_assets_ptr, ether_balance)
+
       let position_count := SESSION(session_data).position_count
       let positions_ptr := add(session_ptr, 2)
 
-      let user_assets_ptr := add(user_ptr, 2)
-
-      // Extract balances and clear used data
+      // Iterate through all positions and move balance to user
       for { let i := 0 } lt(i, position_count) { i := add(i, 1) } {
         let position_ptr := add(positions_ptr, mul(i, 2))
         let position_data := sload(position_ptr)
 
         // Update user balance with asset_balance in position
-        let user_asset_ptr := add(user_assets_ptr, POSITION(position_data).asset_id)
-        sstore(user_asset_ptr, add(sload(user_asset_ptr), POSITION(position_data).asset_balance))
+        let asset_id := POSITION(position_data).asset_id
+        let asset_data := sload(add(assets_slot, asset_id))
+        let asset_unit_scale := ASSET(asset_data).unit_scale
+        let user_asset_ptr := add(user_assets_ptr, asset_id)
 
-        sstore(positions_ptr, 0)
-        sstore(add(position_ptr, 1), 0)
+        let asset_balance := mul(POSITION(position_data).asset_balance, asset_unit_scale)
+        sstore(user_asset_ptr, add(sload(user_asset_ptr), asset_balance))
       }
     }
   }

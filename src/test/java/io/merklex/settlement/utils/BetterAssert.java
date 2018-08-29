@@ -11,6 +11,12 @@ public class BetterAssert {
         }
     }
 
+    public static void assertNotEquals(BigInteger expected, BigInteger actual) {
+        if (expected.compareTo(actual) == 0) {
+            Assert.assertNotEquals(expected, actual);
+        }
+    }
+
     public static void assertEquals(long expected, BigInteger actual) {
         assertEquals(BigInteger.valueOf(expected), actual);
     }
