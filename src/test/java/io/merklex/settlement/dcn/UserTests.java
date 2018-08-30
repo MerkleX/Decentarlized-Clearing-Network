@@ -35,7 +35,7 @@ public class UserTests {
 
             describe("should able to add user with same management and trade key", () -> {
                 it("should add user with id 0", () -> {
-                    TransactionReceipt receipt = bob.add_user(bobAddress, bobAddress).send();
+                    TransactionReceipt receipt = bob.add_user(bobAddress).send();
 
                     List<Log> logs = receipt.getLogs();
                     Assert.assertEquals(1, logs.size());
@@ -55,7 +55,7 @@ public class UserTests {
 
             describe("should able to add user with different management and trade key", () -> {
                 it("should add user with id 0", () -> {
-                    TransactionReceipt receipt = bob.add_user(bobAddress, henryAddress).send();
+                    TransactionReceipt receipt = bob.add_user(henryAddress).send();
 
                     List<Log> logs = receipt.getLogs();
                     Assert.assertEquals(1, logs.size());

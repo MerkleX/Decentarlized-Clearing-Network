@@ -8,6 +8,13 @@ import java.nio.file.Path;
 import java.util.Comparator;
 
 public class Utils {
+    public static String ToLargeHex(String hex) {
+        if (!hex.startsWith("0x")) {
+            throw new IllegalArgumentException();
+        }
+        return "0x" + "0000000000000000000000000000000000000000000000000000000000000000".substring(hex.length() - 2) + hex.substring(2);
+    }
+
     public static String ReadAll(InputStream stream) throws IOException {
         StringBuilder stringBuffer = new StringBuilder();
         byte[] buffer = new byte[1024];

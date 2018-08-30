@@ -32,7 +32,7 @@ public class UserSessionTests {
         BigInteger startBalance = BigInteger.valueOf(1000000).multiply(BigInteger.TEN.pow(8));
 
         beforeAll(() -> {
-            bob.add_user(bobKey.getAddress(), henryKey.getAddress()).send();
+            bob.add_user(henryKey.getAddress()).send();
             bob.deposit_eth(BigInteger.valueOf(0), true, startBalance).send();
             StaticNetwork.DCN().add_exchange("merklex     ", merkleKey.getAddress()).send();
 

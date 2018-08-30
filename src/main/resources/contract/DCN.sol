@@ -1,3 +1,5 @@
+pragma solidity ^0.4.24;
+
 contract DCN {
   uint256 creator;
 
@@ -119,6 +121,22 @@ contract DCN {
     asset_shift   :  64,
    }
   */
+
+//  event SessionStarted (
+//    uint32 session_id,
+//    uint32 indexed user_id,
+//    uint32 exchange_id
+//  );
+//
+//  event SessionEnded (
+//    uint32 indexed session_id,
+//    uint32 user_id,
+//    uint32 exchange_id
+//  );
+//
+//  event LimitUpdated (
+//    uint32 indexed session_id,
+//  )
 
   constructor() public {
       assembly {
@@ -265,15 +283,10 @@ contract DCN {
     }
   }
 
-  function add_user(address manage_address, address trade_address) public {
+  function add_user(address trade_address) public {
     uint256[1] memory return_value;
 
     assembly {
-      // Must be sent from manage address
-      if iszero(eq(manage_address, caller)) {
-        stop()
-      }
-
       // Do not overflow users
       let user_count := sload(user_count_slot)
       if gt(user_count, 4294967295 /* 2^32 - 1 */) {
@@ -282,7 +295,7 @@ contract DCN {
 
       // Store data
       let user_ptr := add(users_slot, mul(user_count, 65539))
-      sstore(user_ptr, manage_address)
+      sstore(user_ptr, caller)
       sstore(add(user_ptr, 1), trade_address)
 
       // Update user count
@@ -322,19 +335,140 @@ contract DCN {
   }
 
   function update_user_trade_addresses(uint32 user_id, address trade_address) public {
+    uint256[1] memory exit_log;
+
     assembly {
       let user_ptr := add(users_slot, mul(user_id, 65539))
 
       let manage_address := sload(user_ptr)
       if iszero(eq(manage_address, caller)) {
-        stop()
+        mstore(exit_log, 1) log0(add(exit_log, 31), 1) stop()
       }
 
       sstore(add(user_ptr, 1), trade_address)
+      mstore(exit_log, 0) log0(add(exit_log, 31), 1)
+    }
+  }
+
+  function deposit_asset(uint32 user_id, uint16 asset_id, uint256 quantity) public {
+    uint256[1] memory exit_log;
+    uint256[4] memory transfer_in;
+    uint256[1] memory transfer_out;
+
+    assembly {
+      let user_ptr := add(users_slot, mul(user_id, 65539))
+
+      {
+        let manage_address := sload(user_ptr)
+        if iszero(eq(manage_address, caller)) {
+          mstore(exit_log, 1) log0(add(exit_log, 31), 1) stop()
+        }
+      }
+
+      let asset_data := sload(add(assets_slot, asset_id))
+      if or(iszero(asset_id), iszero(asset_data)) {
+        mstore(exit_log, 2) log0(add(exit_log, 31), 1) stop()
+      }
+
+      mstore(transfer_in, /* transferFrom(address,address,uint256) */ 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+      mstore(add(transfer_in, 4), caller)
+      mstore(add(transfer_in, 36), address)
+      mstore(add(transfer_in, 68), quantity)
+
+      let asset_address := ASSET(asset_data).address
+
+      let success := call(
+        gas,
+        asset_address,
+        /* don't send any ether */ 0,
+        transfer_in,
+        100,
+        transfer_out,
+        32
+      )
+
+      if iszero(success) {
+        mstore(exit_log, 3) log0(add(exit_log, 31), 1) stop()
+      }
+
+      let result := mload(transfer_out)
+      if iszero(result) {
+        mstore(exit_log, 4) log0(add(exit_log, 31), 1) stop()
+      }
+
+      let asset_ptr := add(add(user_ptr, 2), asset_id)
+      let current_balance := sload(asset_ptr)
+
+      sstore(asset_ptr, add(current_balance, quantity))
+      mstore(exit_log, 0) log0(add(exit_log, 31), 1)
+    }
+  }
+
+  function withdraw_asset(uint32 user_id, bool check_self, uint16 asset_id, address destination, uint256 quantity) {
+    uint256[3] memory transfer_in;
+    uint256[1] memory transfer_out;
+    uint256[1] memory exit_log;
+
+    assembly {
+      let user_ptr := add(users_slot, mul(user_id, 65539))
+
+      // Authenticate user
+      {
+        let manage_address := sload(user_ptr)
+        if iszero(eq(manage_address, caller)) {
+          mstore(exit_log, 1) log0(add(exit_log, 31), 1) stop()
+        }
+
+        if and(check_self, iszero(eq(manage_address, destination))) {
+          mstore(exit_log, 2) log0(add(exit_log, 31), 1) stop()
+        }
+      }
+
+      // Ensure asset_id is valid
+      let asset_data := sload(add(assets_slot, asset_id))
+      if or(iszero(asset_id), iszero(asset_data)) {
+        mstore(exit_log, 3) log0(add(exit_log, 31), 1) stop()
+      }
+
+      let asset_ptr := add(add(user_ptr, 2), asset_id)
+      let current_balance := sload(asset_ptr)
+      if lt(current_balance, quantity) {
+        mstore(exit_log, 4) log0(add(exit_log, 31), 1) stop()
+      }
+
+      mstore(transfer_in, /* transfer(address,uint256) */ 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+      mstore(add(transfer_in, 4), destination)
+      mstore(add(transfer_in, 36), quantity)
+
+      let asset_address := ASSET(asset_data).address
+
+      let success := call(
+        gas,
+        asset_address,
+        /* don't send any ether */ 0,
+        transfer_in,
+        68,
+        transfer_out,
+        32
+      )
+
+      if iszero(success) {
+        mstore(exit_log, 5) log0(add(exit_log, 31), 1) stop()
+      }
+
+      let result := mload(transfer_out)
+      if iszero(result) {
+        mstore(exit_log, 6) log0(add(exit_log, 31), 1) stop()
+      }
+
+      sstore(asset_ptr, sub(current_balance, quantity))
+      mstore(exit_log, 0) log0(add(exit_log, 31), 1)
     }
   }
 
   function deposit_eth(uint32 user_id, bool check_self) public payable {
+    uint256[1] memory exit_log;
+
     assembly {
       let user_ptr := add(users_slot, mul(user_id, 65539))
 
@@ -404,7 +538,7 @@ contract DCN {
     }
   }
 
-  function get_user_balance(uint32 user_id, uint16 asset_id) public constant returns (uint256 balance) {
+  function get_user_balance(uint32 user_id, uint16 asset_id) public constant returns (uint256 return_balance) {
     uint256[1] memory return_value;
 
     assembly {
@@ -464,7 +598,7 @@ contract DCN {
   }
 
   function position_deposit(uint32 session_id, uint32 user_id, uint16 asset_id, uint8 position_id, uint64 quantity) {
-    uint256[1] memory exit_id;
+    uint256[1] memory exit_log;
 
     assembly {
       /*
@@ -484,11 +618,7 @@ contract DCN {
         // Authenticate user
         let manage_address := sload(user_ptr)
         if iszero(eq(manage_address, caller)) {
-
-          mstore(exit_id, 1)
-          log0(exit_id, 32)
-
-          stop()
+          mstore(exit_log, 1) log0(add(exit_log, 31), 1) stop()
         }
       }
 
@@ -497,20 +627,12 @@ contract DCN {
 
       // Ensure session is valid
       if gt(timestamp, SESSION(session_data).expire_time) {
-
-        mstore(exit_id, 2)
-        log0(exit_id, 32)
-
-        stop()
+        mstore(exit_log, 2) log0(add(exit_log, 31), 1) stop()
       }
 
       // Autenticate session
       if iszero(eq(SESSION(session_data).user_id, user_id)) {
-
-        mstore(exit_id, 3)
-        log0(exit_id, 32)
-
-        stop()
+        mstore(exit_log, 3) log0(add(exit_log, 31), 1) stop()
       }
 
       let user_asset_ptr := add(add(user_ptr, 2), asset_id)
@@ -525,11 +647,7 @@ contract DCN {
 
       // Ensure use has enough balance for deposit
       if gt(amount, user_balance) {
-
-        mstore(exit_id, 4)
-        log0(exit_id, 32)
-
-        stop()
+        mstore(exit_log, 4) log0(add(exit_log, 31), 1) stop()
       }
 
       let new_user_balance := sub(user_balance, amount)
@@ -542,11 +660,7 @@ contract DCN {
       if iszero(position_id) {
         // Asset id must be 0 (ETH)
         if asset_id {
-
-          mstore(exit_id, 5)
-          log0(exit_id, 32)
-
-          stop()
+          mstore(exit_log, 5) log0(add(exit_log, 31), 1) stop()
         }
 
         let ether_ptr := add(session_ptr, 1)
@@ -557,33 +671,20 @@ contract DCN {
 
         // Protect against overflow
         if gt(current_balance, /* 2^64 - 1 */ 0xffffffffffffffff) {
-
-          mstore(exit_id, 6)
-          log0(exit_id, 32)
-
-          stop()
+          mstore(exit_log, 6) log0(add(exit_log, 31), 1) stop()
         }
 
         sstore(user_asset_ptr, new_user_balance)
         sstore(ether_ptr, or(and(ether_data, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000), current_balance))
 
-        // TODO: log about success
-
-        mstore(exit_id, 7)
-        log0(exit_id, 32)
-
-        stop()
+        mstore(exit_log, 0) log0(add(exit_log, 31), 1) stop()
       }
 
       let position_count := SESSION(session_data).position_count
 
       // Cannot deposit into a position that doesn't exist
       if or(gt(position_id, position_count), gt(position_id, 16)) {
-
-        mstore(exit_id, 8)
-        log0(exit_id, 32)
-
-        stop()
+        mstore(exit_log, 7) log0(add(exit_log, 31), 1) stop()
       }
 
       // TODO: ids are 1 indexed, indexes are 0 indexed.
@@ -609,12 +710,7 @@ contract DCN {
           0, 0
         })
 
-        // TODO: log about success
-
-        mstore(exit_id, 9)
-        log0(exit_id, 32)
-
-        stop()
+        mstore(exit_log, 0) log0(add(exit_log, 31), 1) stop()
       }
 
       let position_data := sload(position_ptr)
@@ -623,11 +719,7 @@ contract DCN {
 
       // Protect against overflow
       if gt(current_balance, /* 2^64 - 1 */ 0xffffffffffffffff) {
-
-        mstore(exit_id, 10)
-        log0(exit_id, 32)
-
-        stop()
+        mstore(exit_log, 8) log0(add(exit_log, 31), 1) stop()
       }
 
       position_data := and(position_data, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
@@ -636,10 +728,7 @@ contract DCN {
       sstore(user_asset_ptr, new_user_balance)
       sstore(position_ptr, position_data)
 
-      mstore(exit_id, 11)
-      log0(exit_id, 32)
-
-      // TODO: log about success
+      mstore(exit_log, 0) log0(add(exit_log, 31), 1)
     }
   }
 
@@ -722,6 +811,8 @@ contract DCN {
   }
 
   function end_session(uint32 session_id) public {
+    uint256[1] memory exit_log;
+
     assembly {
       let session_ptr := add(sessions_slot, mul(session_id, 34))
       let session_data := sload(session_ptr)
@@ -733,17 +824,20 @@ contract DCN {
         let exchange_data := sload(exchange_ptr)
 
         if iszero(eq(EXCHANGE(exchange_data).address, caller)) {
-          stop()
+          mstore(exit_log, 1) log0(add(exit_log, 31), 1) stop()
         }
       }
 
       session_data := and(session_data, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
       session_data := or(session_data, and(timestamp, 0xffffffffffffffff))
       sstore(session_ptr, session_data)
+      mstore(exit_log, 0) log0(add(exit_log, 31), 1) stop()
     }
   }
 
   function close_session(uint32 session_id) public {
+    uint256[1] memory exit_log;
+
     assembly {
       let session_ptr := add(sessions_slot, mul(session_id, 34))
       let session_data := sload(session_ptr)
@@ -751,7 +845,7 @@ contract DCN {
       // Cannot process if session is still active or closed
       let session_expire_time := SESSION(session_data).expire_time
       if or(gt(session_expire_time, timestamp), iszero(session_expire_time)) {
-        stop()
+        mstore(exit_log, 1) log0(add(exit_log, 31), 1) stop()
       }
 
       // Reset session
@@ -786,6 +880,8 @@ contract DCN {
         let asset_balance := mul(POSITION(position_data).asset_balance, asset_unit_scale)
         sstore(user_asset_ptr, add(sload(user_asset_ptr), asset_balance))
       }
+
+      mstore(exit_log, 0) log0(add(exit_log, 31), 1)
     }
   }
 

@@ -4,15 +4,12 @@ import io.merklex.settlement.contracts.DCN;
 import io.merklex.settlement.networks.EtherDebugNet;
 import io.merklex.settlement.utils.Genesis;
 import org.web3j.crypto.Credentials;
-import org.web3j.crypto.Hash;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterNumber;
 import org.web3j.protocol.core.methods.response.EthBlockNumber;
-import org.web3j.protocol.core.methods.response.EthGetBalance;
 
 import java.io.IOException;
 import java.math.BigInteger;
-import java.util.HashSet;
 import java.util.Stack;
 
 import static com.greghaskins.spectrum.dsl.specification.Specification.afterAll;

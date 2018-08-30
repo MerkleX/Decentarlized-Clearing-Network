@@ -28,7 +28,7 @@ public class UserEthBalanceTests {
 
             Box<TransactionReceipt> addUserReceipt = new Box<>();
             beforeAll(() -> {
-                addUserReceipt.value = bob.add_user(bobKey.getAddress(), bobKey.getAddress()).send();
+                addUserReceipt.value = bob.add_user(bobKey.getAddress()).send();
             });
 
             Box<TransactionReceipt> depositReceipt = new Box<>();
