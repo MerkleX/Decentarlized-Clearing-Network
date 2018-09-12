@@ -22,25 +22,20 @@ public class GenerateContractCode {
             throw new RuntimeException("Failed to transpile: " + Utils.ReadAll(transpilerProcess.getErrorStream()));
         }
 
-        File contractTempFile = File.createTempFile("contract", ".sol");
-        try (FileWriter writer = new FileWriter(contractTempFile)) {
+        File solidityContractFile = new File(outputDir, contractSource.getName());
+        try (FileWriter writer = new FileWriter(solidityContractFile)) {
             writer.write(contractSourceData);
         }
 
-        try {
-            ProcessBuilder compile = new ProcessBuilder("solc",
-                    contractTempFile.getAbsolutePath(), "--bin", "--abi", "--optimize", "--overwrite",
-                    "-o", outputDir.getAbsolutePath());
+        ProcessBuilder compile = new ProcessBuilder("solc",
+                solidityContractFile.getAbsolutePath(), "--bin", "--abi", "--optimize", "--overwrite",
+                "-o", outputDir.getAbsolutePath());
 
-            Process compileProcess = compile.start();
-            String errorData = Utils.ReadAll(compileProcess.getErrorStream());
+        Process compileProcess = compile.start();
+        String errorData = Utils.ReadAll(compileProcess.getErrorStream());
 
-            if (compileProcess.waitFor() != 0) {
-                throw new RuntimeException(errorData);
-            }
-        } finally {
-            boolean success = contractTempFile.delete();
-            assert success;
+        if (compileProcess.waitFor() != 0) {
+            throw new RuntimeException(errorData);
         }
     }
 

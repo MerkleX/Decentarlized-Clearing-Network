@@ -8,6 +8,7 @@ import org.junit.Test;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Arrays;
 
 public class GeneratedCodeTest {
     @Test
@@ -39,7 +40,47 @@ public class GeneratedCodeTest {
         }
     }
 
-    public static void main(String[] args) {
+    @Test
+    public void compiledOutputShouldBeLatest() throws IOException, InterruptedException {
+        File compareOut = Utils.TempDir();
+
+        try {
+            GenerateContractCode.CompileContract(
+                    new File("src/main/resources/contract/DCN.sol"),
+                    compareOut
+            );
+
+            File[] expectedFiles = compareOut.listFiles();
+            Assert.assertNotNull(expectedFiles);
+
+            File[] actualFiles = new File("contract-compiled/DCN").listFiles();
+            Assert.assertNotNull(actualFiles);
+
+            Arrays.sort(expectedFiles);
+            Arrays.sort(actualFiles);
+
+            Assert.assertEquals(expectedFiles.length, actualFiles.length);
+
+            for (int i = 0; i < expectedFiles.length; i++) {
+                try (FileInputStream expectedStream = new FileInputStream(expectedFiles[i]);
+                     FileInputStream actualStream = new FileInputStream(actualFiles[i])) {
+                    String expectedData = Utils.ReadAll(expectedStream);
+                    String actualData = Utils.ReadAll(actualStream);
+
+                    if (expectedFiles[i].getName().endsWith(".bin")) {
+                        expectedData = expectedData.substring(0, expectedData.length() - 68);
+                        actualData = actualData.substring(0, actualData.length() - 68);
+                    }
+
+                    Assert.assertEquals(expectedData, actualData);
+                }
+            }
+        } finally {
+            Utils.DeleteDir(compareOut);
+        }
+    }
+
+    public static void main(String[] args) throws IOException, InterruptedException {
         GenerateContractCode.ContractToJava(
                 new File("src/main/resources/contract/DCN.sol"),
                 new File("src/main/generated"),
@@ -50,6 +91,11 @@ public class GeneratedCodeTest {
                 new File("src/test/resources/contracts/ERC20.sol"),
                 new File("src/test/generated"),
                 "io.merklex.dcn.contracts"
+        );
+
+        GenerateContractCode.CompileContract(
+                new File("src/main/resources/contract/DCN.sol"),
+                new File("contract-compiled/DCN")
         );
     }
 }
