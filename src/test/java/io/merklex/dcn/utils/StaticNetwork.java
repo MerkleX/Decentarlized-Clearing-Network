@@ -70,7 +70,7 @@ public class StaticNetwork {
                 accounts.put(privateKey, balance);
             }
 
-            network = new EtherDebugNet(accounts, Long.parseUnsignedLong(Genesis.getGasLimit()));
+            network = new EtherDebugNet(5123, accounts, Long.parseUnsignedLong(Genesis.getGasLimit()));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
