@@ -1,8 +1,9 @@
-package io.merklex.settlement.dcn;
+package io.merklex.dcn;
 
 import com.greghaskins.spectrum.Spectrum;
-import io.merklex.settlement.contracts.DCN;
-import io.merklex.settlement.utils.Genesis;
+import io.merklex.dcn.contracts.DCN;
+import io.merklex.dcn.utils.Genesis;
+import io.merklex.dcn.utils.StaticNetwork;
 import org.junit.Assert;
 import org.junit.runner.RunWith;
 import org.web3j.protocol.core.methods.response.Log;

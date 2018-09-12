@@ -1,9 +1,10 @@
-package io.merklex.settlement.dcn;
+package io.merklex.dcn;
 
 import com.greghaskins.spectrum.Spectrum;
-import io.merklex.settlement.contracts.DCN;
-import io.merklex.settlement.utils.Box;
-import io.merklex.settlement.utils.Genesis;
+import io.merklex.dcn.contracts.DCN;
+import io.merklex.dcn.utils.Box;
+import io.merklex.dcn.utils.Genesis;
+import io.merklex.dcn.utils.StaticNetwork;
 import org.junit.runner.RunWith;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -11,7 +12,7 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import java.math.BigInteger;
 
 import static com.greghaskins.spectrum.dsl.specification.Specification.*;
-import static io.merklex.settlement.utils.BetterAssert.assertEquals;
+import static io.merklex.dcn.utils.BetterAssert.assertEquals;
 
 @RunWith(Spectrum.class)
 public class UserEthBalanceTests {

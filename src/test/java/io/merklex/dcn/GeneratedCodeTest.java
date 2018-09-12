@@ -1,7 +1,7 @@
-package io.merklex.settlement;
+package io.merklex.dcn;
 
-import io.merklex.settlement.utils.GenerateContractCode;
-import io.merklex.settlement.utils.Utils;
+import io.merklex.dcn.network.Utils;
+import io.merklex.dcn.utils.GenerateContractCode;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -29,7 +29,7 @@ public class GeneratedCodeTest {
             expected = expected.replaceFirst("package [\\w_.]+;", "");
             expected = expected.replaceFirst("(private static final String BINARY = \"[0-9abcdef]+)[0-9abcdef]{68}(\";)", "$1$2");
 
-            String actual = Utils.ReadAll(new FileInputStream("src/main/generated/io/merklex/settlement/contracts/DCN.java"));
+            String actual = Utils.ReadAll(new FileInputStream("src/main/generated/io/merklex/dcn/contracts/DCN.java"));
             actual = actual.replaceFirst("package [\\w_.]+;", "");
             actual = actual.replaceFirst("(private static final String BINARY = \"[0-9abcdef]+)[0-9abcdef]{68}(\";)", "$1$2");
 
@@ -43,13 +43,13 @@ public class GeneratedCodeTest {
         GenerateContractCode.ContractToJava(
                 new File("src/main/resources/contract/DCN.sol"),
                 new File("src/main/generated"),
-                "io.merklex.settlement.contracts"
+                "io.merklex.dcn.contracts"
         );
 
         GenerateContractCode.ContractToJava(
                 new File("src/test/resources/contracts/ERC20.sol"),
                 new File("src/test/generated"),
-                "io.merklex.settlement.contracts"
+                "io.merklex.dcn.contracts"
         );
     }
 }

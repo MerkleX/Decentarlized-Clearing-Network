@@ -1,12 +1,11 @@
-package io.merklex.settlement.utils;
+package io.merklex.dcn.utils;
 
+import io.merklex.dcn.network.Utils;
 import org.web3j.codegen.SolidityFunctionWrapperGenerator;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-
-import static io.merklex.settlement.utils.Utils.ReadAll;
 
 public class GenerateContractCode {
 
@@ -18,9 +17,9 @@ public class GenerateContractCode {
         ProcessBuilder transpiler = new ProcessBuilder("node", "transpiler/run.js", contractSource.getAbsolutePath());
         Process transpilerProcess = transpiler.start();
 
-        String contractSourceData = ReadAll(transpilerProcess.getInputStream());
+        String contractSourceData = Utils.ReadAll(transpilerProcess.getInputStream());
         if (transpilerProcess.waitFor() != 0) {
-            throw new RuntimeException("Failed to transpile: " + ReadAll(transpilerProcess.getErrorStream()));
+            throw new RuntimeException("Failed to transpile: " + Utils.ReadAll(transpilerProcess.getErrorStream()));
         }
 
         File contractTempFile = File.createTempFile("contract", ".sol");
@@ -34,7 +33,7 @@ public class GenerateContractCode {
                     "-o", outputDir.getAbsolutePath());
 
             Process compileProcess = compile.start();
-            String errorData = ReadAll(compileProcess.getErrorStream());
+            String errorData = Utils.ReadAll(compileProcess.getErrorStream());
 
             if (compileProcess.waitFor() != 0) {
                 throw new RuntimeException(errorData);

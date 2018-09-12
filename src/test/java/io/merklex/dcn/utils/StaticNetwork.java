@@ -1,8 +1,7 @@
-package io.merklex.settlement.dcn;
+package io.merklex.dcn.utils;
 
-import io.merklex.settlement.contracts.DCN;
-import io.merklex.settlement.networks.EtherDebugNet;
-import io.merklex.settlement.utils.Genesis;
+import io.merklex.dcn.network.EtherDebugNet;
+import io.merklex.dcn.contracts.DCN;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterNumber;
@@ -10,6 +9,7 @@ import org.web3j.protocol.core.methods.response.EthBlockNumber;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.HashMap;
 import java.util.Stack;
 
 import static com.greghaskins.spectrum.dsl.specification.Specification.afterAll;
@@ -63,7 +63,14 @@ public class StaticNetwork {
 
     static {
         try {
-            network = new EtherDebugNet();
+            HashMap<String, String> accounts = new HashMap<>();
+            for (String keyName : Genesis.KeyNames()) {
+                String privateKey = Genesis.GetKey(keyName).getEcKeyPair().getPrivateKey().toString(16);
+                String balance = Genesis.GetBalance(keyName);
+                accounts.put(privateKey, balance);
+            }
+
+            network = new EtherDebugNet(accounts, Long.parseUnsignedLong(Genesis.getGasLimit()));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

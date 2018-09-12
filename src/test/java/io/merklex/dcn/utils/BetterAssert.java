@@ -1,4 +1,4 @@
-package io.merklex.settlement.utils;
+package io.merklex.dcn.utils;
 
 import org.junit.Assert;
 

@@ -1,8 +1,9 @@
-package io.merklex.settlement.dcn;
+package io.merklex.dcn;
 
 import com.greghaskins.spectrum.Spectrum;
-import io.merklex.settlement.contracts.DCN;
-import io.merklex.settlement.utils.Box;
+import io.merklex.dcn.contracts.DCN;
+import io.merklex.dcn.utils.Box;
+import io.merklex.dcn.utils.StaticNetwork;
 import org.junit.runner.RunWith;
 import org.web3j.protocol.core.methods.response.Log;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -13,7 +14,7 @@ import java.util.List;
 
 import static com.greghaskins.spectrum.dsl.specification.Specification.describe;
 import static com.greghaskins.spectrum.dsl.specification.Specification.it;
-import static io.merklex.settlement.utils.BetterAssert.assertEquals;
+import static io.merklex.dcn.utils.BetterAssert.assertEquals;
 
 @RunWith(Spectrum.class)
 public class AssetTests {
