@@ -1,6 +1,6 @@
 pragma solidity ^0.4.23;
 
-// contract ERC20 {
+// contracts ERC20 {
 //   function transferFrom(address from, address to, uint256 value) public returns (bool);
 //   function approve(address spender, uint256 value) public returns (bool);
 // }

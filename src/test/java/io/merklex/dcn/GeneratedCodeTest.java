@@ -17,7 +17,7 @@ public class GeneratedCodeTest {
 
         try {
             GenerateContractCode.ContractToJava(
-                    new File("src/main/resources/contract/DCN.sol"),
+                    new File("src/main/resources/contracts/DCN.sol"),
                     compareOut,
                     "out"
             );
@@ -46,14 +46,14 @@ public class GeneratedCodeTest {
 
         try {
             GenerateContractCode.CompileContract(
-                    new File("src/main/resources/contract/DCN.sol"),
+                    new File("src/main/resources/contracts/DCN.sol"),
                     compareOut
             );
 
             File[] expectedFiles = compareOut.listFiles();
             Assert.assertNotNull(expectedFiles);
 
-            File[] actualFiles = new File("contract-compiled/DCN").listFiles();
+            File[] actualFiles = new File("contracts-compiled/DCN").listFiles();
             Assert.assertNotNull(actualFiles);
 
             Arrays.sort(expectedFiles);
@@ -82,20 +82,20 @@ public class GeneratedCodeTest {
 
     public static void main(String[] args) throws IOException, InterruptedException {
         GenerateContractCode.ContractToJava(
-                new File("src/main/resources/contract/DCN.sol"),
+                new File("src/main/resources/contracts/DCN.sol"),
                 new File("src/main/generated"),
                 "io.merklex.dcn.contracts"
         );
 
         GenerateContractCode.ContractToJava(
-                new File("src/test/resources/contracts/ERC20.sol"),
-                new File("src/test/generated"),
+                new File("src/main/resources/contracts/ERC20.sol"),
+                new File("src/main/generated"),
                 "io.merklex.dcn.contracts"
         );
 
         GenerateContractCode.CompileContract(
-                new File("src/main/resources/contract/DCN.sol"),
-                new File("contract-compiled/DCN")
+                new File("src/main/resources/contracts/DCN.sol"),
+                new File("contracts-compiled/DCN")
         );
     }
 }

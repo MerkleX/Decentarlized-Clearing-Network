@@ -45,14 +45,14 @@ public class UserEthBalanceTests {
                 assertEquals(expectedBalance, StaticNetwork.GetBalance(bobKey.getAddress()));
             });
 
-            it("contract should have balance", () -> {
+            it("contracts should have balance", () -> {
                 assertEquals(
                         BigInteger.valueOf(1000),
                         StaticNetwork.GetBalance(bob.getContractAddress())
                 );
             });
 
-            it("contract should register deposit", () -> {
+            it("contracts should register deposit", () -> {
                 BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
                 assertEquals(BigInteger.valueOf(1000), value);
             });
@@ -72,7 +72,7 @@ public class UserEthBalanceTests {
                             true, BigInteger.valueOf(500)).send();
                 });
 
-                it("contract balance should be 500", () -> {
+                it("contracts balance should be 500", () -> {
                     assertEquals(
                             BigInteger.valueOf(500),
                             StaticNetwork.GetBalance(bob.getContractAddress())
@@ -87,7 +87,7 @@ public class UserEthBalanceTests {
                             StaticNetwork.GetBalance(bobKey.getAddress()));
                 });
 
-                it("contract user balance should be 500", () -> {
+                it("contracts user balance should be 500", () -> {
                     BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
                     assertEquals(BigInteger.valueOf(500), value);
                 });
@@ -108,7 +108,7 @@ public class UserEthBalanceTests {
                             true, BigInteger.valueOf(1000)).send();
                 });
 
-                it("contract balance should be 0", () -> {
+                it("contracts balance should be 0", () -> {
                     assertEquals(
                             BigInteger.valueOf(0),
                             StaticNetwork.GetBalance(bob.getContractAddress())
@@ -123,7 +123,7 @@ public class UserEthBalanceTests {
                             StaticNetwork.GetBalance(bobKey.getAddress()));
                 });
 
-                it("contract user balance should be 0", () -> {
+                it("contracts user balance should be 0", () -> {
                     BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
                     assertEquals(BigInteger.valueOf(0), value);
                 });
@@ -144,7 +144,7 @@ public class UserEthBalanceTests {
                             true, BigInteger.valueOf(1001)).send();
                 });
 
-                it("contract balance should be the same", () -> {
+                it("contracts balance should be the same", () -> {
                     assertEquals(
                             BigInteger.valueOf(1000),
                             StaticNetwork.GetBalance(bob.getContractAddress())
@@ -156,7 +156,7 @@ public class UserEthBalanceTests {
                             StaticNetwork.GetBalance(bobKey.getAddress()));
                 });
 
-                it("contract user balance should be the same", () -> {
+                it("contracts user balance should be the same", () -> {
                     BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
                     assertEquals(BigInteger.valueOf(1000), value);
                 });
@@ -178,14 +178,14 @@ public class UserEthBalanceTests {
                             false, BigInteger.valueOf(1)).send();
                 });
 
-                it("contract balance should be the same", () -> {
+                it("contracts balance should be the same", () -> {
                     assertEquals(
                             BigInteger.valueOf(1000),
                             StaticNetwork.GetBalance(bob.getContractAddress())
                     );
                 });
 
-                it("contract user balance should be the same", () -> {
+                it("contracts user balance should be the same", () -> {
                     BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
                     assertEquals(BigInteger.valueOf(1000), value);
                 });
@@ -210,7 +210,7 @@ public class UserEthBalanceTests {
                             true, BigInteger.valueOf(1)).send();
                 });
 
-                it("contract balance should be the same", () -> {
+                it("contracts balance should be the same", () -> {
                     assertEquals(
                             BigInteger.valueOf(1000),
                             StaticNetwork.GetBalance(bob.getContractAddress())
@@ -222,7 +222,7 @@ public class UserEthBalanceTests {
                             StaticNetwork.GetBalance(bobKey.getAddress()));
                 });
 
-                it("contract user balance should be the same", () -> {
+                it("contracts user balance should be the same", () -> {
                     BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
                     assertEquals(BigInteger.valueOf(1000), value);
                 });
@@ -245,7 +245,7 @@ public class UserEthBalanceTests {
                             false, BigInteger.valueOf(100)).send();
                 });
 
-                it("contract balance be 900", () -> {
+                it("contracts balance be 900", () -> {
                     assertEquals(
                             BigInteger.valueOf(900),
                             StaticNetwork.GetBalance(bob.getContractAddress())
@@ -262,7 +262,7 @@ public class UserEthBalanceTests {
                             StaticNetwork.GetBalance(aliceKey.getAddress()));
                 });
 
-                it("contract user balance should be 900", () -> {
+                it("contracts user balance should be 900", () -> {
                     BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
                     assertEquals(BigInteger.valueOf(900), value);
                 });
