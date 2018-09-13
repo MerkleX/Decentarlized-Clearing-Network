@@ -2,6 +2,7 @@ pragma solidity ^0.4.24;
 
 contract DCN {
   event SessionStarted(uint256 session_id);
+  event PositionAdded(uint256 session_id);
 
   uint256 creator;
 
@@ -123,22 +124,6 @@ contract DCN {
     asset_shift   :  64,
    }
   */
-
-//  event SessionStarted (
-//    uint32 session_id,
-//    uint32 indexed user_id,
-//    uint32 exchange_id
-//  );
-//
-//  event SessionEnded (
-//    uint32 indexed session_id,
-//    uint32 user_id,
-//    uint32 exchange_id
-//  );
-//
-//  event LimitUpdated (
-//    uint32 indexed session_id,
-//  )
 
   constructor() public {
       assembly {
@@ -708,6 +693,7 @@ contract DCN {
 
   function position_deposit(uint32 session_id, uint32 user_id, uint16 asset_id, uint8 position_id, uint64 quantity) {
     uint256[1] memory exit_log;
+    uint256[1] memory session_id_ptr;
 
     assembly {
       /*
@@ -812,6 +798,12 @@ contract DCN {
         sstore(position_ptr, or(mul(/* asset_id */ asset_id, 0x1000000000000000000000000000000000000000000000000000000000000), and(quantity, 0xffffffffffffffff)))
 
         sstore(add(position_ptr, 1), mul(/* version */ 1, 0x100000000000000000000000000000000000000000000000000000000))
+
+        mstore(session_id_ptr, session_id)
+        log1(session_id_ptr, 32,
+             /* PositionAdded(uint256) */
+             0x3d0a2b1c6f8e72f333688e33b7fc1767f042d33eaef1d3b5db5968567033e91f
+        )
 
         mstore(exit_log, 0) log0(add(exit_log, 31), 1) stop()
       }

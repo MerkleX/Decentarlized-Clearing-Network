@@ -10,10 +10,10 @@ import io.merklex.dnc.DCNResults;
 import io.merklex.dnc.models.GetSessionResult;
 import org.junit.Assert;
 import org.junit.runner.RunWith;
+import org.web3j.abi.EventValues;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.core.methods.response.Log;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
-import org.web3j.tuples.generated.Tuple7;
 
 import java.math.BigInteger;
 import java.util.List;
@@ -130,8 +130,9 @@ public class UserSessionTests {
         describe("deposit into position", () -> {
             describe("other user should not be able to deposit", () -> {
                 it("position deposit", () -> {
-                    henry.position_deposit(sessionId, BigInteger.valueOf(0),
+                    TransactionReceipt send = henry.position_deposit(sessionId, BigInteger.valueOf(0),
                             BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(1000)).send();
+                    assertEquals(1, send.getLogs().size());
                 });
 
                 it("should not update balance", () -> {
@@ -145,8 +146,11 @@ public class UserSessionTests {
 
             describe("owner should be able to deposit eth", () -> {
                 it("position deposit", () -> {
-                    bob.position_deposit(sessionId, BigInteger.valueOf(0),
+                    TransactionReceipt send = bob.position_deposit(sessionId, BigInteger.valueOf(0),
                             BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(1000)).send();
+
+                    assertEquals(1, send.getLogs().size());
+                    assertEquals("0x00", send.getLogs().get(0).getData());
                 });
 
                 it("user balance should decrease", () -> {
@@ -166,7 +170,13 @@ public class UserSessionTests {
                 it("should create new session with zero balance", () -> {
                     TransactionReceipt send = bob.position_deposit(sessionId, BigInteger.ZERO,
                             BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.ZERO).send();
-                    Assert.assertEquals("0x00", send.getLogs().get(0).getData());
+
+                    assertEquals(2, send.getLogs().size());
+
+                    EventValues eventValues = DCN.staticExtractEventParameters(DCN.POSITIONADDED_EVENT, send.getLogs().get(0));
+                    assertEquals(sessionId, (BigInteger) eventValues.getNonIndexedValues().get(0).getValue());
+
+                    assertEquals("0x00", send.getLogs().get(1).getData());
 
                     GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
                     assertEquals(1, session.positionCount);
@@ -189,7 +199,13 @@ public class UserSessionTests {
 
                     TransactionReceipt send = bob.position_deposit(sessionId, BigInteger.ZERO,
                             BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1)).send();
-                    Assert.assertEquals("0x00", send.getLogs().get(0).getData());
+
+                    assertEquals(2, send.getLogs().size());
+
+                    EventValues eventValues = DCN.staticExtractEventParameters(DCN.POSITIONADDED_EVENT, send.getLogs().get(0));
+                    assertEquals(sessionId, (BigInteger) eventValues.getNonIndexedValues().get(0).getValue());
+
+                    assertEquals("0x00", send.getLogs().get(1).getData());
 
                     GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
                     assertEquals(1, session.positionCount);
