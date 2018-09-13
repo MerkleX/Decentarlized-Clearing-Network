@@ -29,7 +29,7 @@ public class AssetTests {
             it("ether should exist with asset_id=0", () -> {
                 Tuple3<String, BigInteger, String> asset = StaticNetwork.DCN().get_asset(BigInteger.valueOf(0)).send();
                 assertEquals("ETH ", asset.getValue1());
-                assertEquals(BigInteger.valueOf(100000000), asset.getValue2());
+                assertEquals(BigInteger.valueOf(10000000000L), asset.getValue2());
                 assertEquals("0x0000000000000000000000000000000000000000", asset.getValue3());
 
                 assertEquals(BigInteger.ZERO, StaticNetwork.DCN().get_asset_count().send());
@@ -83,7 +83,7 @@ public class AssetTests {
                 it("should not modify ether asset", () -> {
                     Tuple3<String, BigInteger, String> asset = dcn.get_asset(BigInteger.valueOf(0)).send();
                     assertEquals("ETH ", asset.getValue1());
-                    assertEquals(BigInteger.valueOf(100000000), asset.getValue2());
+                    assertEquals(BigInteger.valueOf(10000000000L), asset.getValue2());
                     assertEquals("0x0000000000000000000000000000000000000000", asset.getValue3());
                 });
 
@@ -114,7 +114,7 @@ public class AssetTests {
                 it("should not modify ether", () -> {
                     Tuple3<String, BigInteger, String> asset = dcn.get_asset(BigInteger.valueOf(0)).send();
                     assertEquals("ETH ", asset.getValue1());
-                    assertEquals(BigInteger.valueOf(100000000), asset.getValue2());
+                    assertEquals(BigInteger.valueOf(10000000000L), asset.getValue2());
                     assertEquals("0x0000000000000000000000000000000000000000", asset.getValue3());
                 });
 

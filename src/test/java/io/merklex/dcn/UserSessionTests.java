@@ -122,7 +122,7 @@ public class UserSessionTests {
 
                 it("user balance should decrease", () -> {
                     BigInteger userBalance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
-                    assertEquals(startBalance.subtract(BigInteger.valueOf(1000).multiply(BigInteger.TEN.pow(8))), userBalance);
+                    assertEquals(startBalance.subtract(BigInteger.valueOf(1000).multiply(BigInteger.TEN.pow(10))), userBalance);
                 });
 
                 it("position balance should increase", () -> {

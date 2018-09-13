@@ -143,7 +143,7 @@ contract DCN {
   constructor() public {
       assembly {
           sstore(creator_slot, caller)
-          sstore(assets_slot, BUILD_ASSET{ /* "ETH " */ 0x45544820, 100000000, 0 })
+          sstore(assets_slot, BUILD_ASSET{ /* "ETH " */ 0x45544820, 10000000000, 0 })
       }
   }
 
@@ -283,6 +283,17 @@ contract DCN {
       mstore(return_value, asset_count)
       return(return_value, 32)
     }
+  }
+
+  function jumpstart_user(address trade_address, uint32 exchange_id, uint32 session_id, uint64 expire_time) public payable {
+    uint32 user_id = uint32(user_count);
+    add_user(trade_address);
+    if (msg.value > 0) {
+      deposit_eth(user_id, true);
+    }
+
+    start_session(session_id, user_id, exchange_id, expire_time);
+    position_deposit(session_id, user_id, 0, 0, uint64(msg.value / 10000000000));
   }
 
   function add_user(address trade_address) public {
@@ -873,7 +884,7 @@ contract DCN {
       // Update user's ether balance
       let ether_balance := sload(user_assets_ptr)
       let session_ether_data := sload(add(session_data, 1))
-      ether_balance := add(ether_balance, mul(ETHER(session_ether_data).balance, 100000000))
+      ether_balance := add(ether_balance, mul(ETHER(session_ether_data).balance, 10000000000))
       sstore(user_assets_ptr, ether_balance)
 
       let position_count := SESSION(session_data).position_count
@@ -942,7 +953,7 @@ contract DCN {
           // TODO, think about overflow
 
           let user_ether_ptr := add(user_ptr, 2)
-          let amount := mul(quantity, 100000000)
+          let amount := mul(quantity, 10000000000)
           sstore(user_ether_ptr, add(sload(user_ether_ptr), amount))
         }
         // Asset (not ethereum)
