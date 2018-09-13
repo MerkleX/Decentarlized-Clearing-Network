@@ -8,9 +8,12 @@ import io.merklex.dcn.utils.StaticNetwork;
 import org.junit.Assert;
 import org.junit.runner.RunWith;
 import org.web3j.crypto.Credentials;
+import org.web3j.protocol.core.methods.response.Log;
+import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.tuples.generated.Tuple7;
 
 import java.math.BigInteger;
+import java.util.List;
 
 import static com.greghaskins.spectrum.dsl.specification.Specification.*;
 import static io.merklex.dcn.utils.BetterAssert.assertEquals;
@@ -28,7 +31,7 @@ public class UserSessionTests {
         Credentials henryKey = Genesis.GetKey("henry");
         Credentials merkleKey = Genesis.GetKey("merkle");
 
-        BigInteger expireTime = BigInteger.valueOf(System.currentTimeMillis() / 1000 + 1000);
+        BigInteger expireTime = BigInteger.valueOf(System.currentTimeMillis() / 1000 + 50000);
 
         BigInteger startBalance = BigInteger.valueOf(1000000).multiply(BigInteger.TEN.pow(8));
 
@@ -42,9 +45,31 @@ public class UserSessionTests {
         });
 
         describe("start session", () -> {
+            describe("expire time", () -> {
+                it("expire time should not be too soon", () -> {
+                    TransactionReceipt tx = bob.start_session(BigInteger.valueOf(123), BigInteger.valueOf(0),
+                            BigInteger.valueOf(0), BigInteger.valueOf(System.currentTimeMillis() / 1000 + 100)).send();
+
+                    List<Log> logs = tx.getLogs();
+                    assertEquals(0, logs.size());
+
+                    BigInteger expireTimeSet = bob.get_session(BigInteger.valueOf(123)).send().getValue5();
+                    assertEquals(0, expireTimeSet);
+                });
+            });
+
             it("start session with id 123", () -> {
-                bob.start_session(BigInteger.valueOf(123), BigInteger.valueOf(0),
+                TransactionReceipt tx = bob.start_session(BigInteger.valueOf(123), BigInteger.valueOf(0),
                         BigInteger.valueOf(0), expireTime).send();
+
+                List<Log> logs = tx.getLogs();
+                assertEquals(1, logs.size());
+
+                List<DCN.SessionStartedEventResponse> events = bob.getSessionStartedEvents(tx);
+                assertEquals(1, events.size());
+
+                DCN.SessionStartedEventResponse event = events.get(0);
+                assertEquals(123, event.session_id);
             });
 
             it("should be able to query session", () -> {

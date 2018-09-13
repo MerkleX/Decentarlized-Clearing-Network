@@ -1,6 +1,8 @@
 pragma solidity ^0.4.24;
 
 contract DCN {
+  event SessionStarted(uint256 session_id);
+
   uint256 creator;
 
   uint256 user_count;
@@ -552,23 +554,28 @@ contract DCN {
 
   function start_session(uint32 session_id, uint32 user_id,
                          uint32 exchange_id, uint64 expire_time) public {
+
+    uint256[1] memory session_id_ptr;
+
     assembly {
       let session_ptr := add(sessions_slot, mul(session_id, 34))
       let session_data := sload(session_ptr)
 
-      // Verify session is empty
 
-      // TODO: ensure expire_time is in the future and that not too far in the future (max 30 days)
+      /* ensure: expire_time >= timestamp + 12 hours && expire_time <= timestamp + 30 days */
+      if or(gt(add(timestamp, 43200), expire_time), gt(expire_time, add(timestamp, 2592000))) {
+        stop()
+      }
 
+      /* Verify session is empty */
       if /* SESSION(session_data).expire_time */ and(div(session_data, 0x1), 0xffffffffffffffff) {
         stop()
       }
 
-      // Authenticate user
-
+      /* Authenticate user */
       let user_ptr := add(users_slot, mul(user_id, 65539))
-      let user_data := sload(user_ptr)
-      if iszero(eq(user_data, caller)) {
+      let user_manage_address := sload(user_ptr)
+      if iszero(eq(user_manage_address, caller)) {
         stop()
       }
 
@@ -583,6 +590,12 @@ contract DCN {
 
       sstore(session_ptr, session_data)
       sstore(add(session_ptr, 1), or(mul(/* _ */ /* padding */ 0, 0x100000000000000000000000000000000000000000000000000000000), or(mul(/* trade_address */ /* trade_address */ sload(add(user_ptr, 1)), 0x10000000000000000), /* ether_balance */ 0)))
+
+      mstore(session_id_ptr, session_id)
+      log1(session_id_ptr, 32,
+           /* SessionStarted(uint256) */
+           0xc3934e844399df6122666c45922384445cb616ed1402ecf7d2e39bd2529a2746
+      )
     }
   }
 
