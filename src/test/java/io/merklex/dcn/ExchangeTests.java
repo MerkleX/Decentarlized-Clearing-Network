@@ -5,6 +5,8 @@ import io.merklex.dcn.contracts.DCN;
 import io.merklex.dcn.utils.Box;
 import io.merklex.dcn.utils.Genesis;
 import io.merklex.dcn.utils.StaticNetwork;
+import io.merklex.dnc.DCNResults;
+import io.merklex.dnc.models.GetExchangeResult;
 import org.junit.runner.RunWith;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -44,10 +46,10 @@ public class ExchangeTests {
             });
 
             it("exchange data should be empty", () -> {
-                Tuple3<String, String, BigInteger> exchangeData = bob.get_exchange(BigInteger.valueOf(0)).send();
-                assertEquals("", exchangeData.getValue1().trim());
-                assertEquals("0x0000000000000000000000000000000000000000", exchangeData.getValue2());
-                assertEquals(0, exchangeData.getValue3());
+                GetExchangeResult exchange = DCNResults.GetExchange(new GetExchangeResult(), bob.get_exchange(BigInteger.valueOf(0)).send());
+                assertEquals("", exchange.name.trim());
+                assertEquals("0x0000000000000000000000000000000000000000", exchange.address);
+                assertEquals(0, exchange.feeBalance);
             });
         });
 
@@ -67,10 +69,10 @@ public class ExchangeTests {
             });
 
             it("should be able to query exchange", () -> {
-                Tuple3<String, String, BigInteger> exchangeData = bob.get_exchange(BigInteger.valueOf(0)).send();
-                assertEquals("bobs network", exchangeData.getValue1().trim());
-                assertEquals(bobKey.getAddress(), exchangeData.getValue2());
-                assertEquals(0, exchangeData.getValue3());
+                GetExchangeResult exchange = DCNResults.GetExchange(new GetExchangeResult(), bob.get_exchange(BigInteger.valueOf(0)).send());
+                assertEquals("bobs network", exchange.name.trim());
+                assertEquals(bobKey.getAddress(), exchange.address);
+                assertEquals(0, exchange.feeBalance);
             });
         });
 
@@ -90,17 +92,17 @@ public class ExchangeTests {
             });
 
             it("should be able to query exchange first exchange", () -> {
-                Tuple3<String, String, BigInteger> exchangeData = bob.get_exchange(BigInteger.valueOf(0)).send();
-                assertEquals("bobs network", exchangeData.getValue1().trim());
-                assertEquals(bobKey.getAddress(), exchangeData.getValue2());
-                assertEquals(0, exchangeData.getValue3());
+                GetExchangeResult exchange = DCNResults.GetExchange(new GetExchangeResult(), bob.get_exchange(BigInteger.valueOf(0)).send());
+                assertEquals("bobs network", exchange.name.trim());
+                assertEquals(bobKey.getAddress(), exchange.address);
+                assertEquals(0, exchange.feeBalance);
             });
 
             it("should be able to query exchange new exchange", () -> {
-                Tuple3<String, String, BigInteger> exchangeData = bob.get_exchange(BigInteger.valueOf(1)).send();
-                assertEquals("other net yo", exchangeData.getValue1().trim());
-                assertEquals(henryKey.getAddress(), exchangeData.getValue2());
-                assertEquals(0, exchangeData.getValue3());
+                GetExchangeResult exchange = DCNResults.GetExchange(new GetExchangeResult(), bob.get_exchange(BigInteger.valueOf(1)).send());
+                assertEquals("other net yo", exchange.name.trim());
+                assertEquals(henryKey.getAddress(), exchange.address);
+                assertEquals(0, exchange.feeBalance);
             });
         });
     }

@@ -248,6 +248,11 @@ contract DCN {
         stop()
       }
 
+      /* Unit scale must be non zero */
+      if iszero(unit_scale) {
+        stop()
+      }
+
       let asset_symbol := mload(add(symbol, 32))
       let data := or(asset_symbol, or(mul(/* unit_scale */ unit_scale, 0x10000000000000000000000000000000000000000), contract_address))
       sstore(add(assets_slot, asset_count), data)
