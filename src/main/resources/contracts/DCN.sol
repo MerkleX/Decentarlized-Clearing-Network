@@ -242,6 +242,7 @@ contract DCN {
         stop()
       }
 
+      /* Symbol must be 4 characters */
       let symbol_len := mload(symbol)
       if iszero(eq(symbol_len, 4)) {
         stop()
@@ -285,15 +286,122 @@ contract DCN {
     }
   }
 
-  function jumpstart_user(address trade_address, uint32 exchange_id, uint32 session_id, uint64 expire_time) public payable {
+  function jumpstart_user(address trade_address, uint32 exchange_id, uint32 session_id, uint64 expire_time,
+                          uint16 trade_asset_1, uint16 trade_asset_2, uint16 trade_asset_3, uint16 trade_asset_4) public payable {
     uint32 user_id = uint32(user_count);
     add_user(trade_address);
     if (msg.value > 0) {
       deposit_eth(user_id, true);
     }
+    jumpstart_session(user_id, exchange_id, session_id, expire_time, trade_asset_1, trade_asset_2, trade_asset_3, trade_asset_4);
+  }
 
+  function jumpstart_session(uint32 user_id, uint32 exchange_id, uint32 session_id, uint64 expire_time,
+                          uint16 trade_asset_1, uint16 trade_asset_2, uint16 trade_asset_3, uint16 trade_asset_4) public {
     start_session(session_id, user_id, exchange_id, expire_time);
-    position_deposit(session_id, user_id, 0, 0, uint64(msg.value / 10000000000));
+
+    assembly {
+      let session_ptr := add(sessions_slot, mul(session_id, 34))
+
+      /* Scale ether down to 8 decimals and mask to 64 bit */
+      let ether_deposit := and(div(callvalue, 10000000000), 0xffffffffffffffff)
+
+      /* Set ether quantity */
+      {
+        let ether_ptr := add(session_ptr, 1)
+        /* quantity is zero because we just created the session so can or */
+        sstore(ether_ptr, or(sload(ether_ptr), ether_deposit))
+      }
+
+      let asset_count := sload(asset_count_slot)
+
+      /* ASSET 1 */
+      {
+        /* Invalid trade asset */
+        if or(iszero(trade_asset_1), gt(trade_asset_1, asset_count)) {
+          stop()
+        }
+
+        /* Setup position */
+        let position_ptr := add(session_ptr, 2)
+        sstore(position_ptr, BUILD_POSITION {
+          trade_asset_1, 0, 0, 0, 0
+        })
+        sstore(add(position_ptr, 1), BUILD_LIMIT {
+          1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        })
+      }
+
+      let session_data := sload(session_ptr)
+
+      /* ASSET 2 */
+      {
+        /* Invalid trade asset */
+        if or(iszero(trade_asset_2), gt(trade_asset_2, asset_count)) {
+          sstore(session_ptr, or(
+            and(session_data, 0xfffffffffffffff0ffffffffffffffffffffffffffffffffffffffffffffffff),
+            mul(1, 0x1000000000000000000000000000000000000000000000000)
+          ))
+          stop()
+        }
+
+        /* Setup position */
+        let position_ptr := add(session_ptr, 4)
+        sstore(position_ptr, BUILD_POSITION {
+          trade_asset_2, 0, 0, 0, 0
+        })
+        sstore(add(position_ptr, 1), BUILD_LIMIT {
+          1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        })
+      }
+
+      /* ASSET 3 */
+      {
+        /* Invalid trade asset */
+        if or(iszero(trade_asset_3), gt(trade_asset_3, asset_count)) {
+          sstore(session_ptr, or(
+            and(session_data, 0xfffffffffffffff0ffffffffffffffffffffffffffffffffffffffffffffffff),
+            mul(2, 0x1000000000000000000000000000000000000000000000000)
+          ))
+          stop()
+        }
+
+        /* Setup position */
+        let position_ptr := add(session_ptr, 6)
+        sstore(position_ptr, BUILD_POSITION {
+          trade_asset_3, 0, 0, 0, 0
+        })
+        sstore(add(position_ptr, 1), BUILD_LIMIT {
+          1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        })
+      }
+
+      /* ASSET 4 */
+      {
+        /* Invalid trade asset */
+        if or(iszero(trade_asset_4), gt(trade_asset_4, asset_count)) {
+          sstore(session_ptr, or(
+            and(session_data, 0xfffffffffffffff0ffffffffffffffffffffffffffffffffffffffffffffffff),
+            mul(3, 0x1000000000000000000000000000000000000000000000000)
+          ))
+          stop()
+        }
+
+        /* Setup position */
+        let position_ptr := add(session_ptr, 8)
+        sstore(position_ptr, BUILD_POSITION {
+          trade_asset_4, 0, 0, 0, 0
+        })
+        sstore(add(position_ptr, 1), BUILD_LIMIT {
+          1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        })
+      }
+
+      sstore(session_ptr, or(
+        and(session_data, 0xfffffffffffffff0ffffffffffffffffffffffffffffffffffffffffffffffff),
+        mul(4, 0x1000000000000000000000000000000000000000000000000)
+      ))
+    }
   }
 
   function add_user(address trade_address) public {
@@ -572,7 +680,6 @@ contract DCN {
       let session_ptr := add(sessions_slot, mul(session_id, 34))
       let session_data := sload(session_ptr)
 
-
       /* ensure: expire_time >= timestamp + 12 hours && expire_time <= timestamp + 30 days */
       if or(gt(add(timestamp, 43200), expire_time), gt(expire_time, add(timestamp, 2592000))) {
         stop()
@@ -704,20 +811,25 @@ contract DCN {
         mstore(exit_log, 0) log0(add(exit_log, 31), 1) stop()
       }
 
-      let position_count := SESSION(session_data).position_count
+      let next_position_count := add(SESSION(session_data).position_count, 1)
 
       // Cannot deposit into a position that doesn't exist
-      if or(gt(position_id, position_count), gt(position_id, 16)) {
+      if or(gt(position_id, next_position_count), gt(position_id, 16)) {
         mstore(exit_log, 7) log0(add(exit_log, 31), 1) stop()
       }
-
-      // TODO: ids are 1 indexed, indexes are 0 indexed.
 
       let position_ptr := add(session_ptr, mul(position_id, 2))
 
       // Add position
-      if eq(position_id, position_count) {
+      if eq(position_id, next_position_count) {
         sstore(user_asset_ptr, new_user_balance)
+
+        // TODO: test that this increases
+        // Increment position_count
+        sstore(session_ptr, or(
+          and(session_data, 0xfffffffffffffff0ffffffffffffffffffffffffffffffffffffffffffffffff),
+          mul(next_position_count, 0x1000000000000000000000000000000000000000000000000)
+        ))
 
         sstore(position_ptr, BUILD_POSITION {
           asset_id,

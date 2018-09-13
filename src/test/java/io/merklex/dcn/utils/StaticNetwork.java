@@ -12,8 +12,7 @@ import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Stack;
 
-import static com.greghaskins.spectrum.dsl.specification.Specification.afterAll;
-import static com.greghaskins.spectrum.dsl.specification.Specification.beforeAll;
+import static com.greghaskins.spectrum.dsl.specification.Specification.*;
 
 public class StaticNetwork {
     private static final EtherDebugNet network;
@@ -87,5 +86,10 @@ public class StaticNetwork {
     public static void DescribeCheckpoint() {
         beforeAll(StaticNetwork::Checkpoint);
         afterAll(StaticNetwork::Revert);
+    }
+
+    public static void DescribeCheckpointForEach() {
+        beforeEach(StaticNetwork::Checkpoint);
+        afterEach(StaticNetwork::Revert);
     }
 }

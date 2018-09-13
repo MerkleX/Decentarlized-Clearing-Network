@@ -3,6 +3,7 @@ package io.merklex.dcn;
 
 import com.greghaskins.spectrum.Spectrum;
 import io.merklex.dcn.contracts.DCN;
+import io.merklex.dcn.contracts.ERC20;
 import io.merklex.dcn.utils.Genesis;
 import io.merklex.dcn.utils.StaticNetwork;
 import org.junit.Assert;
@@ -27,6 +28,29 @@ public class UserSessionTests {
         DCN bob = StaticNetwork.DCN("bob");
         DCN henry = StaticNetwork.DCN("henry");
 
+        Credentials jackKey = Genesis.GetKey("jack");
+
+        ERC20 token1;
+        ERC20 token2;
+        ERC20 token3;
+
+        try {
+            token1 = ERC20.deploy(StaticNetwork.Web3(), jackKey,
+                    BigInteger.ONE, new BigInteger(Genesis.getGasLimit()),
+                    BigInteger.valueOf(100000000000L),
+                    "token1", BigInteger.valueOf(16), "TK1").send();
+            token2 = ERC20.deploy(StaticNetwork.Web3(), jackKey,
+                    BigInteger.ONE, new BigInteger(Genesis.getGasLimit()),
+                    BigInteger.valueOf(100000000000L),
+                    "token2", BigInteger.valueOf(16), "TK2").send();
+            token3 = ERC20.deploy(StaticNetwork.Web3(), jackKey,
+                    BigInteger.ONE, new BigInteger(Genesis.getGasLimit()),
+                    BigInteger.valueOf(100000000000L),
+                    "token3", BigInteger.valueOf(16), "TK3").send();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
         Credentials bobKey = Genesis.GetKey("bob");
         Credentials henryKey = Genesis.GetKey("henry");
         Credentials merkleKey = Genesis.GetKey("merkle");
@@ -42,35 +66,40 @@ public class UserSessionTests {
 
             BigInteger balance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
             assertEquals(startBalance, balance);
+
+            StaticNetwork.DCN().add_asset("TK-1", BigInteger.valueOf(1000), token1.getContractAddress()).send();
+            StaticNetwork.DCN().add_asset("TK-2", BigInteger.valueOf(10000), token2.getContractAddress()).send();
+            StaticNetwork.DCN().add_asset("TK-3", BigInteger.valueOf(100000), token3.getContractAddress()).send();
         });
 
+        BigInteger sessionId = BigInteger.valueOf(123);
         describe("start session", () -> {
             describe("expire time", () -> {
                 it("expire time should not be too soon", () -> {
-                    TransactionReceipt tx = bob.start_session(BigInteger.valueOf(123), BigInteger.valueOf(0),
+                    TransactionReceipt tx = bob.start_session(sessionId, BigInteger.valueOf(0),
                             BigInteger.valueOf(0), BigInteger.valueOf(System.currentTimeMillis() / 1000 + 100)).send();
 
                     List<Log> logs = tx.getLogs();
                     assertEquals(0, logs.size());
 
-                    BigInteger expireTimeSet = bob.get_session(BigInteger.valueOf(123)).send().getValue5();
+                    BigInteger expireTimeSet = bob.get_session(sessionId).send().getValue5();
                     assertEquals(0, expireTimeSet);
                 });
 
                 it("expire time should not be too far in the future", () -> {
-                    TransactionReceipt tx = bob.start_session(BigInteger.valueOf(123), BigInteger.valueOf(0),
+                    TransactionReceipt tx = bob.start_session(sessionId, BigInteger.valueOf(0),
                             BigInteger.valueOf(0), BigInteger.valueOf(System.currentTimeMillis() / 1000 + 2600000)).send();
 
                     List<Log> logs = tx.getLogs();
                     assertEquals(0, logs.size());
 
-                    BigInteger expireTimeSet = bob.get_session(BigInteger.valueOf(123)).send().getValue5();
+                    BigInteger expireTimeSet = bob.get_session(sessionId).send().getValue5();
                     assertEquals(0, expireTimeSet);
                 });
             });
 
             it("start session with id 123", () -> {
-                TransactionReceipt tx = bob.start_session(BigInteger.valueOf(123), BigInteger.valueOf(0),
+                TransactionReceipt tx = bob.start_session(sessionId, BigInteger.valueOf(0),
                         BigInteger.valueOf(0), expireTime).send();
 
                 List<Log> logs = tx.getLogs();
@@ -85,7 +114,7 @@ public class UserSessionTests {
 
             it("should be able to query session", () -> {
                 Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
-                session = bob.get_session(BigInteger.valueOf(123)).send();
+                session = bob.get_session(sessionId).send();
 
                 assertEquals(0, /* positionCount */ session.getValue1());
                 assertEquals(0, /* userId */ session.getValue2());
@@ -100,7 +129,7 @@ public class UserSessionTests {
         describe("deposit into position", () -> {
             describe("other user should not be able to deposit", () -> {
                 it("position deposit", () -> {
-                    henry.position_deposit(BigInteger.valueOf(123), BigInteger.valueOf(0),
+                    henry.position_deposit(sessionId, BigInteger.valueOf(0),
                             BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(1000)).send();
                 });
 
@@ -109,14 +138,14 @@ public class UserSessionTests {
                     assertEquals(startBalance, userBalance);
 
                     Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
-                    session = bob.get_session(BigInteger.valueOf(123)).send();
+                    session = bob.get_session(sessionId).send();
                     assertEquals(0, /* etherBalance */ session.getValue7());
                 });
             });
 
             describe("owner should be able to deposit eth", () -> {
                 it("position deposit", () -> {
-                    bob.position_deposit(BigInteger.valueOf(123), BigInteger.valueOf(0),
+                    bob.position_deposit(sessionId, BigInteger.valueOf(0),
                             BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(1000)).send();
                 });
 
@@ -127,55 +156,101 @@ public class UserSessionTests {
 
                 it("position balance should increase", () -> {
                     Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
-                    session = bob.get_session(BigInteger.valueOf(123)).send();
+                    session = bob.get_session(sessionId).send();
                     assertEquals(1000, /* etherBalance */ session.getValue7());
+                });
+            });
+
+            describe("should be able to add position", () -> {
+                StaticNetwork.DescribeCheckpointForEach();
+
+                it("should create new session with zero balance", () -> {
+                    TransactionReceipt send = bob.position_deposit(sessionId, BigInteger.ZERO,
+                            BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.ZERO).send();
+                    Assert.assertEquals("0x00", send.getLogs().get(0).getData());
+
+                    Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session =
+                            bob.get_session(sessionId).send();
+                    assertEquals(1, session.getValue1());
+                });
+
+                it("should not be able to create session without balance", () -> {
+                    TransactionReceipt send = bob.position_deposit(sessionId, BigInteger.ZERO,
+                            BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1000)).send();
+                    Assert.assertEquals("0x04", send.getLogs().get(0).getData());
+
+                    Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session =
+                            bob.get_session(sessionId).send();
+                    assertEquals(0, session.getValue1());
+                });
+
+                it("should not be able to create session with balance", () -> {
+                    token1.transfer(bobKey.getAddress(), BigInteger.valueOf(100000)).send();
+                    ERC20 bobERC = ERC20.load(token1.getContractAddress(), StaticNetwork.Web3(), bobKey, BigInteger.ONE, new BigInteger(Genesis.getGasLimit()));
+                    bobERC.approve(bob.getContractAddress(), BigInteger.valueOf(1000)).send();
+                    bob.deposit_asset(BigInteger.valueOf(0), BigInteger.valueOf(1), BigInteger.valueOf(1000)).send();
+
+                    TransactionReceipt send = bob.position_deposit(sessionId, BigInteger.ZERO,
+                            BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1)).send();
+                    Assert.assertEquals("0x00", send.getLogs().get(0).getData());
+
+                    Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
+                    session = bob.get_session(sessionId).send();
+                    assertEquals(1, session.getValue1());
+
+                    send = bob.position_deposit(sessionId, BigInteger.ZERO,
+                            BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1)).send();
+                    Assert.assertEquals("0x04", send.getLogs().get(0).getData());
+
+                    session = bob.get_session(sessionId).send();
+                    assertEquals(1, session.getValue1());
                 });
             });
 
             describe("should not be able to close active session", () -> {
                 it("close session attempt", () -> {
-                    henry.close_session(BigInteger.valueOf(123));
+                    henry.close_session(sessionId);
                 });
 
                 it("session should be active", () -> {
                     Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
-                    session = bob.get_session(BigInteger.valueOf(123)).send();
+                    session = bob.get_session(sessionId).send();
                     assertEquals(expireTime, session.getValue5());
                 });
             });
 
             describe("owner should not be able to end session", () -> {
                 it("end session attempt", () -> {
-                    bob.end_session(BigInteger.valueOf(123));
+                    bob.end_session(sessionId);
                 });
 
                 it("session should be active", () -> {
                     Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
-                    session = bob.get_session(BigInteger.valueOf(123)).send();
+                    session = bob.get_session(sessionId).send();
                     assertEquals(expireTime, session.getValue5());
                 });
             });
 
             describe("rando should not be able to close session", () -> {
                 it("end session attempt", () -> {
-                    henry.end_session(BigInteger.valueOf(123));
+                    henry.end_session(sessionId);
                 });
 
                 it("session should be active", () -> {
                     Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
-                    session = bob.get_session(BigInteger.valueOf(123)).send();
+                    session = bob.get_session(sessionId).send();
                     assertEquals(expireTime, session.getValue5());
                 });
             });
 
             describe("exchange should be able to end session", () -> {
                 it("end session", () -> {
-                    StaticNetwork.DCN().end_session(BigInteger.valueOf(123)).send();
+                    StaticNetwork.DCN().end_session(sessionId).send();
                 });
 
                 it("session should be closed", () -> {
                     Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
-                    session = bob.get_session(BigInteger.valueOf(123)).send();
+                    session = bob.get_session(sessionId).send();
                     assertNotEquals(expireTime, session.getValue5());
 
                     Assert.assertTrue(session.getValue5().compareTo(expireTime) < 0);
@@ -185,12 +260,12 @@ public class UserSessionTests {
 
             describe("close expired session", () -> {
                 it("close session", () -> {
-                    henry.close_session(BigInteger.valueOf(123)).send();
+                    henry.close_session(sessionId).send();
                 });
 
                 it("session should be closed", () -> {
                     Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> session;
-                    session = bob.get_session(BigInteger.valueOf(123)).send();
+                    session = bob.get_session(sessionId).send();
                     assertEquals(0, session.getValue5());
                 });
 
