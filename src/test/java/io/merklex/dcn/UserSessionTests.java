@@ -56,6 +56,17 @@ public class UserSessionTests {
                     BigInteger expireTimeSet = bob.get_session(BigInteger.valueOf(123)).send().getValue5();
                     assertEquals(0, expireTimeSet);
                 });
+
+                it("expire time should not be too far in the future", () -> {
+                    TransactionReceipt tx = bob.start_session(BigInteger.valueOf(123), BigInteger.valueOf(0),
+                            BigInteger.valueOf(0), BigInteger.valueOf(System.currentTimeMillis() / 1000 + 2600000)).send();
+
+                    List<Log> logs = tx.getLogs();
+                    assertEquals(0, logs.size());
+
+                    BigInteger expireTimeSet = bob.get_session(BigInteger.valueOf(123)).send().getValue5();
+                    assertEquals(0, expireTimeSet);
+                });
             });
 
             it("start session with id 123", () -> {
