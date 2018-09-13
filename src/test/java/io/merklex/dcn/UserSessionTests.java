@@ -184,7 +184,7 @@ public class UserSessionTests {
                     assertEquals(0, session.getValue1());
                 });
 
-                it("should not be able to create session with balance", () -> {
+                it("should be able to create session with balance", () -> {
                     token1.transfer(bobKey.getAddress(), BigInteger.valueOf(100000)).send();
                     ERC20 bobERC = ERC20.load(token1.getContractAddress(), StaticNetwork.Web3(), bobKey, BigInteger.ONE, new BigInteger(Genesis.getGasLimit()));
                     bobERC.approve(bob.getContractAddress(), BigInteger.valueOf(1000)).send();
