@@ -4,6 +4,7 @@ import io.merklex.dnc.models.*;
 import org.web3j.tuples.generated.Tuple3;
 import org.web3j.tuples.generated.Tuple4;
 import org.web3j.tuples.generated.Tuple7;
+import org.web3j.tuples.generated.Tuple8;
 
 import java.math.BigInteger;
 
@@ -22,14 +23,15 @@ public class DCNResults {
         return res;
     }
 
-    public static GetSessionResult GetSession(GetSessionResult res, Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> value) {
-        res.positionCount = value.getValue1();
-        res.userId = value.getValue2();
-        res.exchangeId = value.getValue3();
-        res.maxEtherFees = value.getValue4();
-        res.expireTime = value.getValue5();
-        res.tradeAddress = value.getValue6();
-        res.etherBalance = value.getValue7();
+    public static GetSessionResult GetSession(GetSessionResult res, Tuple8<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, String, BigInteger> value) {
+        res.turnOver = value.getValue1();
+        res.positionCount = value.getValue2();
+        res.userId = value.getValue3();
+        res.exchangeId = value.getValue4();
+        res.maxEtherFees = value.getValue5();
+        res.expireTime = value.getValue6();
+        res.tradeAddress = value.getValue7();
+        res.etherBalance = value.getValue8();
         return res;
     }
 

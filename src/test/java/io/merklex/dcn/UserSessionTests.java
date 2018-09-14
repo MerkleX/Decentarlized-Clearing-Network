@@ -116,14 +116,15 @@ public class UserSessionTests {
 
             it("should be able to query session", () -> {
                 GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
-                
-                assertEquals(0, /* positionCount */ session.positionCount);
-                assertEquals(0, /* userId */ session.userId);
-                assertEquals(0, /* exchangeId */ session.exchangeId);
-                assertEquals(0, /* maxEtherFees */ session.maxEtherFees);
-                assertEquals(expireTime, /* expireTime */ session.expireTime);
-                assertEquals(henryKey.getAddress(), /* tradeAddress */ session.tradeAddress);
-                assertEquals(0, /* etherBalance */ session.etherBalance);
+
+                assertEquals(1, session.turnOver);
+                assertEquals(0, session.positionCount);
+                assertEquals(0, session.userId);
+                assertEquals(0, session.exchangeId);
+                assertEquals(0, session.maxEtherFees);
+                assertEquals(expireTime, session.expireTime);
+                assertEquals(henryKey.getAddress(), session.tradeAddress);
+                assertEquals(0, session.etherBalance);
             });
         });
 
@@ -182,7 +183,7 @@ public class UserSessionTests {
                     assertEquals(1, session.positionCount);
                 });
 
-                it("should not be able to create session without balance", () -> {
+                it("should not be able to create position without balance", () -> {
                     TransactionReceipt send = bob.position_deposit(sessionId, BigInteger.ZERO,
                             BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1000)).send();
                     Assert.assertEquals("0x04", send.getLogs().get(0).getData());
@@ -191,7 +192,7 @@ public class UserSessionTests {
                     assertEquals(0, session.positionCount);
                 });
 
-                it("should be able to create session with balance", () -> {
+                it("should be able to create position with balance", () -> {
                     token1.transfer(bobKey.getAddress(), BigInteger.valueOf(100000)).send();
                     ERC20 bobERC = ERC20.load(token1.getContractAddress(), StaticNetwork.Web3(), bobKey, BigInteger.ONE, new BigInteger(Genesis.getGasLimit()));
                     bobERC.approve(bob.getContractAddress(), BigInteger.valueOf(1000)).send();
@@ -278,6 +279,20 @@ public class UserSessionTests {
                 });
 
                 // TODO: check balances have been transferred over
+            });
+
+            it("session in same position should have an increased turnover", () -> {
+                BigInteger nextExpireTime = BigInteger.valueOf(System.currentTimeMillis() / 1000 + 50000);
+                TransactionReceipt tx = bob.start_session(sessionId, BigInteger.valueOf(0),
+                        BigInteger.valueOf(0), nextExpireTime).send();
+
+                List<DCN.SessionStartedEventResponse> sessionStartedEvents = bob.getSessionStartedEvents(tx);
+                assertEquals(1, sessionStartedEvents.size());
+                assertEquals(sessionId, sessionStartedEvents.get(0).session_id);
+
+                GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                assertEquals(2, session.turnOver);
+                assertEquals(nextExpireTime, session.expireTime);
             });
         });
     }

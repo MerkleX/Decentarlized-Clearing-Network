@@ -695,7 +695,7 @@ contract DCN {
       }
 
       session_data := BUILD_SESSION {
-        /* padding */ 0,
+        /* turn_over */ and(add(SESSION(session_data).turn_over, 1), 0xfffffffffffffff),
         /* position_count */ 0,
         /* user_id */ user_id,
         /* exchange_id */ exchange_id,
@@ -866,24 +866,25 @@ contract DCN {
   }
 
   function get_session(uint32 session_id) public constant
-  returns (uint256 position_count, uint256 user_id, uint256 exchange_id, uint256 max_ether_fees, uint256 expire_time, address trade_address, uint256 ether_balance) {
-    uint256[7] memory return_values;
+  returns (uint256 turn_over, uint256 position_count, uint256 user_id, uint256 exchange_id, uint256 max_ether_fees, uint256 expire_time, address trade_address, uint256 ether_balance) {
+    uint256[8] memory return_values;
 
     assembly {
       let session_ptr := add(sessions_slot, mul(session_id, 34))
       let session_data := sload(session_ptr)
 
-      mstore(return_values, SESSION(session_data).position_count)
-      mstore(add(return_values, 32), SESSION(session_data).user_id)
-      mstore(add(return_values, 64), SESSION(session_data).exchange_id)
-      mstore(add(return_values, 96), SESSION(session_data).max_ether_fees)
-      mstore(add(return_values, 128), SESSION(session_data).expire_time)
+      mstore(return_values, SESSION(session_data).turn_over)
+      mstore(add(return_values, 32), SESSION(session_data).position_count)
+      mstore(add(return_values, 64), SESSION(session_data).user_id)
+      mstore(add(return_values, 96), SESSION(session_data).exchange_id)
+      mstore(add(return_values, 128), SESSION(session_data).max_ether_fees)
+      mstore(add(return_values, 160), SESSION(session_data).expire_time)
 
       let ether_data := sload(add(session_ptr, 1))
-      mstore(add(return_values, 160), ETHER(ether_data).trade_address)
-      mstore(add(return_values, 192), ETHER(ether_data).balance)
+      mstore(add(return_values, 192), ETHER(ether_data).trade_address)
+      mstore(add(return_values, 224), ETHER(ether_data).balance)
 
-      return(return_values, 224)
+      return(return_values, 256)
     }
   }
 
@@ -982,8 +983,8 @@ contract DCN {
       }
 
       // Reset session
-      sstore(session_ptr, BUILD_SESSION{
-        add(SESSION(session_data).turn_over, 1),
+      sstore(session_ptr, BUILD_SESSION {
+        SESSION(session_data).turn_over,
         0, 0, 0, 0, 0
       })
 

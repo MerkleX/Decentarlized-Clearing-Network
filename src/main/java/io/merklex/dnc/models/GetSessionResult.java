@@ -3,6 +3,7 @@ package io.merklex.dnc.models;
 import java.math.BigInteger;
 
 public class GetSessionResult {
+    public BigInteger turnOver;
     public BigInteger positionCount;
     public BigInteger userId;
     public BigInteger exchangeId;
