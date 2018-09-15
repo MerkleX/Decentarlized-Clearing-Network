@@ -142,6 +142,10 @@ contract DCN {
     }
   }
 
+  function get_creator() public returns (address dcn_creator) {
+    return address(creator);
+  }
+
   function add_exchange(string name, address addr) public {
     uint256[1] memory return_value;
 
@@ -280,14 +284,15 @@ contract DCN {
                           uint16 trade_asset_1, uint16 trade_asset_2, uint16 trade_asset_3, uint16 trade_asset_4) public payable {
     uint32 user_id = uint32(user_count);
     add_user(trade_address);
+    jumpstart_session(user_id, trade_address, exchange_id, session_id, expire_time, trade_asset_1, trade_asset_2, trade_asset_3, trade_asset_4);
+  }
+
+  function jumpstart_session(uint32 user_id, address trade_address, uint32 exchange_id, uint32 session_id, uint64 expire_time,
+                          uint16 trade_asset_1, uint16 trade_asset_2, uint16 trade_asset_3, uint16 trade_asset_4) public payable {
     if (msg.value > 0) {
       deposit_eth(user_id, true);
     }
-    jumpstart_session(user_id, exchange_id, session_id, expire_time, trade_asset_1, trade_asset_2, trade_asset_3, trade_asset_4);
-  }
 
-  function jumpstart_session(uint32 user_id, uint32 exchange_id, uint32 session_id, uint64 expire_time,
-                          uint16 trade_asset_1, uint16 trade_asset_2, uint16 trade_asset_3, uint16 trade_asset_4) public {
     start_session(session_id, user_id, exchange_id, expire_time);
 
     assembly {
@@ -300,7 +305,7 @@ contract DCN {
       {
         let ether_ptr := add(session_ptr, 1)
         /* quantity is zero because we just created the session so can or */
-        sstore(ether_ptr, or(sload(ether_ptr), ether_deposit))
+        sstore(ether_ptr, or(mul(/* _ */ /* padding */ 0, 0x100000000000000000000000000000000000000000000000000000000), or(mul(/* trade_address */ /* trade_address */ trade_address, 0x10000000000000000), /* ether_balance */ ether_deposit)))
       }
 
       let asset_count := sload(asset_count_slot)
