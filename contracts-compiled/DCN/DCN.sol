@@ -142,7 +142,7 @@ contract DCN {
     }
   }
 
-  function get_creator() public returns (address dcn_creator) {
+  function get_creator() public constant returns (address dcn_creator) {
     return address(creator);
   }
 
