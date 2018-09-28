@@ -1,5 +1,13 @@
 image: merklex/ether-test-base
 
+before_script:
+- export GRADLE_USER_HOME=`pwd`/.gradle
+
+cache:
+  paths:
+  - .gradle/wrapper
+  - .gradle/caches
+
 tests:
   stage: test
   script:
