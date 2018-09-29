@@ -58,7 +58,8 @@ public class GenerateContractCode {
         });
     }
 
-    private static final Pattern WITH_DATA = Pattern.compile("executeRemoteCallTransaction\\(function(, [\\w,\\s]+)\\)");
+    private static final Pattern SEND_VALUE_CALLS = Pattern.compile("executeRemoteCallTransaction\\(function(, [\\w,\\s]+)\\)");
+    private static final Pattern QUERY_SIGNATURES = Pattern.compile("public RemoteCall<(Tuple\\d+<[\\w,\\s]+>)>");
 
 
     public static void FixJavaCode(File contractPath, File dir, String packageName) throws Exception {
@@ -70,19 +71,21 @@ public class GenerateContractCode {
 
         contents = contents.replaceAll("public RemoteCall<TransactionReceipt>", "public static Function");
 
-        Matcher matcher = WITH_DATA.matcher(contents);
-        while (matcher.find()) {
-            String group = matcher.group(1);
-            String[] args = group.split(", ");
+        {
+            Matcher matcher = SEND_VALUE_CALLS.matcher(contents);
+            while (matcher.find()) {
+                String group = matcher.group(1);
+                String[] args = group.split(", ");
 
-            StringBuilder toReplace = new StringBuilder();
-            for (int i = 1; i < args.length; i++) {
-                toReplace.append(", \\w+ ").append(args[i]);
+                StringBuilder toReplace = new StringBuilder();
+                for (int i = 1; i < args.length; i++) {
+                    toReplace.append(", \\w+ ").append(args[i]);
+                }
+                toReplace.append("\\) \\{");
+
+                contents = contents.replaceAll(matcher.group(1), "");
+                contents = contents.replaceAll(toReplace.toString(), ") {");
             }
-            toReplace.append("\\) \\{");
-
-            contents = contents.replaceAll(matcher.group(1), "");
-            contents = contents.replaceAll(toReplace.toString(), ") {");
         }
 
         contents = contents.replaceAll("return executeRemoteCallTransaction\\(function\\);", "return function;");
@@ -138,6 +141,28 @@ public class GenerateContractCode {
                     "import java.lang.reflect.InvocationTargetException;\n" +
                     "import java.lang.reflect.Method;\n" +
                     "import org.web3j.protocol.exceptions.TransactionException;\n" + contents.substring(firstImport);
+        }
+
+        while (true) {
+            Matcher matcher = QUERY_SIGNATURES.matcher(contents);
+            if (!matcher.find()) {
+                break;
+            }
+
+            String contentBefore = contents.substring(0, matcher.start());
+            String returnValue = matcher.group(1);
+
+            String contentAfter = contents.substring(matcher.end());
+            contentAfter = contentAfter.replaceFirst("\\) \\{", ") throws IOException {");
+
+            String toReplace = "return new RemoteCall<" + returnValue + ">\\(\\s*" +
+                    "new Callable<" + returnValue + ">\\(\\) \\{\\s*" +
+                    "@Override\\s*public " + returnValue + " call\\(\\) throws Exception \\{\\s*" +
+                    "([\\w\\d<>\\s=();,.]*)" +
+                    "}\\s*}\\);";
+            contentAfter = contentAfter.replaceFirst(toReplace, "$1");
+
+            contents = contentBefore + "public " + returnValue + contentAfter;
         }
 
         try (FileWriter writer = new FileWriter(javaFile)) {

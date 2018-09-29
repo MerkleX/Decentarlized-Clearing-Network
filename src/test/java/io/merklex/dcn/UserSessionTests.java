@@ -84,7 +84,7 @@ public class UserSessionTests {
                     List<Log> logs = tx.getLogs();
                     assertEquals(0, logs.size());
 
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(0, session.expireTime);
                 });
 
@@ -95,7 +95,7 @@ public class UserSessionTests {
                     List<Log> logs = tx.getLogs();
                     assertEquals(0, logs.size());
 
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(0, session.expireTime);
                 });
             });
@@ -115,7 +115,7 @@ public class UserSessionTests {
             });
 
             it("should be able to query session", () -> {
-                GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
 
                 assertEquals(1, session.turnOver);
                 assertEquals(0, session.positionCount);
@@ -140,7 +140,7 @@ public class UserSessionTests {
                     BigInteger userBalance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
                     assertEquals(startBalance, userBalance);
 
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(0, /* etherBalance */ session.etherBalance);
                 });
             });
@@ -160,7 +160,7 @@ public class UserSessionTests {
                 });
 
                 it("position balance should increase", () -> {
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(1000, /* etherBalance */ session.etherBalance);
                 });
             });
@@ -179,7 +179,7 @@ public class UserSessionTests {
 
                     assertEquals("0x00", send.getLogs().get(1).getData());
 
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(1, session.positionCount);
                 });
 
@@ -188,7 +188,7 @@ public class UserSessionTests {
                             BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1000)));
                     Assert.assertEquals("0x04", send.getLogs().get(0).getData());
 
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(0, session.positionCount);
                 });
 
@@ -208,7 +208,7 @@ public class UserSessionTests {
 
                     assertEquals("0x00", send.getLogs().get(1).getData());
 
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(1, session.positionCount);
 
                     send = bob.executeTransaction(DCN.position_deposit(sessionId, BigInteger.ZERO,
@@ -216,7 +216,7 @@ public class UserSessionTests {
                     Assert.assertEquals("0x04", send.getLogs().get(0).getData());
 
 
-                    DCNResults.GetSession(session, bob.get_session(sessionId).send());
+                    DCNResults.GetSession(session, bob.get_session(sessionId));
                     assertEquals(1, session.positionCount);
                 });
             });
@@ -227,7 +227,7 @@ public class UserSessionTests {
                 });
 
                 it("session should be active", () -> {
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(expireTime, session.expireTime);
                 });
             });
@@ -238,7 +238,7 @@ public class UserSessionTests {
                 });
 
                 it("session should be active", () -> {
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(expireTime, session.expireTime);
                 });
             });
@@ -249,7 +249,7 @@ public class UserSessionTests {
                 });
 
                 it("session should be active", () -> {
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(expireTime, session.expireTime);
                 });
             });
@@ -260,7 +260,7 @@ public class UserSessionTests {
                 });
 
                 it("session should be closed", () -> {
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertNotEquals(expireTime, session.expireTime);
 
                     Assert.assertTrue(session.expireTime.compareTo(expireTime) < 0);
@@ -274,7 +274,7 @@ public class UserSessionTests {
                 });
 
                 it("session should be closed", () -> {
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(0, session.expireTime);
                 });
 
@@ -290,7 +290,7 @@ public class UserSessionTests {
                 assertEquals(1, sessionStartedEvents.size());
                 assertEquals(sessionId, sessionStartedEvents.get(0).session_id);
 
-                GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                 assertEquals(2, session.turnOver);
                 assertEquals(nextExpireTime, session.expireTime);
             });

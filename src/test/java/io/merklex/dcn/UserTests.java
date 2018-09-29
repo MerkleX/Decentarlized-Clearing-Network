@@ -48,7 +48,7 @@ public class UserTests {
                 });
 
                 it("should be able to query user", () -> {
-                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0)).send();
+                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0));
                     Assert.assertEquals(bobAddress, userData.getValue1());
                     Assert.assertEquals(bobAddress, userData.getValue2());
                 });
@@ -68,13 +68,13 @@ public class UserTests {
                 });
 
                 it("should be able to query user", () -> {
-                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(1)).send();
+                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(1));
                     Assert.assertEquals(bobAddress, userData.getValue1());
                     Assert.assertEquals(henryAddress, userData.getValue2());
                 });
 
                 it("first user should not be modified", () -> {
-                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0)).send();
+                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0));
                     Assert.assertEquals(bobAddress, userData.getValue1());
                     Assert.assertEquals(bobAddress, userData.getValue2());
                 });
@@ -89,7 +89,7 @@ public class UserTests {
                     });
 
                     it("update should be applied", () -> {
-                        Tuple2<String, String> user = bob.get_user(BigInteger.valueOf(0)).send();
+                        Tuple2<String, String> user = bob.get_user(BigInteger.valueOf(0));
                         Assert.assertEquals(bobAddress, user.getValue1());
                         Assert.assertEquals(aliceAddress, user.getValue2());
                     });
@@ -103,13 +103,13 @@ public class UserTests {
                     it("should not be able to update user 1", () -> {
                         alice.executeTransaction(DCN.update_user_trade_addresses(BigInteger.valueOf(1), bobAddress));
 
-                        Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(1)).send();
+                        Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(1));
                         Assert.assertEquals(bobAddress, userData.getValue1());
                         Assert.assertEquals(henryAddress, userData.getValue2());
 
                         henry.executeTransaction(DCN.update_user_trade_addresses(BigInteger.valueOf(1), bobAddress));
 
-                        userData = bob.get_user(BigInteger.valueOf(1)).send();
+                        userData = bob.get_user(BigInteger.valueOf(1));
                         Assert.assertEquals(bobAddress, userData.getValue1());
                         Assert.assertEquals(henryAddress, userData.getValue2());
                     });
@@ -117,13 +117,13 @@ public class UserTests {
                     it("should not be able to update user 0", () -> {
                         alice.executeTransaction(DCN.update_user_trade_addresses(BigInteger.valueOf(0), henryAddress));
 
-                        Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0)).send();
+                        Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0));
                         Assert.assertEquals(bobAddress, userData.getValue1());
                         Assert.assertEquals(bobAddress, userData.getValue2());
 
                         henry.executeTransaction(DCN.update_user_trade_addresses(BigInteger.valueOf(0), henryAddress));
 
-                        userData = bob.get_user(BigInteger.valueOf(0)).send();
+                        userData = bob.get_user(BigInteger.valueOf(0));
                         Assert.assertEquals(bobAddress, userData.getValue1());
                         Assert.assertEquals(bobAddress, userData.getValue2());
                     });

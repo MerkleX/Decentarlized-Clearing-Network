@@ -28,7 +28,7 @@ public class AssetTests {
             });
 
             it("ether should exist with asset_id=0", () -> {
-                GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), StaticNetwork.DCN().get_asset(BigInteger.valueOf(0)).send());
+                GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), StaticNetwork.DCN().get_asset(BigInteger.valueOf(0)));
                 assertEquals("ETH ", asset.symbol);
                 assertEquals(10000000000L, asset.unitScale);
                 assertEquals("0x0000000000000000000000000000000000000000", asset.contractAddress);
@@ -37,7 +37,7 @@ public class AssetTests {
             });
 
             it("non allocated assets should be empty", () -> {
-                GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), StaticNetwork.DCN().get_asset(BigInteger.valueOf(123)).send());
+                GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), StaticNetwork.DCN().get_asset(BigInteger.valueOf(123)));
                 assertEquals("", asset.symbol.trim());
                 assertEquals(0, asset.unitScale);
                 assertEquals("0x0000000000000000000000000000000000000000", asset.contractAddress);
@@ -56,7 +56,7 @@ public class AssetTests {
                 });
 
                 it("query should yield no results", () -> {
-                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), bob.get_asset(BigInteger.valueOf(1)).send());
+                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), bob.get_asset(BigInteger.valueOf(1)));
                     assertEquals("", asset.symbol.trim());
                     assertEquals(0, asset.unitScale);
                     assertEquals("0x0000000000000000000000000000000000000000", asset.contractAddress);
@@ -100,14 +100,14 @@ public class AssetTests {
                 });
 
                 it("should not modify ether asset", () -> {
-                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(0)).send());
+                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(0)));
                     assertEquals("ETH ", asset.symbol);
                     assertEquals(10000000000L, asset.unitScale);
                     assertEquals("0x0000000000000000000000000000000000000000", asset.contractAddress);
                 });
 
                 it("should be able to query asset", () -> {
-                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(1)).send());
+                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(1)));
                     assertEquals("ABCD", asset.symbol);
                     assertEquals(BigInteger.ONE, asset.unitScale);
                     assertEquals(assetAddress, asset.contractAddress);
@@ -130,21 +130,21 @@ public class AssetTests {
                 });
 
                 it("should not modify ether", () -> {
-                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(0)).send());
+                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(0)));
                     assertEquals("ETH ", asset.symbol);
                     assertEquals(10000000000L, asset.unitScale);
                     assertEquals("0x0000000000000000000000000000000000000000", asset.contractAddress);
                 });
 
                 it("should not modify asset 1", () -> {
-                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(1)).send());
+                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(1)));
                     assertEquals("ABCD", asset.symbol);
                     assertEquals(BigInteger.ONE, asset.unitScale);
                     assertEquals(assetAddress, asset.contractAddress);
                 });
 
                 it("should be able to query asset 2", () -> {
-                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(2)).send());
+                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(2)));
                     assertEquals("ABC ", asset.symbol);
                     assertEquals(231421, asset.unitScale);
                     assertEquals(assetAddress, asset.contractAddress);

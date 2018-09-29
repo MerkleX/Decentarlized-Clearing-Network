@@ -46,7 +46,7 @@ public class ExchangeTests {
             });
 
             it("exchange data should be empty", () -> {
-                GetExchangeResult exchange = DCNResults.GetExchange(new GetExchangeResult(), bob.get_exchange(BigInteger.valueOf(0)).send());
+                GetExchangeResult exchange = DCNResults.GetExchange(new GetExchangeResult(), bob.get_exchange(BigInteger.valueOf(0)));
                 assertEquals("", exchange.name.trim());
                 assertEquals("0x0000000000000000000000000000000000000000", exchange.address);
                 assertEquals(0, exchange.feeBalance);
@@ -69,7 +69,7 @@ public class ExchangeTests {
             });
 
             it("should be able to query exchange", () -> {
-                GetExchangeResult exchange = DCNResults.GetExchange(new GetExchangeResult(), bob.get_exchange(BigInteger.valueOf(0)).send());
+                GetExchangeResult exchange = DCNResults.GetExchange(new GetExchangeResult(), bob.get_exchange(BigInteger.valueOf(0)));
                 assertEquals("bobs network", exchange.name.trim());
                 assertEquals(bobKey.getAddress(), exchange.address);
                 assertEquals(0, exchange.feeBalance);
@@ -92,14 +92,14 @@ public class ExchangeTests {
             });
 
             it("should be able to query exchange first exchange", () -> {
-                GetExchangeResult exchange = DCNResults.GetExchange(new GetExchangeResult(), bob.get_exchange(BigInteger.valueOf(0)).send());
+                GetExchangeResult exchange = DCNResults.GetExchange(new GetExchangeResult(), bob.get_exchange(BigInteger.valueOf(0)));
                 assertEquals("bobs network", exchange.name.trim());
                 assertEquals(bobKey.getAddress(), exchange.address);
                 assertEquals(0, exchange.feeBalance);
             });
 
             it("should be able to query exchange new exchange", () -> {
-                GetExchangeResult exchange = DCNResults.GetExchange(new GetExchangeResult(), bob.get_exchange(BigInteger.valueOf(1)).send());
+                GetExchangeResult exchange = DCNResults.GetExchange(new GetExchangeResult(), bob.get_exchange(BigInteger.valueOf(1)));
                 assertEquals("other net yo", exchange.name.trim());
                 assertEquals(henryKey.getAddress(), exchange.address);
                 assertEquals(0, exchange.feeBalance);
