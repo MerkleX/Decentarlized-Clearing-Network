@@ -165,15 +165,24 @@ public class GenerateContractCode {
             contents = contentBefore + "public " + returnValue + contentAfter;
         }
 
-        contents = contents.replaceAll(
-                "public RemoteCall<(\\w+)> ([\\w\\d_]+)\\(([\\w\\d\\s,]*)\\) \\{",
-                "public $1 $2($3) throws IOException {"
-        );
+        {
+            contents = contents.replaceAll(
+                    "public RemoteCall<(\\w+)> ([\\w\\d_]+)\\(([\\w\\d\\s,]*)\\) \\{",
+                    "public $1 $2($3) throws IOException {"
+            );
 
-        contents = contents.replaceAll(
-                "executeRemoteCallSingleValueReturn\\(function, (\\w+).class\\)",
-                "executeCallSingleValueReturn(function, $1.class)"
-        );
+            contents = contents.replaceAll(
+                    "executeRemoteCallSingleValueReturn\\(function, (\\w+).class\\)",
+                    "executeCallSingleValueReturn(function, $1.class)"
+            );
+        }
+
+        {
+            contents = contents.replaceFirst(
+                    "private static final String BINARY",
+                    "public static final String BINARY"
+            );
+        }
 
         try (FileWriter writer = new FileWriter(javaFile)) {
             writer.write(contents);
