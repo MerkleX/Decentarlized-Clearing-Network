@@ -29,12 +29,12 @@ public class UserEthBalanceTests {
 
             Box<TransactionReceipt> addUserReceipt = new Box<>();
             beforeAll(() -> {
-                addUserReceipt.value = bob.add_user(bobKey.getAddress()).send();
+                addUserReceipt.value = bob.executeTransaction(DCN.add_user(bobKey.getAddress()));
             });
 
             Box<TransactionReceipt> depositReceipt = new Box<>();
             it("deposit ether", () -> {
-                depositReceipt.value = bob.deposit_eth(BigInteger.valueOf(0), true, BigInteger.valueOf(1000)).send();
+                depositReceipt.value = bob.executeTransaction(DCN.deposit_eth(BigInteger.valueOf(0), true), BigInteger.valueOf(1000));
             });
 
             it("user balance should be updated", () -> {
@@ -68,8 +68,8 @@ public class UserEthBalanceTests {
                 Box<TransactionReceipt> withdrawReceipt = new Box<>();
 
                 it("withdraw", () -> {
-                    withdrawReceipt.value = bob.withdraw_eth(BigInteger.valueOf(0), bobKey.getAddress(),
-                            true, BigInteger.valueOf(500)).send();
+                    withdrawReceipt.value = bob.executeTransaction(DCN.withdraw_eth(BigInteger.valueOf(0), bobKey.getAddress(),
+                            true, BigInteger.valueOf(500)));
                 });
 
                 it("contracts balance should be 500", () -> {
@@ -104,8 +104,8 @@ public class UserEthBalanceTests {
                 Box<TransactionReceipt> withdrawReceipt = new Box<>();
 
                 it("withdraw", () -> {
-                    withdrawReceipt.value = bob.withdraw_eth(BigInteger.valueOf(0), bobKey.getAddress(),
-                            true, BigInteger.valueOf(1000)).send();
+                    withdrawReceipt.value = bob.executeTransaction(DCN.withdraw_eth(BigInteger.valueOf(0), bobKey.getAddress(),
+                            true, BigInteger.valueOf(1000)));
                 });
 
                 it("contracts balance should be 0", () -> {
@@ -140,8 +140,8 @@ public class UserEthBalanceTests {
                 Box<TransactionReceipt> withdrawReceipt = new Box<>();
 
                 it("withdraw", () -> {
-                    withdrawReceipt.value = bob.withdraw_eth(BigInteger.valueOf(0), bobKey.getAddress(),
-                            true, BigInteger.valueOf(1001)).send();
+                    withdrawReceipt.value = bob.executeTransaction(DCN.withdraw_eth(BigInteger.valueOf(0), bobKey.getAddress(),
+                            true, BigInteger.valueOf(1001)));
                 });
 
                 it("contracts balance should be the same", () -> {
@@ -174,8 +174,8 @@ public class UserEthBalanceTests {
                 });
 
                 it("attempt withdraw", () -> {
-                    alice.withdraw_eth(BigInteger.valueOf(0), aliceKey.getAddress(),
-                            false, BigInteger.valueOf(1)).send();
+                    alice.executeTransaction(DCN.withdraw_eth(BigInteger.valueOf(0), aliceKey.getAddress(),
+                            false, BigInteger.valueOf(1)));
                 });
 
                 it("contracts balance should be the same", () -> {
@@ -206,8 +206,8 @@ public class UserEthBalanceTests {
                 Box<TransactionReceipt> withdrawReceipt = new Box<>();
 
                 it("attempt withdraw", () -> {
-                    withdrawReceipt.value = bob.withdraw_eth(BigInteger.valueOf(0), aliceKey.getAddress(),
-                            true, BigInteger.valueOf(1)).send();
+                    withdrawReceipt.value = bob.executeTransaction(DCN.withdraw_eth(BigInteger.valueOf(0), aliceKey.getAddress(),
+                            true, BigInteger.valueOf(1)));
                 });
 
                 it("contracts balance should be the same", () -> {
@@ -241,8 +241,8 @@ public class UserEthBalanceTests {
                 Box<TransactionReceipt> withdrawReceipt = new Box<>();
 
                 it("withdraw 100", () -> {
-                    withdrawReceipt.value = bob.withdraw_eth(BigInteger.valueOf(0), aliceKey.getAddress(),
-                            false, BigInteger.valueOf(100)).send();
+                    withdrawReceipt.value = bob.executeTransaction(DCN.withdraw_eth(BigInteger.valueOf(0), aliceKey.getAddress(),
+                            false, BigInteger.valueOf(100)));
                 });
 
                 it("contracts balance be 900", () -> {

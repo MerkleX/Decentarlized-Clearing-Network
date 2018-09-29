@@ -39,8 +39,8 @@ public class UserAssetBalanceTests {
         }
 
         beforeAll(() -> {
-            jackDCN.add_user(jackKey.getAddress()).send();
-            StaticNetwork.DCN().add_asset("JTK ", BigInteger.ONE, jackToken.getContractAddress()).send();
+            jackDCN.executeTransaction(DCN.add_user(jackKey.getAddress()));
+            StaticNetwork.DCN().executeTransaction(DCN.add_asset("JTK ", BigInteger.ONE, jackToken.getContractAddress()));
         });
 
         it("DNC balance should 0", () -> {
@@ -51,7 +51,7 @@ public class UserAssetBalanceTests {
         });
 
         it("should be fail to deposit funds without allowance", () -> {
-            jackDCN.deposit_asset(BigInteger.valueOf(0), BigInteger.ONE, BigInteger.valueOf(100)).send();
+            jackDCN.executeTransaction(DCN.deposit_asset(BigInteger.valueOf(0), BigInteger.ONE, BigInteger.valueOf(100)));
             BigInteger qty = jackDCN.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(1)).send();
             assertEquals(0, qty);
         });
@@ -68,7 +68,7 @@ public class UserAssetBalanceTests {
 
             Box<TransactionReceipt> receipt = new Box<>();
             it("deposit funds", () -> {
-                receipt.value = jackDCN.deposit_asset(BigInteger.valueOf(0), BigInteger.ONE, BigInteger.valueOf(100)).send();
+                receipt.value = jackDCN.executeTransaction(DCN.deposit_asset(BigInteger.valueOf(0), BigInteger.ONE, BigInteger.valueOf(100)));
             });
 
             it("should have log for ERC-20 transfer", () -> {
@@ -112,8 +112,8 @@ public class UserAssetBalanceTests {
             Box<TransactionReceipt> receipt = new Box<>();
 
             it("withdraw asset", () -> {
-                receipt.value = jackDCN.withdraw_asset(BigInteger.valueOf(0), true,
-                        BigInteger.ONE, jackKey.getAddress(), BigInteger.valueOf(10)).send();
+                receipt.value = jackDCN.executeTransaction(DCN.withdraw_asset(BigInteger.valueOf(0), true,
+                        BigInteger.ONE, jackKey.getAddress(), BigInteger.valueOf(10)));
             });
 
             it("should have log for ERC-20 transfer", () -> {

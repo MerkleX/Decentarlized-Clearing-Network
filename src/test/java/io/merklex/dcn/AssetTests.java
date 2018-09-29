@@ -51,7 +51,7 @@ public class AssetTests {
                 DCN bob = StaticNetwork.DCN("bob");
 
                 it("failed add should have no logs", () -> {
-                    TransactionReceipt result = bob.add_asset("TEST", BigInteger.ONE, bob.getContractAddress()).send();
+                    TransactionReceipt result = bob.executeTransaction(DCN.add_asset("TEST", BigInteger.ONE, bob.getContractAddress()));
                     assertEquals(0, result.getLogs().size());
                 });
 
@@ -69,17 +69,17 @@ public class AssetTests {
 
             describe("should validate add asset", () -> {
                 it("should not be able to add asset with < 4 character symbol", () -> {
-                    dcn.add_asset("TES", BigInteger.ONE, assetAddress).send();
+                    dcn.executeTransaction(DCN.add_asset("TES", BigInteger.ONE, assetAddress));
                     assertEquals(0, dcn.get_asset_count().send());
                 });
 
                 it("should not be able to add asset with > 4 character symbol", () -> {
-                    dcn.add_asset("TESTER", BigInteger.ONE, assetAddress).send();
+                    dcn.executeTransaction(DCN.add_asset("TESTER", BigInteger.ONE, assetAddress));
                     assertEquals(0, dcn.get_asset_count().send());
                 });
 
                 it("should not be able to add asset with zero unit scale", () -> {
-                    dcn.add_asset("1234", BigInteger.ZERO, assetAddress).send();
+                    dcn.executeTransaction(DCN.add_asset("1234", BigInteger.ZERO, assetAddress));
                     assertEquals(0, dcn.get_asset_count().send());
                 });
             });
@@ -88,7 +88,7 @@ public class AssetTests {
                 Box<TransactionReceipt> receipt = new Box<>();
 
                 it("add asset", () -> {
-                    receipt.value = dcn.add_asset("ABCD", BigInteger.ONE, assetAddress).send();
+                    receipt.value = dcn.executeTransaction(DCN.add_asset("ABCD", BigInteger.ONE, assetAddress));
                 });
 
                 it("should have log as first asset", () -> {
@@ -118,8 +118,7 @@ public class AssetTests {
                 Box<TransactionReceipt> receipt = new Box<>();
 
                 it("add asset", () -> {
-                    receipt.value = dcn.add_asset("ABC ", BigInteger.valueOf(231421), assetAddress).send();
-                    ;
+                    receipt.value = dcn.executeTransaction(DCN.add_asset("ABC ", BigInteger.valueOf(231421), assetAddress));
                 });
 
                 it("should have log as second asset", () -> {

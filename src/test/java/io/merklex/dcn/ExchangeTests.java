@@ -34,7 +34,7 @@ public class ExchangeTests {
         describe("non creator should not be able to add an exchange", () -> {
             Box<TransactionReceipt> receipt = new Box<>();
             it("attempt to add exchange", () -> {
-                receipt.value = bob.add_exchange("bobs network", bobKey.getAddress()).send();
+                receipt.value = bob.executeTransaction(DCN.add_exchange("bobs network", bobKey.getAddress()));
             });
 
             it("should have no logs", () -> {
@@ -56,7 +56,7 @@ public class ExchangeTests {
         describe("creator should be able to add an exchange", () -> {
             Box<TransactionReceipt> receipt = new Box<>();
             it("add exchange", () -> {
-                receipt.value = StaticNetwork.DCN().add_exchange("bobs network", bobKey.getAddress()).send();
+                receipt.value = StaticNetwork.DCN().executeTransaction(DCN.add_exchange("bobs network", bobKey.getAddress()));
             });
 
             it("should have log with new id", () -> {
@@ -79,7 +79,7 @@ public class ExchangeTests {
         describe("second exchange should not affect first", () -> {
             Box<TransactionReceipt> receipt = new Box<>();
             it("add exchange", () -> {
-                receipt.value = StaticNetwork.DCN().add_exchange("other net yo", henryKey.getAddress()).send();
+                receipt.value = StaticNetwork.DCN().executeTransaction(DCN.add_exchange("other net yo", henryKey.getAddress()));
             });
 
             it("should have log with new id", () -> {
