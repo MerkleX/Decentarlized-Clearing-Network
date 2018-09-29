@@ -28,11 +28,11 @@ public class GeneratedCodeTest {
 
             String expected = Utils.ReadAll(new FileInputStream(contractPath));
             expected = expected.replaceFirst("package [\\w_.]+;", "");
-            expected = expected.replaceFirst("(private static final String BINARY = \"[0-9abcdef]+)[0-9abcdef]{68}(\";)", "$1$2");
+            expected = expected.replaceFirst("(static final String BINARY = \"[0-9abcdef]+)[0-9abcdef]{68}(\";)", "$1$2");
 
             String actual = Utils.ReadAll(new FileInputStream("src/main/generated/io/merklex/dcn/contracts/DCN.java"));
             actual = actual.replaceFirst("package [\\w_.]+;", "");
-            actual = actual.replaceFirst("(private static final String BINARY = \"[0-9abcdef]+)[0-9abcdef]{68}(\";)", "$1$2");
+            actual = actual.replaceFirst("(static final String BINARY = \"[0-9abcdef]+)[0-9abcdef]{68}(\";)", "$1$2");
 
             Assert.assertEquals(expected, actual);
         } finally {
