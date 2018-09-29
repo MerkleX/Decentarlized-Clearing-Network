@@ -31,12 +31,12 @@ public class UserTests {
             String aliceAddress = Genesis.GetKey("alice").getAddress();
 
             it("user count should be zero", () -> {
-                Assert.assertEquals(BigInteger.ZERO, bob.get_user_count().send());
+                Assert.assertEquals(BigInteger.ZERO, bob.get_user_count());
             });
 
             describe("should able to add user with same management and trade key", () -> {
                 it("should add user with id 0", () -> {
-                    TransactionReceipt receipt = bob.add_user(bobAddress).send();
+                    TransactionReceipt receipt = bob.executeTransaction(DCN.add_user(bobAddress));
 
                     List<Log> logs = receipt.getLogs();
                     Assert.assertEquals(1, logs.size());
@@ -44,11 +44,11 @@ public class UserTests {
                 });
 
                 it("user count should now be 1", () -> {
-                    Assert.assertEquals(BigInteger.valueOf(1), bob.get_user_count().send());
+                    Assert.assertEquals(BigInteger.valueOf(1), bob.get_user_count());
                 });
 
                 it("should be able to query user", () -> {
-                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0)).send();
+                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0));
                     Assert.assertEquals(bobAddress, userData.getValue1());
                     Assert.assertEquals(bobAddress, userData.getValue2());
                 });
@@ -56,7 +56,7 @@ public class UserTests {
 
             describe("should able to add user with different management and trade key", () -> {
                 it("should add user with id 0", () -> {
-                    TransactionReceipt receipt = bob.add_user(henryAddress).send();
+                    TransactionReceipt receipt = bob.executeTransaction(DCN.add_user(henryAddress));
 
                     List<Log> logs = receipt.getLogs();
                     Assert.assertEquals(1, logs.size());
@@ -64,17 +64,17 @@ public class UserTests {
                 });
 
                 it("user count should now be 2", () -> {
-                    Assert.assertEquals(BigInteger.valueOf(2), bob.get_user_count().send());
+                    Assert.assertEquals(BigInteger.valueOf(2), bob.get_user_count());
                 });
 
                 it("should be able to query user", () -> {
-                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(1)).send();
+                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(1));
                     Assert.assertEquals(bobAddress, userData.getValue1());
                     Assert.assertEquals(henryAddress, userData.getValue2());
                 });
 
                 it("first user should not be modified", () -> {
-                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0)).send();
+                    Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0));
                     Assert.assertEquals(bobAddress, userData.getValue1());
                     Assert.assertEquals(bobAddress, userData.getValue2());
                 });
@@ -85,45 +85,45 @@ public class UserTests {
                     StaticNetwork.DescribeCheckpoint();
 
                     it("update address", () -> {
-                        bob.update_user_trade_addresses(BigInteger.valueOf(0), aliceAddress).send();
+                        bob.executeTransaction(DCN.update_user_trade_addresses(BigInteger.valueOf(0), aliceAddress));
                     });
 
                     it("update should be applied", () -> {
-                        Tuple2<String, String> user = bob.get_user(BigInteger.valueOf(0)).send();
+                        Tuple2<String, String> user = bob.get_user(BigInteger.valueOf(0));
                         Assert.assertEquals(bobAddress, user.getValue1());
                         Assert.assertEquals(aliceAddress, user.getValue2());
                     });
 
                     it("user count should still be 2", () -> {
-                        Assert.assertEquals(BigInteger.valueOf(2), bob.get_user_count().send());
+                        Assert.assertEquals(BigInteger.valueOf(2), bob.get_user_count());
                     });
                 });
 
                 describe("should be protected", () -> {
                     it("should not be able to update user 1", () -> {
-                        alice.update_user_trade_addresses(BigInteger.valueOf(1), bobAddress).send();
+                        alice.executeTransaction(DCN.update_user_trade_addresses(BigInteger.valueOf(1), bobAddress));
 
-                        Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(1)).send();
+                        Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(1));
                         Assert.assertEquals(bobAddress, userData.getValue1());
                         Assert.assertEquals(henryAddress, userData.getValue2());
 
-                        henry.update_user_trade_addresses(BigInteger.valueOf(1), bobAddress).send();
+                        henry.executeTransaction(DCN.update_user_trade_addresses(BigInteger.valueOf(1), bobAddress));
 
-                        userData = bob.get_user(BigInteger.valueOf(1)).send();
+                        userData = bob.get_user(BigInteger.valueOf(1));
                         Assert.assertEquals(bobAddress, userData.getValue1());
                         Assert.assertEquals(henryAddress, userData.getValue2());
                     });
 
                     it("should not be able to update user 0", () -> {
-                        alice.update_user_trade_addresses(BigInteger.valueOf(0), henryAddress).send();
+                        alice.executeTransaction(DCN.update_user_trade_addresses(BigInteger.valueOf(0), henryAddress));
 
-                        Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0)).send();
+                        Tuple2<String, String> userData = bob.get_user(BigInteger.valueOf(0));
                         Assert.assertEquals(bobAddress, userData.getValue1());
                         Assert.assertEquals(bobAddress, userData.getValue2());
 
-                        henry.update_user_trade_addresses(BigInteger.valueOf(0), henryAddress).send();
+                        henry.executeTransaction(DCN.update_user_trade_addresses(BigInteger.valueOf(0), henryAddress));
 
-                        userData = bob.get_user(BigInteger.valueOf(0)).send();
+                        userData = bob.get_user(BigInteger.valueOf(0));
                         Assert.assertEquals(bobAddress, userData.getValue1());
                         Assert.assertEquals(bobAddress, userData.getValue2());
                     });

@@ -62,47 +62,47 @@ public class UserSessionTests {
         BigInteger startBalance = BigInteger.valueOf(1000000).multiply(BigInteger.TEN.pow(8));
 
         beforeAll(() -> {
-            bob.add_user(henryKey.getAddress()).send();
-            bob.deposit_eth(BigInteger.valueOf(0), true, startBalance).send();
-            StaticNetwork.DCN().add_exchange("merklex     ", merkleKey.getAddress()).send();
+            bob.executeTransaction(DCN.add_user(henryKey.getAddress()));
+            bob.executeTransaction(DCN.deposit_eth(BigInteger.valueOf(0), true), startBalance);
+            StaticNetwork.DCN().executeTransaction(DCN.add_exchange("merklex     ", merkleKey.getAddress()));
 
-            BigInteger balance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
+            BigInteger balance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0));
             assertEquals(startBalance, balance);
 
-            StaticNetwork.DCN().add_asset("TK-1", BigInteger.valueOf(1000), token1.getContractAddress()).send();
-            StaticNetwork.DCN().add_asset("TK-2", BigInteger.valueOf(10000), token2.getContractAddress()).send();
-            StaticNetwork.DCN().add_asset("TK-3", BigInteger.valueOf(100000), token3.getContractAddress()).send();
+            StaticNetwork.DCN().executeTransaction(DCN.add_asset("TK-1", BigInteger.valueOf(1000), token1.getContractAddress()));
+            StaticNetwork.DCN().executeTransaction(DCN.add_asset("TK-2", BigInteger.valueOf(10000), token2.getContractAddress()));
+            StaticNetwork.DCN().executeTransaction(DCN.add_asset("TK-3", BigInteger.valueOf(100000), token3.getContractAddress()));
         });
 
         BigInteger sessionId = BigInteger.valueOf(123);
         describe("start session", () -> {
             describe("expire time", () -> {
                 it("expire time should not be too soon", () -> {
-                    TransactionReceipt tx = bob.start_session(sessionId, BigInteger.valueOf(0),
-                            BigInteger.valueOf(0), BigInteger.valueOf(System.currentTimeMillis() / 1000 + 100)).send();
+                    TransactionReceipt tx = bob.executeTransaction(DCN.start_session(sessionId, BigInteger.valueOf(0),
+                            BigInteger.valueOf(0), BigInteger.valueOf(System.currentTimeMillis() / 1000 + 100)));
 
                     List<Log> logs = tx.getLogs();
                     assertEquals(0, logs.size());
 
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(0, session.expireTime);
                 });
 
                 it("expire time should not be too far in the future", () -> {
-                    TransactionReceipt tx = bob.start_session(sessionId, BigInteger.valueOf(0),
-                            BigInteger.valueOf(0), BigInteger.valueOf(System.currentTimeMillis() / 1000 + 2600000)).send();
+                    TransactionReceipt tx = bob.executeTransaction(DCN.start_session(sessionId, BigInteger.valueOf(0),
+                            BigInteger.valueOf(0), BigInteger.valueOf(System.currentTimeMillis() / 1000 + 2600000)));
 
                     List<Log> logs = tx.getLogs();
                     assertEquals(0, logs.size());
 
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(0, session.expireTime);
                 });
             });
 
             it("start session with id 123", () -> {
-                TransactionReceipt tx = bob.start_session(sessionId, BigInteger.valueOf(0),
-                        BigInteger.valueOf(0), expireTime).send();
+                TransactionReceipt tx = bob.executeTransaction(DCN.start_session(sessionId, BigInteger.valueOf(0),
+                        BigInteger.valueOf(0), expireTime));
 
                 List<Log> logs = tx.getLogs();
                 assertEquals(1, logs.size());
@@ -115,7 +115,7 @@ public class UserSessionTests {
             });
 
             it("should be able to query session", () -> {
-                GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
 
                 assertEquals(1, session.turnOver);
                 assertEquals(0, session.positionCount);
@@ -131,36 +131,36 @@ public class UserSessionTests {
         describe("deposit into position", () -> {
             describe("other user should not be able to deposit", () -> {
                 it("position deposit", () -> {
-                    TransactionReceipt send = henry.position_deposit(sessionId, BigInteger.valueOf(0),
-                            BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(1000)).send();
+                    TransactionReceipt send = henry.executeTransaction(DCN.position_deposit(sessionId, BigInteger.valueOf(0),
+                            BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(1000)));
                     assertEquals(1, send.getLogs().size());
                 });
 
                 it("should not update balance", () -> {
-                    BigInteger userBalance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
+                    BigInteger userBalance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0));
                     assertEquals(startBalance, userBalance);
 
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(0, /* etherBalance */ session.etherBalance);
                 });
             });
 
             describe("owner should be able to deposit eth", () -> {
                 it("position deposit", () -> {
-                    TransactionReceipt send = bob.position_deposit(sessionId, BigInteger.valueOf(0),
-                            BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(1000)).send();
+                    TransactionReceipt send = bob.executeTransaction(DCN.position_deposit(sessionId, BigInteger.valueOf(0),
+                            BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(1000)));
 
                     assertEquals(1, send.getLogs().size());
                     assertEquals("0x00", send.getLogs().get(0).getData());
                 });
 
                 it("user balance should decrease", () -> {
-                    BigInteger userBalance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
+                    BigInteger userBalance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0));
                     assertEquals(startBalance.subtract(BigInteger.valueOf(1000).multiply(BigInteger.TEN.pow(10))), userBalance);
                 });
 
                 it("position balance should increase", () -> {
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(1000, /* etherBalance */ session.etherBalance);
                 });
             });
@@ -169,8 +169,8 @@ public class UserSessionTests {
                 StaticNetwork.DescribeCheckpointForEach();
 
                 it("should create new session with zero balance", () -> {
-                    TransactionReceipt send = bob.position_deposit(sessionId, BigInteger.ZERO,
-                            BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.ZERO).send();
+                    TransactionReceipt send = bob.executeTransaction(DCN.position_deposit(sessionId, BigInteger.ZERO,
+                            BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.ZERO));
 
                     assertEquals(2, send.getLogs().size());
 
@@ -179,16 +179,16 @@ public class UserSessionTests {
 
                     assertEquals("0x00", send.getLogs().get(1).getData());
 
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(1, session.positionCount);
                 });
 
                 it("should not be able to create position without balance", () -> {
-                    TransactionReceipt send = bob.position_deposit(sessionId, BigInteger.ZERO,
-                            BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1000)).send();
+                    TransactionReceipt send = bob.executeTransaction(DCN.position_deposit(sessionId, BigInteger.ZERO,
+                            BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1000)));
                     Assert.assertEquals("0x04", send.getLogs().get(0).getData());
 
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(0, session.positionCount);
                 });
 
@@ -196,10 +196,10 @@ public class UserSessionTests {
                     token1.transfer(bobKey.getAddress(), BigInteger.valueOf(100000)).send();
                     ERC20 bobERC = ERC20.load(token1.getContractAddress(), StaticNetwork.Web3(), bobKey, BigInteger.ONE, new BigInteger(Genesis.getGasLimit()));
                     bobERC.approve(bob.getContractAddress(), BigInteger.valueOf(1000)).send();
-                    bob.deposit_asset(BigInteger.valueOf(0), BigInteger.valueOf(1), BigInteger.valueOf(1000)).send();
+                    bob.executeTransaction(DCN.deposit_asset(BigInteger.valueOf(0), BigInteger.valueOf(1), BigInteger.valueOf(1000)));
 
-                    TransactionReceipt send = bob.position_deposit(sessionId, BigInteger.ZERO,
-                            BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1)).send();
+                    TransactionReceipt send = bob.executeTransaction(DCN.position_deposit(sessionId, BigInteger.ZERO,
+                            BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1)));
 
                     assertEquals(2, send.getLogs().size());
 
@@ -208,15 +208,15 @@ public class UserSessionTests {
 
                     assertEquals("0x00", send.getLogs().get(1).getData());
 
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(1, session.positionCount);
 
-                    send = bob.position_deposit(sessionId, BigInteger.ZERO,
-                            BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1)).send();
+                    send = bob.executeTransaction(DCN.position_deposit(sessionId, BigInteger.ZERO,
+                            BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1)));
                     Assert.assertEquals("0x04", send.getLogs().get(0).getData());
 
 
-                    DCNResults.GetSession(session, bob.get_session(sessionId).send());
+                    DCNResults.GetSession(session, bob.get_session(sessionId));
                     assertEquals(1, session.positionCount);
                 });
             });
@@ -227,7 +227,7 @@ public class UserSessionTests {
                 });
 
                 it("session should be active", () -> {
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(expireTime, session.expireTime);
                 });
             });
@@ -238,7 +238,7 @@ public class UserSessionTests {
                 });
 
                 it("session should be active", () -> {
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(expireTime, session.expireTime);
                 });
             });
@@ -249,18 +249,18 @@ public class UserSessionTests {
                 });
 
                 it("session should be active", () -> {
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(expireTime, session.expireTime);
                 });
             });
 
             describe("exchange should be able to end session", () -> {
                 it("end session", () -> {
-                    StaticNetwork.DCN().end_session(sessionId).send();
+                    StaticNetwork.DCN().executeTransaction(DCN.end_session(sessionId));
                 });
 
                 it("session should be closed", () -> {
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertNotEquals(expireTime, session.expireTime);
 
                     Assert.assertTrue(session.expireTime.compareTo(expireTime) < 0);
@@ -270,11 +270,11 @@ public class UserSessionTests {
 
             describe("close expired session", () -> {
                 it("close session", () -> {
-                    henry.close_session(sessionId).send();
+                    henry.executeTransaction(DCN.close_session(sessionId));
                 });
 
                 it("session should be closed", () -> {
-                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                    GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(0, session.expireTime);
                 });
 
@@ -283,14 +283,14 @@ public class UserSessionTests {
 
             it("session in same position should have an increased turnover", () -> {
                 BigInteger nextExpireTime = BigInteger.valueOf(System.currentTimeMillis() / 1000 + 50000);
-                TransactionReceipt tx = bob.start_session(sessionId, BigInteger.valueOf(0),
-                        BigInteger.valueOf(0), nextExpireTime).send();
+                TransactionReceipt tx = bob.executeTransaction(DCN.start_session(sessionId, BigInteger.valueOf(0),
+                        BigInteger.valueOf(0), nextExpireTime));
 
                 List<DCN.SessionStartedEventResponse> sessionStartedEvents = bob.getSessionStartedEvents(tx);
                 assertEquals(1, sessionStartedEvents.size());
                 assertEquals(sessionId, sessionStartedEvents.get(0).session_id);
 
-                GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId).send());
+                GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                 assertEquals(2, session.turnOver);
                 assertEquals(nextExpireTime, session.expireTime);
             });
