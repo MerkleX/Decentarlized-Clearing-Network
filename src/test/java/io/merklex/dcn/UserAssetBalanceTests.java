@@ -52,7 +52,7 @@ public class UserAssetBalanceTests {
 
         it("should be fail to deposit funds without allowance", () -> {
             jackDCN.executeTransaction(DCN.deposit_asset(BigInteger.valueOf(0), BigInteger.ONE, BigInteger.valueOf(100)));
-            BigInteger qty = jackDCN.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(1)).send();
+            BigInteger qty = jackDCN.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(1));
             assertEquals(0, qty);
         });
 
@@ -89,7 +89,7 @@ public class UserAssetBalanceTests {
             });
 
             it("DNC balance should have increased", () -> {
-                BigInteger qty = jackDCN.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(1)).send();
+                BigInteger qty = jackDCN.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(1));
                 assertEquals(100, qty);
             });
 
@@ -136,7 +136,7 @@ public class UserAssetBalanceTests {
             it("DNC balance should be decreased", () -> {
                 assertEquals(
                         90,
-                        jackDCN.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(1)).send()
+                        jackDCN.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(1))
                 );
             });
 

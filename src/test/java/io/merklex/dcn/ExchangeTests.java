@@ -24,7 +24,7 @@ public class ExchangeTests {
         StaticNetwork.DescribeCheckpoint();
 
         it("initial exchange count should be zero", () -> {
-            assertEquals(0, StaticNetwork.DCN().get_exchange_count().send());
+            assertEquals(0, StaticNetwork.DCN().get_exchange_count());
         });
 
         DCN bob = StaticNetwork.DCN("bob");
@@ -42,7 +42,7 @@ public class ExchangeTests {
             });
 
             it("exchange count should still be zero", () -> {
-                assertEquals(0, StaticNetwork.DCN().get_exchange_count().send());
+                assertEquals(0, StaticNetwork.DCN().get_exchange_count());
             });
 
             it("exchange data should be empty", () -> {
@@ -65,7 +65,7 @@ public class ExchangeTests {
             });
 
             it("exchange count should be one", () -> {
-                assertEquals(1, StaticNetwork.DCN().get_exchange_count().send());
+                assertEquals(1, StaticNetwork.DCN().get_exchange_count());
             });
 
             it("should be able to query exchange", () -> {
@@ -88,7 +88,7 @@ public class ExchangeTests {
             });
 
             it("exchange count should be two", () -> {
-                assertEquals(2, StaticNetwork.DCN().get_exchange_count().send());
+                assertEquals(2, StaticNetwork.DCN().get_exchange_count());
             });
 
             it("should be able to query exchange first exchange", () -> {

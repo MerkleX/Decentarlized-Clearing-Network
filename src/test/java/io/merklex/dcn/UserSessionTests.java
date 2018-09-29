@@ -66,7 +66,7 @@ public class UserSessionTests {
             bob.executeTransaction(DCN.deposit_eth(BigInteger.valueOf(0), true), startBalance);
             StaticNetwork.DCN().executeTransaction(DCN.add_exchange("merklex     ", merkleKey.getAddress()));
 
-            BigInteger balance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
+            BigInteger balance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0));
             assertEquals(startBalance, balance);
 
             StaticNetwork.DCN().executeTransaction(DCN.add_asset("TK-1", BigInteger.valueOf(1000), token1.getContractAddress()));
@@ -137,7 +137,7 @@ public class UserSessionTests {
                 });
 
                 it("should not update balance", () -> {
-                    BigInteger userBalance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
+                    BigInteger userBalance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0));
                     assertEquals(startBalance, userBalance);
 
                     GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
@@ -155,7 +155,7 @@ public class UserSessionTests {
                 });
 
                 it("user balance should decrease", () -> {
-                    BigInteger userBalance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
+                    BigInteger userBalance = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0));
                     assertEquals(startBalance.subtract(BigInteger.valueOf(1000).multiply(BigInteger.TEN.pow(10))), userBalance);
                 });
 

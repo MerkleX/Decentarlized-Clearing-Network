@@ -24,7 +24,7 @@ public class AssetTests {
 
         describe("initial state checks", () -> {
             it("asset count should be zero", () -> {
-                assertEquals(0, StaticNetwork.DCN().get_asset_count().send());
+                assertEquals(0, StaticNetwork.DCN().get_asset_count());
             });
 
             it("ether should exist with asset_id=0", () -> {
@@ -33,7 +33,7 @@ public class AssetTests {
                 assertEquals(10000000000L, asset.unitScale);
                 assertEquals("0x0000000000000000000000000000000000000000", asset.contractAddress);
 
-                assertEquals(BigInteger.ZERO, StaticNetwork.DCN().get_asset_count().send());
+                assertEquals(BigInteger.ZERO, StaticNetwork.DCN().get_asset_count());
             });
 
             it("non allocated assets should be empty", () -> {
@@ -70,17 +70,17 @@ public class AssetTests {
             describe("should validate add asset", () -> {
                 it("should not be able to add asset with < 4 character symbol", () -> {
                     dcn.executeTransaction(DCN.add_asset("TES", BigInteger.ONE, assetAddress));
-                    assertEquals(0, dcn.get_asset_count().send());
+                    assertEquals(0, dcn.get_asset_count());
                 });
 
                 it("should not be able to add asset with > 4 character symbol", () -> {
                     dcn.executeTransaction(DCN.add_asset("TESTER", BigInteger.ONE, assetAddress));
-                    assertEquals(0, dcn.get_asset_count().send());
+                    assertEquals(0, dcn.get_asset_count());
                 });
 
                 it("should not be able to add asset with zero unit scale", () -> {
                     dcn.executeTransaction(DCN.add_asset("1234", BigInteger.ZERO, assetAddress));
-                    assertEquals(0, dcn.get_asset_count().send());
+                    assertEquals(0, dcn.get_asset_count());
                 });
             });
 
@@ -96,7 +96,7 @@ public class AssetTests {
                     assertEquals(1, logs.size());
                     Log log = logs.get(0);
                     assertEquals("0x0001", log.getData());
-                    assertEquals(BigInteger.ONE, dcn.get_asset_count().send());
+                    assertEquals(BigInteger.ONE, dcn.get_asset_count());
                 });
 
                 it("should not modify ether asset", () -> {
@@ -126,7 +126,7 @@ public class AssetTests {
                     assertEquals(1, logs.size());
                     Log log = logs.get(0);
                     assertEquals("0x0002", log.getData());
-                    assertEquals(2, dcn.get_asset_count().send());
+                    assertEquals(2, dcn.get_asset_count());
                 });
 
                 it("should not modify ether", () -> {

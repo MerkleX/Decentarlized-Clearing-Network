@@ -53,7 +53,7 @@ public class UserEthBalanceTests {
             });
 
             it("contracts should register deposit", () -> {
-                BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
+                BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0));
                 assertEquals(BigInteger.valueOf(1000), value);
             });
 
@@ -88,7 +88,7 @@ public class UserEthBalanceTests {
                 });
 
                 it("contracts user balance should be 500", () -> {
-                    BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
+                    BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0));
                     assertEquals(BigInteger.valueOf(500), value);
                 });
             });
@@ -124,7 +124,7 @@ public class UserEthBalanceTests {
                 });
 
                 it("contracts user balance should be 0", () -> {
-                    BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
+                    BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0));
                     assertEquals(BigInteger.valueOf(0), value);
                 });
             });
@@ -157,7 +157,7 @@ public class UserEthBalanceTests {
                 });
 
                 it("contracts user balance should be the same", () -> {
-                    BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
+                    BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0));
                     assertEquals(BigInteger.valueOf(1000), value);
                 });
             });
@@ -186,7 +186,7 @@ public class UserEthBalanceTests {
                 });
 
                 it("contracts user balance should be the same", () -> {
-                    BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
+                    BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0));
                     assertEquals(BigInteger.valueOf(1000), value);
                 });
 
@@ -223,7 +223,7 @@ public class UserEthBalanceTests {
                 });
 
                 it("contracts user balance should be the same", () -> {
-                    BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
+                    BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0));
                     assertEquals(BigInteger.valueOf(1000), value);
                 });
             });
@@ -263,7 +263,7 @@ public class UserEthBalanceTests {
                 });
 
                 it("contracts user balance should be 900", () -> {
-                    BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0)).send();
+                    BigInteger value = bob.get_user_balance(BigInteger.valueOf(0), BigInteger.valueOf(0));
                     assertEquals(BigInteger.valueOf(900), value);
                 });
             });

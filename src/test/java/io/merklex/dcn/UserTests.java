@@ -31,7 +31,7 @@ public class UserTests {
             String aliceAddress = Genesis.GetKey("alice").getAddress();
 
             it("user count should be zero", () -> {
-                Assert.assertEquals(BigInteger.ZERO, bob.get_user_count().send());
+                Assert.assertEquals(BigInteger.ZERO, bob.get_user_count());
             });
 
             describe("should able to add user with same management and trade key", () -> {
@@ -44,7 +44,7 @@ public class UserTests {
                 });
 
                 it("user count should now be 1", () -> {
-                    Assert.assertEquals(BigInteger.valueOf(1), bob.get_user_count().send());
+                    Assert.assertEquals(BigInteger.valueOf(1), bob.get_user_count());
                 });
 
                 it("should be able to query user", () -> {
@@ -64,7 +64,7 @@ public class UserTests {
                 });
 
                 it("user count should now be 2", () -> {
-                    Assert.assertEquals(BigInteger.valueOf(2), bob.get_user_count().send());
+                    Assert.assertEquals(BigInteger.valueOf(2), bob.get_user_count());
                 });
 
                 it("should be able to query user", () -> {
@@ -95,7 +95,7 @@ public class UserTests {
                     });
 
                     it("user count should still be 2", () -> {
-                        Assert.assertEquals(BigInteger.valueOf(2), bob.get_user_count().send());
+                        Assert.assertEquals(BigInteger.valueOf(2), bob.get_user_count());
                     });
                 });
 
