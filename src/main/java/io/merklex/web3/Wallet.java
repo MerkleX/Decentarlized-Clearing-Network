@@ -30,7 +30,7 @@ public class Wallet {
     public Wallet(Web3j web3j, Credentials credentials, byte chainId) {
         this.web3j = web3j;
         this.credentials = credentials;
-        receiptProcessor = new PollingTransactionReceiptProcessor(web3j, 1, 600);
+        receiptProcessor = new PollingTransactionReceiptProcessor(web3j, 1000, 600);
         transactionManager = new FastRawTransactionManager(web3j, credentials, chainId,
                 receiptProcessor);
     }
