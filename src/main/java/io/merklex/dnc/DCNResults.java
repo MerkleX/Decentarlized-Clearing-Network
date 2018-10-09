@@ -45,8 +45,8 @@ public class DCNResults {
 
     public static GetPositionLimitResult GetPositionLimit(GetPositionLimitResult res, Tuple7<BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, BigInteger> value) {
         res.version = value.getValue1();
-        res.longAssetQty = value.getValue2();
-        res.shortAssetQty = value.getValue3();
+        res.minAssetQty = value.getValue2();
+        res.minEtherQty = value.getValue3();
         res.longPrice = value.getValue4();
         res.shortPrice = value.getValue5();
         res.etherShift = value.getValue6();
