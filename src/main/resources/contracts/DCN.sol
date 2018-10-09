@@ -108,11 +108,11 @@ contract DCN {
    LIMIT_DEF {
     version           :  32,
 
-    long_asset_qty     :  20,
-    long_asset_qty_pow :   4,
+    min_asset_qty     :  20,
+    min_asset_qty_pow :   4,
 
-    short_asset_qty     :  20,
-    short_asset_qty_pow :   4,
+    min_ether_qty     :  20,
+    min_ether_qty_pow :   4,
 
     long_price        :  20,
     long_price_pow    :   4,
@@ -920,7 +920,7 @@ contract DCN {
   }
 
   function get_position_limit(uint32 session_id, uint8 position_id) public constant
-  returns (uint256 version, uint256 long_asset_qty, uint256 short_asset_qty, uint256 long_price, uint256 short_price, uint256 ether_shift, uint256 asset_shift) {
+  returns (uint256 version, uint256 min_asset_qty, uint256 min_ether_qty, uint256 long_price, uint256 short_price, uint256 ether_shift, uint256 asset_shift) {
     uint256[7] memory return_value;
 
     assembly {
@@ -934,10 +934,10 @@ contract DCN {
 
       mstore(return_value, LIMIT(limit_data).version)
 
-      let quant := mul(LIMIT(limit_data).long_asset_qty, exp(10, LIMIT(limit_data).long_asset_qty_pow))
+      let quant := mul(LIMIT(limit_data).min_asset_qty, exp(10, LIMIT(limit_data).min_asset_qty_pow))
       mstore(add(return_value, 32), quant)
 
-      quant := mul(LIMIT(limit_data).short_asset_qty, exp(10, LIMIT(limit_data).short_asset_qty_pow))
+      quant := mul(LIMIT(limit_data).min_ether_qty, exp(10, LIMIT(limit_data).min_ether_qty_pow))
       mstore(add(return_value, 64), quant)
 
       quant := mul(LIMIT(limit_data).long_price, exp(10, LIMIT(limit_data).long_price_pow))
