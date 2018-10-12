@@ -83,7 +83,7 @@ contract DCN {
    // }
 
    SESSION_DEF {
-    turn_over         :  60,
+    turnover          :  60,
     position_count    :   4,
     user_id           :  32,
     exchange_id       :  32,
@@ -704,7 +704,7 @@ contract DCN {
       }
 
       session_data := BUILD_SESSION {
-        /* turn_over */ and(add(SESSION(session_data).turn_over, 1), 0xfffffffffffffff),
+        /* turnover */ and(add(SESSION(session_data).turnover, 1), 0xfffffffffffffff),
         /* position_count */ 0,
         /* user_id */ user_id,
         /* exchange_id */ exchange_id,
@@ -875,14 +875,14 @@ contract DCN {
   }
 
   function get_session(uint32 session_id) public constant
-  returns (uint256 turn_over, uint256 position_count, uint256 user_id, uint256 exchange_id, uint256 max_ether_fees, uint256 expire_time, address trade_address, uint256 ether_balance) {
+  returns (uint256 turnover, uint256 position_count, uint256 user_id, uint256 exchange_id, uint256 max_ether_fees, uint256 expire_time, address trade_address, uint256 ether_balance) {
     uint256[8] memory return_values;
 
     assembly {
       let session_ptr := add(sessions_slot, mul(session_id, 34))
       let session_data := sload(session_ptr)
 
-      mstore(return_values, SESSION(session_data).turn_over)
+      mstore(return_values, SESSION(session_data).turnover)
       mstore(add(return_values, 32), SESSION(session_data).position_count)
       mstore(add(return_values, 64), SESSION(session_data).user_id)
       mstore(add(return_values, 96), SESSION(session_data).exchange_id)
@@ -993,7 +993,7 @@ contract DCN {
 
       // Reset session
       sstore(session_ptr, BUILD_SESSION {
-        SESSION(session_data).turn_over,
+        SESSION(session_data).turnover,
         0, 0, 0, 0, 0
       })
 
