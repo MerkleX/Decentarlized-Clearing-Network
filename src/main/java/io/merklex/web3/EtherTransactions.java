@@ -44,6 +44,10 @@ public class EtherTransactions {
     private BigInteger gasPrice = BigInteger.ONE;
     private BigInteger gasLimit = BigInteger.valueOf(1000000);
 
+    public Web3j getWeb3() {
+        return web3j;
+    }
+
     public EtherTransactions withGas(BigInteger gasPrice, BigInteger gasLimit) {
         this.gasPrice = gasPrice;
         this.gasLimit = gasLimit;
