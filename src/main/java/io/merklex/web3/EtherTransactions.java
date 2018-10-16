@@ -17,17 +17,19 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Optional;
 
-public class Wallet {
+public class EtherTransactions {
+    private static final BigInteger TX_GAS_LIMIT = BigInteger.valueOf(21000);
+
     private final Web3j web3j;
     private final Credentials credentials;
     private final PollingTransactionReceiptProcessor receiptProcessor;
     private final TransactionManager transactionManager;
 
-    public Wallet(Web3j web3j, Credentials credentials) {
+    public EtherTransactions(Web3j web3j, Credentials credentials) {
         this(web3j, credentials, ChainId.NONE);
     }
 
-    public Wallet(Web3j web3j, Credentials credentials, byte chainId) {
+    public EtherTransactions(Web3j web3j, Credentials credentials, byte chainId) {
         this.web3j = web3j;
         this.credentials = credentials;
         receiptProcessor = new PollingTransactionReceiptProcessor(web3j, 1000, 600);
@@ -42,7 +44,7 @@ public class Wallet {
     private BigInteger gasPrice = BigInteger.ONE;
     private BigInteger gasLimit = BigInteger.valueOf(1000000);
 
-    public Wallet withGas(BigInteger gasPrice, BigInteger gasLimit) {
+    public EtherTransactions withGas(BigInteger gasPrice, BigInteger gasLimit) {
         this.gasPrice = gasPrice;
         this.gasLimit = gasLimit;
         return this;
@@ -61,6 +63,10 @@ public class Wallet {
     public EthSendTransaction sendCall(BigInteger gasPrice, BigInteger gasLimit,
                                        String contractAddress, String data, BigInteger weiValue) throws IOException {
         return transactionManager.sendTransaction(gasPrice, gasLimit, contractAddress, data, weiValue);
+    }
+
+    public EthSendTransaction sendWei(BigInteger gasPrice, String address, BigInteger weiValue) throws IOException {
+        return transactionManager.sendTransaction(gasPrice, TX_GAS_LIMIT, address, "", weiValue);
     }
 
     public TransactionReceipt call(String contractAddress, Function function, BigInteger weiValue) throws IOException, TransactionException {

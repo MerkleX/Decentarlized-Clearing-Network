@@ -83,7 +83,7 @@ contract DCN {
    // }
 
    SESSION_DEF {
-    turn_over         :  60,
+    turnover          :  60,
     position_count    :   4,
     user_id           :  32,
     exchange_id       :  32,
@@ -683,7 +683,7 @@ contract DCN {
         stop()
       }
 
-      session_data := or(mul(/* turn_over */ /* turn_over */ and(add(/* SESSION(session_data).turn_over */ and(div(session_data, 0x10000000000000000000000000000000000000000000000000), 0xfffffffffffffff), 1), 0xfffffffffffffff), 0x10000000000000000000000000000000000000000000000000), or(mul(/* position_count */ /* position_count */ 0, 0x1000000000000000000000000000000000000000000000000), or(mul(/* user_id */ /* user_id */ user_id, 0x10000000000000000000000000000000000000000), or(mul(/* exchange_id */ /* exchange_id */ exchange_id, 0x100000000000000000000000000000000), or(mul(/* max_ether_fees */ /* max_ether_fees */ 0, 0x10000000000000000), /* expire_time */ expire_time)))))
+      session_data := or(mul(/* turnover */ /* turnover */ and(add(/* SESSION(session_data).turnover */ and(div(session_data, 0x10000000000000000000000000000000000000000000000000), 0xfffffffffffffff), 1), 0xfffffffffffffff), 0x10000000000000000000000000000000000000000000000000), or(mul(/* position_count */ /* position_count */ 0, 0x1000000000000000000000000000000000000000000000000), or(mul(/* user_id */ /* user_id */ user_id, 0x10000000000000000000000000000000000000000), or(mul(/* exchange_id */ /* exchange_id */ exchange_id, 0x100000000000000000000000000000000), or(mul(/* max_ether_fees */ /* max_ether_fees */ 0, 0x10000000000000000), /* expire_time */ expire_time)))))
 
       sstore(session_ptr, session_data)
       sstore(add(session_ptr, 1), or(mul(/* _ */ /* padding */ 0, 0x100000000000000000000000000000000000000000000000000000000), or(mul(/* trade_address */ /* trade_address */ sload(add(user_ptr, 1)), 0x10000000000000000), /* ether_balance */ 0)))
@@ -833,14 +833,14 @@ contract DCN {
   }
 
   function get_session(uint32 session_id) public constant
-  returns (uint256 turn_over, uint256 position_count, uint256 user_id, uint256 exchange_id, uint256 max_ether_fees, uint256 expire_time, address trade_address, uint256 ether_balance) {
+  returns (uint256 turnover, uint256 position_count, uint256 user_id, uint256 exchange_id, uint256 max_ether_fees, uint256 expire_time, address trade_address, uint256 ether_balance) {
     uint256[8] memory return_values;
 
     assembly {
       let session_ptr := add(sessions_slot, mul(session_id, 34))
       let session_data := sload(session_ptr)
 
-      mstore(return_values, /* SESSION(session_data).turn_over */ and(div(session_data, 0x10000000000000000000000000000000000000000000000000), 0xfffffffffffffff))
+      mstore(return_values, /* SESSION(session_data).turnover */ and(div(session_data, 0x10000000000000000000000000000000000000000000000000), 0xfffffffffffffff))
       mstore(add(return_values, 32), /* SESSION(session_data).position_count */ and(div(session_data, 0x1000000000000000000000000000000000000000000000000), 0xf))
       mstore(add(return_values, 64), /* SESSION(session_data).user_id */ and(div(session_data, 0x10000000000000000000000000000000000000000), 0xffffffff))
       mstore(add(return_values, 96), /* SESSION(session_data).exchange_id */ and(div(session_data, 0x100000000000000000000000000000000), 0xffffffff))
@@ -950,7 +950,7 @@ contract DCN {
       }
 
       // Reset session
-      sstore(session_ptr, mul(/* turn_over */ /* SESSION(session_data).turn_over */ and(div(session_data, 0x10000000000000000000000000000000000000000000000000), 0xfffffffffffffff), 0x10000000000000000000000000000000000000000000000000))
+      sstore(session_ptr, mul(/* turnover */ /* SESSION(session_data).turnover */ and(div(session_data, 0x10000000000000000000000000000000000000000000000000), 0xfffffffffffffff), 0x10000000000000000000000000000000000000000000000000))
 
       let user_ptr := add(users_slot, mul(/* SESSION(session_data).user_id */ and(div(session_data, 0x10000000000000000000000000000000000000000), 0xffffffff), 65539))
       let user_assets_ptr := add(user_ptr, 2)
