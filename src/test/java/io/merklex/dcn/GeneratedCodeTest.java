@@ -97,5 +97,10 @@ public class GeneratedCodeTest {
                 new File("src/main/resources/contracts/DCN.sol"),
                 new File("contracts-compiled/DCN")
         );
+
+        GenerateContractCode.CompileContract(
+                new File("src/main/resources/contracts/ERC20.sol"),
+                new File("contracts-compiled/ERC20")
+        );
     }
 }

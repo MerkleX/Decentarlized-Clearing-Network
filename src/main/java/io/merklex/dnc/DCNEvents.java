@@ -128,4 +128,36 @@ public class DCNEvents {
             return events;
         });
     }
+
+    public static CompletableFuture<List<DCN.PositionDepositEventResponse>>
+    LoadPositionDepositEvents(Web3j web3j, String contractAddress, long firstBlock, long lastBlock) {
+        EthFilter filter = new EthFilter(
+                new DefaultBlockParameterNumber(firstBlock),
+                new DefaultBlockParameterNumber(lastBlock),
+                contractAddress
+        );
+        filter.addSingleTopic(EventEncoder.encode(DCN.POSITIONADDED_EVENT));
+
+        return web3j.ethGetLogs(filter).sendAsync().thenApply(logs -> {
+            ArrayList<DCN.PositionDepositEventResponse> events = new ArrayList<>();
+
+            for (EthLog.LogResult logResult : logs.getLogs()) {
+                Log log = (Log) logResult;
+                EventValues eventValues = Contract.staticExtractEventParameters(DCN.POSITIONDEPOSIT_EVENT, log);
+
+                DCN.PositionDepositEventResponse event = new DCN.PositionDepositEventResponse();
+                event.log = log;
+
+                List<Type> values = eventValues.getNonIndexedValues();
+                event.session_id = (BigInteger) values.get(0).getValue();
+                event.session_turnover = (BigInteger) values.get(1).getValue();
+                event.position_id = (BigInteger) values.get(2).getValue();
+                event.quantity = (BigInteger) values.get(3).getValue();
+
+                events.add(event);
+            }
+
+            return events;
+        });
+    }
 }
