@@ -3,6 +3,7 @@ pragma solidity ^0.4.24;
 contract DCN {
   event SessionStarted(uint256 session_id);
   event PositionAdded(uint256 session_id);
+  event PositionDeposit(uint256 session_id, uint256 session_turnover, uint256 position_id, uint256 quantity); 
 
   uint256 creator;
 
@@ -502,9 +503,9 @@ contract DCN {
         asset_address,
         /* don't send any ether */ 0,
         transfer_in,
-        100,
+        /* transfer_in size (bytes) */ 100,
         transfer_out,
-        32
+        /* transfer_out size (bytes) */ 32
       )
 
       if iszero(success) {
@@ -567,9 +568,9 @@ contract DCN {
         asset_address,
         /* don't send any ether */ 0,
         transfer_in,
-        68,
+        /* transfer_in size (bytes) */ 68,
         transfer_out,
-        32
+        /* transfer_out size (bytes) */ 32
       )
 
       if iszero(success) {
@@ -730,6 +731,7 @@ contract DCN {
   function position_deposit(uint32 session_id, uint32 user_id, uint16 asset_id, uint8 position_id, uint64 quantity) {
     uint256[1] memory exit_log;
     uint256[1] memory session_id_ptr;
+    uint256[4] memory session_deposit_ptr;
 
     assembly {
       /*
@@ -769,19 +771,30 @@ contract DCN {
       let user_asset_ptr := add(add(user_ptr, 2), asset_id)
       let user_balance := sload(user_asset_ptr)
 
-      let amount := quantity
       {
-        let asset_data := sload(add(assets_slot, asset_id))
-        let unit_scale := ASSET(asset_data).unit_scale
-        amount := mul(amount, unit_scale)
+        let debit := quantity
+        /* Assets have a different scale internally, determine the true value using unit_scale */
+        {
+          let asset_data := sload(add(assets_slot, asset_id))
+          let unit_scale := ASSET(asset_data).unit_scale
+          debit := mul(debit, unit_scale)
+        }
+
+        /* Ensure user has enough balance for deposit */
+        if gt(debit, user_balance) {
+          mstore(exit_log, 4) log0(add(exit_log, 31), 1) stop()
+        }
+
+        /* Update user_balance */
+        user_balance := sub(user_balance, debit)
       }
 
-      // Ensure use has enough balance for deposit
-      if gt(amount, user_balance) {
-        mstore(exit_log, 4) log0(add(exit_log, 31), 1) stop()
-      }
 
-      let new_user_balance := sub(user_balance, amount)
+      /* Prepare log */
+      mstore(session_deposit_ptr, session_id)
+      mstore(add(session_deposit_ptr, 32), SESSION(session_data).turnover)
+      mstore(add(session_deposit_ptr, 64), position_id)
+      mstore(add(session_deposit_ptr, 96), quantity)
 
       /*
        * Process
@@ -805,9 +818,10 @@ contract DCN {
           mstore(exit_log, 6) log0(add(exit_log, 31), 1) stop()
         }
 
-        sstore(user_asset_ptr, new_user_balance)
+        sstore(user_asset_ptr, user_balance)
         sstore(ether_ptr, or(and(ether_data, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000), current_balance))
 
+        log1(session_deposit_ptr, 128, /* PositionDeposit */ 0x11366adca5bb057478533eee49fcecd18156fffc05023ffa66625ac00ad488bb)
         mstore(exit_log, 0) log0(add(exit_log, 31), 1) stop()
       }
 
@@ -822,7 +836,7 @@ contract DCN {
 
       // Add position
       if eq(position_id, next_position_count) {
-        sstore(user_asset_ptr, new_user_balance)
+        sstore(user_asset_ptr, user_balance)
 
         // TODO: test that this increases
         // Increment position_count
@@ -852,6 +866,7 @@ contract DCN {
              0x3d0a2b1c6f8e72f333688e33b7fc1767f042d33eaef1d3b5db5968567033e91f
         )
 
+        log1(session_deposit_ptr, 128, /* PositionDeposit */ 0x11366adca5bb057478533eee49fcecd18156fffc05023ffa66625ac00ad488bb)
         mstore(exit_log, 0) log0(add(exit_log, 31), 1) stop()
       }
 
@@ -867,9 +882,10 @@ contract DCN {
       position_data := and(position_data, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
       position_data := or(position_data, current_balance)
 
-      sstore(user_asset_ptr, new_user_balance)
+      sstore(user_asset_ptr, user_balance)
       sstore(position_ptr, position_data)
 
+      log1(session_deposit_ptr, 128, 0x11366adca5bb057478533eee49fcecd18156fffc05023ffa66625ac00ad488bb)
       mstore(exit_log, 0) log0(add(exit_log, 31), 1)
     }
   }
