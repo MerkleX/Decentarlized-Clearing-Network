@@ -6,6 +6,7 @@ import io.merklex.dcn.contracts.DCN;
 import io.merklex.dcn.contracts.ERC20;
 import io.merklex.dcn.utils.Genesis;
 import io.merklex.dcn.utils.StaticNetwork;
+import io.merklex.dnc.DCNEvents;
 import io.merklex.dnc.DCNResults;
 import io.merklex.dnc.models.GetSessionResult;
 import org.junit.Assert;
@@ -150,8 +151,17 @@ public class UserSessionTests {
                     TransactionReceipt send = bob.executeTransaction(DCN.position_deposit(sessionId, BigInteger.valueOf(0),
                             BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(1000)));
 
-                    assertEquals(1, send.getLogs().size());
-                    assertEquals("0x00", send.getLogs().get(0).getData());
+                    assertEquals(2, send.getLogs().size());
+                    assertEquals("0x00", send.getLogs().get(1).getData());
+
+                    List<DCN.PositionDepositEventResponse> events = DCNEvents.ExtractPositionDeposits(send);
+                    assertEquals(1, events.size());
+
+                    DCN.PositionDepositEventResponse depositEvent = events.get(0);
+                    assertEquals(sessionId, depositEvent.session_id);
+                    assertEquals(1, depositEvent.session_turnover);
+                    assertEquals(0, depositEvent.position_id);
+                    assertEquals(1000, depositEvent.quantity);
                 });
 
                 it("user balance should decrease", () -> {
@@ -172,12 +182,19 @@ public class UserSessionTests {
                     TransactionReceipt send = bob.executeTransaction(DCN.position_deposit(sessionId, BigInteger.ZERO,
                             BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.ZERO));
 
-                    assertEquals(2, send.getLogs().size());
+                    assertEquals(3, send.getLogs().size());
 
-                    EventValues eventValues = DCN.staticExtractEventParameters(DCN.POSITIONADDED_EVENT, send.getLogs().get(0));
-                    assertEquals(sessionId, (BigInteger) eventValues.getNonIndexedValues().get(0).getValue());
+                    DCN.PositionAddedEventResponse positionAdded = DCNEvents.ExtractPositionAddedEvents(send).get(0);
+                    assertEquals(sessionId, positionAdded.session_id);
 
-                    assertEquals("0x00", send.getLogs().get(1).getData());
+                    DCN.PositionDepositEventResponse positionDeposit = DCNEvents.ExtractPositionDeposits(send).get(0);
+                    assertEquals(sessionId, positionDeposit.session_id);
+                    assertEquals(1, positionDeposit.position_id);
+                    assertEquals(1, positionDeposit.session_turnover);
+                    assertEquals(0, positionDeposit.quantity);
+
+                    /* Second event should be response code from add position */
+                    assertEquals("0x00", send.getLogs().get(2).getData());
 
                     GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(1, session.positionCount);
@@ -201,12 +218,18 @@ public class UserSessionTests {
                     TransactionReceipt send = bob.executeTransaction(DCN.position_deposit(sessionId, BigInteger.ZERO,
                             BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1)));
 
-                    assertEquals(2, send.getLogs().size());
+                    assertEquals(3, send.getLogs().size());
 
-                    EventValues eventValues = DCN.staticExtractEventParameters(DCN.POSITIONADDED_EVENT, send.getLogs().get(0));
-                    assertEquals(sessionId, (BigInteger) eventValues.getNonIndexedValues().get(0).getValue());
+                    DCN.PositionAddedEventResponse positionAdded = DCNEvents.ExtractPositionAddedEvents(send).get(0);
+                    assertEquals(sessionId, positionAdded.session_id);
 
-                    assertEquals("0x00", send.getLogs().get(1).getData());
+                    DCN.PositionDepositEventResponse positionDeposit = DCNEvents.ExtractPositionDeposits(send).get(0);
+                    assertEquals(sessionId, positionDeposit.session_id);
+                    assertEquals(1, positionDeposit.position_id);
+                    assertEquals(1, positionDeposit.session_turnover);
+                    assertEquals(1, positionDeposit.quantity);
+
+                    assertEquals("0x00", send.getLogs().get(2).getData());
 
                     GetSessionResult session = DCNResults.GetSession(new GetSessionResult(), bob.get_session(sessionId));
                     assertEquals(1, session.positionCount);
@@ -215,7 +238,6 @@ public class UserSessionTests {
                             BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1)));
                     Assert.assertEquals("0x04", send.getLogs().get(0).getData());
 
-
                     DCNResults.GetSession(session, bob.get_session(sessionId));
                     assertEquals(1, session.positionCount);
                 });
@@ -223,7 +245,7 @@ public class UserSessionTests {
 
             describe("should not be able to close active session", () -> {
                 it("close session attempt", () -> {
-                    henry.close_session(sessionId);
+                    henry.executeTransaction(DCN.close_session(sessionId));
                 });
 
                 it("session should be active", () -> {
@@ -234,7 +256,7 @@ public class UserSessionTests {
 
             describe("owner should not be able to end session", () -> {
                 it("end session attempt", () -> {
-                    bob.end_session(sessionId);
+                    henry.executeTransaction(DCN.close_session(sessionId));
                 });
 
                 it("session should be active", () -> {
@@ -245,7 +267,7 @@ public class UserSessionTests {
 
             describe("rando should not be able to close session", () -> {
                 it("end session attempt", () -> {
-                    henry.end_session(sessionId);
+                    henry.executeTransaction(DCN.close_session(sessionId));
                 });
 
                 it("session should be active", () -> {

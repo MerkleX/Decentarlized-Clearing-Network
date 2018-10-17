@@ -3,6 +3,7 @@ package io.merklex.dnc;
 import io.merklex.dcn.contracts.DCN;
 import org.web3j.abi.EventEncoder;
 import org.web3j.abi.EventValues;
+import org.web3j.abi.datatypes.Type;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterNumber;
 import org.web3j.protocol.core.methods.request.EthFilter;
@@ -50,6 +51,28 @@ public class DCNEvents {
             DCN.PositionAddedEventResponse event = new DCN.PositionAddedEventResponse();
             event.log = log;
             event.session_id = (BigInteger) eventValues.getNonIndexedValues().get(0).getValue();
+            return event;
+        }).collect(Collectors.toList());
+    }
+
+    public static List<DCN.PositionDepositEventResponse> ExtractPositionDeposits(TransactionReceipt tx) {
+        List<Log> logs = tx.getLogs();
+
+        String topicFilter = EventEncoder.encode(DCN.POSITIONDEPOSIT_EVENT);
+
+        return logs.stream().filter(log -> {
+            List<String> topics = log.getTopics();
+            return topics.size() > 0 && topicFilter.equals(topics.get(0));
+        }).map(log -> {
+            EventValues eventValues = Contract.staticExtractEventParameters(DCN.POSITIONDEPOSIT_EVENT, log);
+
+            DCN.PositionDepositEventResponse event = new DCN.PositionDepositEventResponse();
+            event.log = log;
+            List<Type> values = eventValues.getNonIndexedValues();
+            event.session_id = (BigInteger) values.get(0).getValue();
+            event.session_turnover = (BigInteger) values.get(1).getValue();
+            event.position_id = (BigInteger) values.get(2).getValue();
+            event.quantity = (BigInteger) values.get(3).getValue();
             return event;
         }).collect(Collectors.toList());
     }
