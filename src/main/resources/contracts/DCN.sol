@@ -12,7 +12,7 @@ contract DCN {
 
   /* Memory Layout */
 
-  uint256[/* size */ 2                 /* count */ * (2 **  64)]  exchanges;
+  uint256[/* size */ 2                   /* count */ * (2 **  64)]  exchanges;
   /*
     EXCHANGES {
      0: name + address
@@ -26,7 +26,7 @@ contract DCN {
   */
 
 
-  uint256[/* size */ 1                 /* count */ * (2 **  32)]  assets;
+  uint256[/* size */ 1                   /* count */ * (2 **  32)]  assets;
   /*
     ASSET_DEF {
      symbol            :  32,
@@ -36,7 +36,7 @@ contract DCN {
   */
 
 
-  uint256[/* size */ (1 + (2 ** 32))   /* count */ * (2 ** 160)] users;
+  uint256[/* size */ (1 + (2 ** 32))     /* count */ * (2 ** 160)] users;
   /*
     USER {
               0: ether_balance
@@ -48,88 +48,58 @@ contract DCN {
   */
 
 
-  uint256[/* size */ 34                /* count */ * (2 **  32)]  sessions;
+  uint256[/* size */ (3 * (1 + 2 ** 32)) /* count */ * (2 **  64)]  sessions;
   /*
     SESSION {
-      0: turnover + exchange_id + user
-      1: fee_limit + fee_used + expire_time + total_deposit
+               0: turnover + exchange_id + fee_limit + expire_time
+               1: fee_limit + expire_time + total_deposit
+               2: fee_used + ether_balance
+             
+               3: ASSET_1_POS_LIMIT_DEF
+               4: ASSET_1_PRICE_LIMIT_DEF
+               5: ASSET_1_POSITION_DEF
+             
+               6: ASSET_2_POS_LIMIT_DEF
+               7: ASSET_2_PRICE_LIMIT_DEF
+               8: ASSET_2_POSITION_DEF
+
+             n*3: ASSET_N_POS_LIMIT_DEF
+           n*3+1: ASSET_N_PRICE_LIMIT_DEF
+           n*3+2: ASSET_N_POSITION_DEF
     
-      2: POSITION_DEF
-      3: LIMIT_DEF
-    
-      4: POSITION_DEF
-      5: LIMIT_DEF
-    
-      ...
-    
-      30: POSITION_DEF
-      31: LIMIT_DEF
-    
-      32: POSITION_DEF
-      33: LIMIT_DEF
+      12884901888: ASSET_4294967296_POS_LIMIT_DEF
+      12884901889: ASSET_4294967296_PRICE_LIMIT_DEF
+      12884901890: ASSET_4294967296_POSITION_DEF
     }
 
-    SESSION_SATIC_DEF {
-     turnover          :  32,
-     exchange_id       :  64,
-     account           : 160,
+    SESSION_HEADER_DEF {
+      turnover          :  64,
+      exchange_id       :  64,
+      fee_limit         :  64,
+      expire_time       :  64,
     }
 
-{
-  fee_limit
-  fee_used
-  expire_time
-  total_deposit
-}
+    ETHER_STATE_DEF {
+      padding           :  64,
+      fee_used          :  64,
+      total_deposit     :  64,
+      ether_balance     :  64,
+    }
 
-   SESSION_FLUID_DEF {
-    max_ether_fees    :  64,
-    expire_time       :  64,
-    total_deposit     :  64,
-    balance           :  64,
-   }
+    POSITION_LIMIT {
+      min_ether         :  64,
+      min_asset         :  64,
+      ether_shift       :  64,
+      asset_shift       :  64,
+    }
 
-   SESSION_DEF {
-    turnover          :  60,
-    position_count    :   4,
-    user_id           :  32,
-    exchange_id       :  32,
-    max_ether_fees    :  64,
-    expire_time       :  64,
-   }
+    PRICE_LIMIT {
+      padding           :  96,
+      limit_version     :  32,
+      long_max_price    :  64,
+      short_max_price   :  64,
+    }
 
-   ETHER_DEF {
-    _                 :  32,
-    trade_address     : 160,
-    balance           :  64,
-   }
-
-   POSITION_DEF {
-    asset_id          :  16,
-    _padding          :  48,
-    ether_qty         :  64,
-    asset_qty         :  64,
-    asset_balance     :  64,
-   }
-
-   LIMIT_DEF {
-    version           :  32,
-
-    min_asset_qty     :  20,
-    min_asset_qty_pow :   4,
-
-    min_ether_qty     :  20,
-    min_ether_qty_pow :   4,
-
-    long_price        :  20,
-    long_price_pow    :   4,
-
-    short_price       :  20,
-    short_price_pow   :   4,
-
-    ether_shift   :  64,
-    asset_shift   :  64,
-   }
   */
 
   constructor() public {
