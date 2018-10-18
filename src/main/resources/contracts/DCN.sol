@@ -1,9 +1,8 @@
 pragma solidity ^0.4.24;
 
 contract DCN {
-  event SessionStarted(uint256 session_id);
-  event PositionAdded(uint256 session_id);
-  event PositionDeposit(uint256 session_id, uint256 position_id); 
+  event ExpireTimeUpdated(address user, uint64 exchange_id);
+  event SessionDeposit(address user, uint64 exchange_id, uint32 asset_id); 
 
   uint256 creator;
 
@@ -12,7 +11,7 @@ contract DCN {
 
   /* Memory Layout */
 
-  uint256[/* size */ 2                   /* count */ * (2 **  64)]  exchanges;
+  uint256[/* size */ 2                   /* count */ * (2 **  32)]  exchanges;
   /*
     EXCHANGES {
      0: name + address
@@ -47,64 +46,60 @@ contract DCN {
   */
 
 
-  uint256[/* size */ (3 * (1 + 2 ** 32)) /* count */ * (2 **  64)]  sessions;
+  uint256[/* size */ (3 * (1 + 2 ** 32)) /* count */ * (2 **  160) * (2 ** 32)]  sessions;
   /*
+    sessions[address][exchange_id] = uint256[3 * (1 + 2 ** 32)]
+    session_ptr = (address * (2 ** 32) + exchange_id) * (3 * (1 + 2 ** 32))
+
     SESSION {
-               0: turnover + exchange_id + fee_limit + expire_time
-               1: fee_limit + expire_time + total_deposit
-               2: fee_used + ether_balance
+               0: ether_position
+               1: expire_time
+               2: padding
              
-               3: ASSET_1_POS_LIMIT_DEF
-               4: ASSET_1_PRICE_LIMIT_DEF
-               5: ASSET_1_POSITION_DEF
+               3: ASSET_1_POSITION_DEF
+               4: ASSET_1_POS_LIMIT_DEF
+               5: ASSET_1_PRICE_LIMIT_DEF
              
-               6: ASSET_2_POS_LIMIT_DEF
-               7: ASSET_2_PRICE_LIMIT_DEF
-               8: ASSET_2_POSITION_DEF
+               6: ASSET_2_POSITION_DEF
+               7: ASSET_2_POS_LIMIT_DEF
+               8: ASSET_2_PRICE_LIMIT_DEF
 
-             n*3: ASSET_N_POS_LIMIT_DEF
-           n*3+1: ASSET_N_PRICE_LIMIT_DEF
-           n*3+2: ASSET_N_POSITION_DEF
+             n*3: ASSET_N_POSITION_DEF
+           n*3+1: ASSET_N_POS_LIMIT_DEF
+           n*3+2: ASSET_N_PRICE_LIMIT_DEF
     
-      12884901888: ASSET_4294967296_POS_LIMIT_DEF
+      12884901888: ASSET_4294967296_POSITION_DEF
       12884901889: ASSET_4294967296_PRICE_LIMIT_DEF
-      12884901890: ASSET_4294967296_POSITION_DEF
+      12884901890: ASSET_4294967296_POS_LIMIT_DEF
     }
 
-    SESSION_ID_DEF {
-      turnover          :  32,
-      exchange_id       :  64,
-      user_address      : 160,
-    }
-
-    SESSION_LIMIT_DEF {
-      padding           :  32,
-      active_assets     :  32,
-      expire_time       :  64,
+    ETHER_POSITION_DEF {
       fee_limit         :  64,
       fee_used          :  64,
-    }
-
-    ETHER_STATE_DEF {
-      padding           : 128,
       total_deposit     :  64,
       ether_balance     :  64,
     }
 
-    POSITION_LIMIT {
+    POSITION_DEF {
+      ether_qty         :  64,
+      asset_qty         :  64,
+      total_deposit     :  64,
+      asset_balance     :  64,
+    }
+
+    POS_LIMIT_DEF {
       min_ether         :  64,
       min_asset         :  64,
       ether_shift       :  64,
       asset_shift       :  64,
     }
 
-    PRICE_LIMIT {
-      padding           :  96,
-      limit_version     :  32,
+    PRICE_LIMIT_DEF {
+      padding           :  64,
+      limit_version     :  64,
       long_max_price    :  64,
       short_max_price   :  64,
     }
-
   */
 
   constructor() public {
@@ -124,7 +119,7 @@ contract DCN {
     }
   }
 
-  function get_creator() public constant returns (address dcn_creator) {
+  function get_creator() public view returns (address dcn_creator) {
     return address(creator);
   }
 
@@ -147,7 +142,7 @@ contract DCN {
 
       // Do not overflow exchanges
       let exchange_count := sload(exchange_count_slot)
-      if gt(exchange_count, 18446744073709551615 /* 2^64 - 1 */) {
+      if gt(exchange_count, 4294967295 /* 2^32 - 1 */) {
         stop()
       }
 
@@ -165,7 +160,7 @@ contract DCN {
     }
   }
 
-  function get_exchange(uint64 id) public constant returns (string name, address addr, uint256 fee_balance) {
+  function get_exchange(uint32 id) public view returns (string name, address addr, uint256 fee_balance) {
     uint256[5] memory return_value;
 
     assembly {
@@ -188,7 +183,7 @@ contract DCN {
     }
   }
 
-  function get_exchange_count() public constant returns (uint256 count) {
+  function get_exchange_count() public view returns (uint256 count) {
     uint256[1] memory return_value;
 
     assembly {
@@ -234,7 +229,7 @@ contract DCN {
     }
   }
 
-  function get_asset(uint32 asset_id) public constant
+  function get_asset(uint32 asset_id) public view
   returns (string symbol, uint64 unit_scale, address contract_address) {
     uint256[5] memory return_value;
 
@@ -252,7 +247,7 @@ contract DCN {
     }
   }
 
-  function get_asset_count() public constant returns (uint256 count) {
+  function get_asset_count() public view returns (uint256 count) {
     uint256[1] memory return_value;
 
     assembly {
@@ -530,7 +525,7 @@ contract DCN {
     }
   }
 
-  function get_user_balance(address user, uint32 asset_id) public constant returns (uint256 return_balance) {
+  function get_user_balance(address user, uint32 asset_id) public view returns (uint256 return_balance) {
     uint256[1] memory return_value;
 
     assembly {
@@ -542,20 +537,30 @@ contract DCN {
     }
   }
 
-  function start_session(uint64 session_id, uint64 exchange_id, uint64 expire_time) public {
-    uint256[1] memory session_id_ptr;
-
+  function update_session(uint32 exchange_id, uint64 expire_time) public payable {
     assembly {
       /* ensure: expire_time >= timestamp + 12 hours && expire_time <= timestamp + 30 days */
       if or(gt(add(timestamp, 43200), expire_time), gt(expire_time, add(timestamp, 2592000))) {
         stop()
       }
 
-      let session_ptr := add(sessions_slot, mul(session_id, /* SESSION_SIZE 3*(1+2^32) */ 12884901891))
+      /* ensure: exchange_id < exchange_count */
+      {
+        let exchange_count := sload(exchange_count_slot)
+        if iszero(lt(exchange_id, exchange_count)) {
+          stop()
+        }
+      }
+
+      let session_ptr := add(sessions_slot, mul(
+        add(mul(caller, /* EXCHANGE_COUNT 2^32 */ 4294967296), exchange_id),
+        /* SESSION_SIZE 3*(1+2^32)) */ 12884901891
+      ))
+
       let limit_data := sload(add(session_ptr, 1))
 
       /* verify session is empty */
-      if SESSION_LIMIT(session_data).expire_time {
+      if SESSION_LIMIT(limit_data).active_assets {
         stop()
       }
 
@@ -738,7 +743,7 @@ contract DCN {
     }
   }
 
-  function get_session(uint32 session_id) public constant
+  function get_session(uint32 session_id) public view
   returns (uint256 turnover, uint256 position_count, uint256 user_id, uint256 exchange_id, uint256 max_ether_fees, uint256 expire_time, address trade_address, uint256 ether_balance) {
     uint256[8] memory return_values;
 
@@ -761,7 +766,7 @@ contract DCN {
     }
   }
 
-  function get_position(uint32 session_id, uint8 position_id) public constant
+  function get_position(uint32 session_id, uint8 position_id) public view
   returns (uint256 asset_id, uint256 ether_qty, uint256 asset_qty, uint256 asset_balance) {
     uint256[4] memory return_value;
 
@@ -783,7 +788,7 @@ contract DCN {
     }
   }
 
-  function get_position_limit(uint32 session_id, uint8 position_id) public constant
+  function get_position_limit(uint32 session_id, uint8 position_id) public view
   returns (uint256 version, uint256 min_asset_qty, uint256 min_ether_qty, uint256 long_price, uint256 short_price, uint256 ether_shift, uint256 asset_shift) {
     uint256[7] memory return_value;
 
