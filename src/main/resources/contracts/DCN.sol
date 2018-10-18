@@ -3,85 +3,91 @@ pragma solidity ^0.4.24;
 contract DCN {
   event SessionStarted(uint256 session_id);
   event PositionAdded(uint256 session_id);
-  event PositionDeposit(uint256 session_id, uint256 session_turnover, uint256 position_id, uint256 quantity); 
+  event PositionDeposit(uint256 session_id, uint256 position_id); 
 
   uint256 creator;
 
-  uint256 user_count;
   uint256 exchange_count;
   uint256 asset_count;
 
-  uint256[2 * (2 ** 32)] exchanges;
-  uint256[2 ** 16] assets;
-  uint256[(2 + (2 ** 16)) * (2 ** 32)] users;
-  uint256[(2 ** 32) * 34] sessions;
+  /* Memory Layout */
 
+  uint256[/* size */ 2                 /* count */ * (2 **  64)]  exchanges;
   /*
+    EXCHANGES {
+     0: name + address
+     1: fee balance
+    }
 
-   //
-   // EXCHANGES
-   // 
-   // EXCHANGE {
-   //  0: name + address
-   //  1: fee balance
-   // }
+    EXCHANGE_DEF {
+     name              :  96,
+     address           : 160,
+    }
+  */
 
-   EXCHANGE_DEF {
-    name              :  96,
-    address           : 160,
+
+  uint256[/* size */ 1                 /* count */ * (2 **  32)]  assets;
+  /*
+    ASSET_DEF {
+     symbol            :  32,
+     unit_scale        :  64,
+     address           : 160,
+    }
+  */
+
+
+  uint256[/* size */ (1 + (2 ** 32))   /* count */ * (2 ** 160)] users;
+  /*
+    USER {
+              0: ether_balance
+              1: asset_1_balance
+              n: asset_n_balance
+     4294967295: asset_4294967295_balance
+     4294967296: trade_address
+    }
+  */
+
+
+  uint256[/* size */ 34                /* count */ * (2 **  32)]  sessions;
+  /*
+    SESSION {
+      0: turnover + exchange_id + user
+      1: fee_limit + fee_used + expire_time + total_deposit
+    
+      2: POSITION_DEF
+      3: LIMIT_DEF
+    
+      4: POSITION_DEF
+      5: LIMIT_DEF
+    
+      ...
+    
+      30: POSITION_DEF
+      31: LIMIT_DEF
+    
+      32: POSITION_DEF
+      33: LIMIT_DEF
+    }
+
+    SESSION_SATIC_DEF {
+     turnover          :  32,
+     exchange_id       :  64,
+     account           : 160,
+    }
+
+{
+  fee_limit
+  fee_used
+  expire_time
+  total_deposit
+}
+
+   SESSION_FLUID_DEF {
+    max_ether_fees    :  64,
+    expire_time       :  64,
+    total_deposit     :  64,
+    balance           :  64,
    }
-
-   //
-   // ASSETS
-   // 
-   // ASSET {
-   //  0: symbol + unit_scale + address
-   // }
-
-   ASSET_DEF {
-    symbol            :  32,
-    unit_scale        :  64,
-    address           : 160,
-   }
-
-   //
-   // USERS
-   //
-   // USER {
-   //      0: manage address
-   //      1: trade address
-   //      2: ether_balance
-   //      3: asset_1_balance
-   //    ...: asset_n_balance
-   //  65538: asset_65535_balance
-   // }
-
-   ADDRESS_DEF {
-    _                 :  96,
-    value             : 160,
-   }
-
-   //
-   // SESSIONS
-   //
-   // SESSION {
-   //   0: SESSION_DEF
-   //   1: ETHER_DEF
-   //
-   //   2: POSITION_DEF
-   //   3: LIMIT_DEF
-   //
-   //   4: POSITION_DEF
-   //   5: LIMIT_DEF
-   //
-   //   ...
-   //
-   //   30: POSITION_DEF
-   //   31: LIMIT_DEF
-   //
-   //   32: POSITION_DEF
-   //   33: LIMIT_DEF
-   // }
 
    SESSION_DEF {
     turnover          :  60,
@@ -728,52 +734,38 @@ contract DCN {
     }
   }
 
-  function position_deposit(uint32 session_id, uint32 user_id, uint16 asset_id, uint8 position_id, uint64 quantity) {
+  function position_deposit(uint32 session_id, uint8 position_id, uint64 quantity) {
     uint256[1] memory exit_log;
     uint256[1] memory session_id_ptr;
     uint256[4] memory session_deposit_ptr;
 
     assembly {
-      /*
-       * Validate Input
-       */
+      let session_ptr := add(sessions_slot, mul(session_id, 34))
+      let session_data := sload(session_ptr)
 
-      {
-        let asset_count := sload(asset_count_slot)
-        if gt(asset_id, asset_count) {
-          stop()
-        }
+      /* Must expire in the future */
+      if gt(timestamp, SESSION(session_data).expire_time) {
+        mstore(exit_log, 2) log0(add(exit_log, 31), 1) stop()
       }
 
-      let user_ptr := add(users_slot, mul(user_id, 65539))
+      let user_ptr := add(users_slot, mul(SESSION(session_data).user_id, 65539))
 
+      /* Make sure caller is the manager */
       {
-        // Authenticate user
         let manage_address := sload(user_ptr)
         if iszero(eq(manage_address, caller)) {
           mstore(exit_log, 1) log0(add(exit_log, 31), 1) stop()
         }
       }
 
-      let session_ptr := add(sessions_slot, mul(session_id, 34))
-      let session_data := sload(session_ptr)
-
-      // Ensure session is valid
-      if gt(timestamp, SESSION(session_data).expire_time) {
-        mstore(exit_log, 2) log0(add(exit_log, 31), 1) stop()
-      }
-
-      // Autenticate session
-      if iszero(eq(SESSION(session_data).user_id, user_id)) {
-        mstore(exit_log, 3) log0(add(exit_log, 31), 1) stop()
-      }
-
       let user_asset_ptr := add(add(user_ptr, 2), asset_id)
       let user_balance := sload(user_asset_ptr)
 
+      /* Decrement user_balance */
       {
         let debit := quantity
-        /* Assets have a different scale internally, determine the true value using unit_scale */
+
+        /* Convert from trading units to accounting units */
         {
           let asset_data := sload(add(assets_slot, asset_id))
           let unit_scale := ASSET(asset_data).unit_scale
@@ -785,10 +777,8 @@ contract DCN {
           mstore(exit_log, 4) log0(add(exit_log, 31), 1) stop()
         }
 
-        /* Update user_balance */
         user_balance := sub(user_balance, debit)
       }
-
 
       /* Prepare log */
       mstore(session_deposit_ptr, session_id)
