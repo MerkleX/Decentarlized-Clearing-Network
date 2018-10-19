@@ -203,7 +203,7 @@ public class BalanceTests {
                         tokens.get(tokenIndex), StaticNetwork.Web3(),
                         ERC20.balanceOf(bob.credentials().getAddress())
                 ).balance;
-                assertEquals(100000, balance);
+                assertEquals(initialBalance, balance);
             });
 
             it("initial balance should be zero", () -> {
@@ -220,12 +220,116 @@ public class BalanceTests {
                 assertEquals("0x0", tx.getStatus());
             });
 
-//            it("should be able to deposit asset", () -> {
-//                ERC20.approve();
-//
-//                TransactionReceipt tx = bob.call(StaticNetwork.DCN(), DCN.deposit_asset(assetId, BigInteger.valueOf(10000)));
-//                assertEquals("0x0", tx.getStatus());
-//            });
+            it("should be able to deposit asset", () -> {
+                BigInteger deposit = BigInteger.valueOf(11234);
+                TransactionReceipt tx = bob.call(
+                        tokens.get(tokenIndex),
+                        ERC20.approve(StaticNetwork.DCN(), deposit.multiply(BigInteger.valueOf(2)))
+                );
+
+                assertEquals("0x1", tx.getStatus());
+
+                tx = bob.call(StaticNetwork.DCN(), DCN.deposit_asset(assetId, deposit));
+                assertEquals("0x1", tx.getStatus());
+
+                BigInteger balance = DCN.query_get_balance(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_balance(bob.credentials().getAddress(), assetId)
+                ).return_balance;
+
+                assertEquals(11234, balance);
+
+                balance = ERC20.query_balanceOf(
+                        tokens.get(tokenIndex), StaticNetwork.Web3(),
+                        ERC20.balanceOf(bob.credentials().getAddress())
+                ).balance;
+                assertEquals(initialBalance.subtract(deposit), balance);
+            });
+
+            it("should be able to deposit more", () -> {
+                BigInteger deposit = BigInteger.valueOf(100);
+                TransactionReceipt tx = bob.call(StaticNetwork.DCN(), DCN.deposit_asset(assetId, deposit));
+                assertEquals("0x1", tx.getStatus());
+
+                BigInteger balance = DCN.query_get_balance(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_balance(bob.credentials().getAddress(), assetId)
+                ).return_balance;
+
+                assertEquals(11334, balance);
+
+                balance = ERC20.query_balanceOf(
+                        tokens.get(tokenIndex), StaticNetwork.Web3(),
+                        ERC20.balanceOf(bob.credentials().getAddress())
+                ).balance;
+                assertEquals(initialBalance.subtract(BigInteger.valueOf(11334)), balance);
+            });
+
+            it("should be able to partial withdraw", () -> {
+                TransactionReceipt tx = bob.call(
+                        StaticNetwork.DCN(),
+                        DCN.withdraw_asset(assetId, bob.credentials().getAddress(), BigInteger.valueOf(334))
+                );
+
+                assertEquals("0x1", tx.getStatus());
+
+                BigInteger balance = DCN.query_get_balance(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_balance(bob.credentials().getAddress(), assetId)
+                ).return_balance;
+
+                assertEquals(11000, balance);
+
+                balance = ERC20.query_balanceOf(
+                        tokens.get(tokenIndex), StaticNetwork.Web3(),
+                        ERC20.balanceOf(bob.credentials().getAddress())
+                ).balance;
+                assertEquals(initialBalance.subtract(BigInteger.valueOf(11000)), balance);
+            });
+
+            it("should not be able to overdraft", () -> {
+                TransactionReceipt tx = bob.call(
+                        StaticNetwork.DCN(),
+                        DCN.withdraw_asset(assetId, bob.credentials().getAddress(), BigInteger.valueOf(11010))
+                );
+
+                assertEquals("0x0", tx.getStatus());
+
+                BigInteger balance = DCN.query_get_balance(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_balance(bob.credentials().getAddress(), assetId)
+                ).return_balance;
+
+                assertEquals(11000, balance);
+
+                balance = ERC20.query_balanceOf(
+                        tokens.get(tokenIndex), StaticNetwork.Web3(),
+                        ERC20.balanceOf(bob.credentials().getAddress())
+                ).balance;
+                assertEquals(initialBalance.subtract(BigInteger.valueOf(11000)), balance);
+            });
+
+            it("should be able to withdraw to zero", () -> {
+                TransactionReceipt tx = bob.call(
+                        StaticNetwork.DCN(),
+                        DCN.withdraw_asset(assetId, bob.credentials().getAddress(), BigInteger.valueOf(11000))
+                );
+
+                assertEquals("0x1", tx.getStatus());
+
+                BigInteger balance = DCN.query_get_balance(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_balance(bob.credentials().getAddress(), assetId)
+                ).return_balance;
+
+                assertEquals(0, balance);
+
+                balance = ERC20.query_balanceOf(
+                        tokens.get(tokenIndex), StaticNetwork.Web3(),
+                        ERC20.balanceOf(bob.credentials().getAddress())
+                ).balance;
+                assertEquals(initialBalance, balance);
+            });
         });
     }
 }

@@ -356,7 +356,7 @@ contract DCN {
   function withdraw_asset(uint32 asset_id, address destination, uint256 amount) {
     uint256[3] memory transfer_in;
     uint256[1] memory transfer_out;
-    uint256[1] memory exit_log;
+    uint256[1] memory revert_reason;
 
     assembly {
       let user_ptr := add(users_slot, mul(caller, /* USER_SIZE 2^32 */ 4294967296))
@@ -365,13 +365,13 @@ contract DCN {
 
       /* Ensure asset_id is valid */
       if or(iszero(asset_id), iszero(asset_data)) {
-        mstore(exit_log, 3) log0(add(exit_log, 31), 1) stop()
+        mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
       }
 
       let asset_ptr := add(user_ptr, asset_id)
       let current_balance := sload(asset_ptr)
       if lt(current_balance, amount) {
-        mstore(exit_log, 4) log0(add(exit_log, 31), 1) stop()
+        mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
       }
 
       mstore(transfer_in, /* transfer(address,uint256) */ 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
@@ -391,16 +391,15 @@ contract DCN {
       )
 
       if iszero(success) {
-        mstore(exit_log, 5) log0(add(exit_log, 31), 1) stop()
+        mstore(revert_reason, 3) revert(add(revert_reason, 31), 1)
       }
 
       let result := mload(transfer_out)
       if iszero(result) {
-        mstore(exit_log, 6) log0(add(exit_log, 31), 1) stop()
+        mstore(revert_reason, 4) revert(add(revert_reason, 31), 1)
       }
 
       sstore(asset_ptr, sub(current_balance, amount))
-      mstore(exit_log, 0) log0(add(exit_log, 31), 1)
     }
   }
 
