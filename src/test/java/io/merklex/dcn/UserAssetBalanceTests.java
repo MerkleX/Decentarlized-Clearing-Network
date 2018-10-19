@@ -5,7 +5,7 @@
 //import io.merklex.dcn.contracts.ERC20;
 //import io.merklex.dcn.network.Utils;
 //import io.merklex.dcn.utils.Box;
-//import io.merklex.dcn.utils.Genesis;
+//import io.merklex.dcn.utils.Accounts;
 //import io.merklex.dcn.utils.StaticNetwork;
 //import org.junit.runner.RunWith;
 //import org.web3j.crypto.Credentials;
@@ -23,7 +23,7 @@
 //        StaticNetwork.DescribeCheckpoint();
 //        DCN jackDCN = StaticNetwork.DCN("jack");
 //
-//        Credentials jackKey = Genesis.GetKey("jack");
+//        Credentials jackKey = Accounts.GetKey("jack");
 //        final ERC20 jackToken;
 //
 //        try {

@@ -3,7 +3,7 @@
 //import com.greghaskins.spectrum.Spectrum;
 //import io.merklex.dcn.contracts.DCN;
 //import io.merklex.dcn.utils.Box;
-//import io.merklex.dcn.utils.Genesis;
+//import io.merklex.dcn.utils.Accounts;
 //import io.merklex.dcn.utils.StaticNetwork;
 //import org.junit.runner.RunWith;
 //import org.web3j.crypto.Credentials;
@@ -23,7 +23,7 @@
 //            StaticNetwork.DescribeCheckpoint();
 //
 //            DCN bob = StaticNetwork.DCN("bob");
-//            Credentials bobKey = Genesis.GetKey("bob");
+//            Credentials bobKey = Accounts.GetKey("bob");
 //
 //            BigInteger bobInitialBalance = StaticNetwork.GetBalance(bobKey.getAddress());
 //
@@ -163,7 +163,7 @@
 //            });
 //
 //            DCN alice = StaticNetwork.DCN("alice");
-//            Credentials aliceKey = Genesis.GetKey("alice");
+//            Credentials aliceKey = Accounts.GetKey("alice");
 //
 //            describe("other user should not be able to withdraw", () -> {
 //                StaticNetwork.DescribeCheckpoint();

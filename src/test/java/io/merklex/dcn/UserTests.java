@@ -2,7 +2,7 @@
 //
 //import com.greghaskins.spectrum.Spectrum;
 //import io.merklex.dcn.contracts.DCN;
-//import io.merklex.dcn.utils.Genesis;
+//import io.merklex.dcn.utils.Accounts;
 //import io.merklex.dcn.utils.StaticNetwork;
 //import org.junit.Assert;
 //import org.junit.runner.RunWith;
@@ -26,9 +26,9 @@
 //            DCN henry = StaticNetwork.DCN("henry");
 //            DCN alice = StaticNetwork.DCN("alice");
 //
-//            String bobAddress = Genesis.GetKey("bob").getAddress();
-//            String henryAddress = Genesis.GetKey("henry").getAddress();
-//            String aliceAddress = Genesis.GetKey("alice").getAddress();
+//            String bobAddress = Accounts.GetKey("bob").getAddress();
+//            String henryAddress = Accounts.GetKey("henry").getAddress();
+//            String aliceAddress = Accounts.GetKey("alice").getAddress();
 //
 //            it("user count should be zero", () -> {
 //                Assert.assertEquals(BigInteger.ZERO, bob.get_user_count());

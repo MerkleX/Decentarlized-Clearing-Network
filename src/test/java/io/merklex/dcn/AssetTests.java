@@ -1,49 +1,53 @@
-//package io.merklex.dcn;
-//
-//import com.greghaskins.spectrum.Spectrum;
-//import io.merklex.dcn.contracts.DCN;
-//import io.merklex.dcn.utils.Box;
-//import io.merklex.dcn.utils.StaticNetwork;
-//import io.merklex.dnc.DCNResults;
-//import io.merklex.dnc.models.GetAssetResult;
-//import org.junit.runner.RunWith;
-//import org.web3j.protocol.core.methods.response.Log;
-//import org.web3j.protocol.core.methods.response.TransactionReceipt;
-//
-//import java.math.BigInteger;
-//import java.util.List;
-//
-//import static com.greghaskins.spectrum.dsl.specification.Specification.describe;
-//import static com.greghaskins.spectrum.dsl.specification.Specification.it;
-//import static io.merklex.dcn.utils.BetterAssert.assertEquals;
-//
-//@RunWith(Spectrum.class)
-//public class AssetTests {
-//    {
-//        StaticNetwork.DescribeCheckpoint();
-//
-//        describe("initial state checks", () -> {
-//            it("asset count should be zero", () -> {
-//                assertEquals(0, StaticNetwork.DCN().get_asset_count());
-//            });
-//
-//            it("ether should exist with asset_id=0", () -> {
-//                GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), StaticNetwork.DCN().get_asset(BigInteger.valueOf(0)));
-//                assertEquals("ETH ", asset.symbol);
-//                assertEquals(10000000000L, asset.unitScale);
-//                assertEquals("0x0000000000000000000000000000000000000000", asset.contractAddress);
-//
-//                assertEquals(BigInteger.ZERO, StaticNetwork.DCN().get_asset_count());
-//            });
-//
-//            it("non allocated assets should be empty", () -> {
-//                GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), StaticNetwork.DCN().get_asset(BigInteger.valueOf(123)));
-//                assertEquals("", asset.symbol.trim());
-//                assertEquals(0, asset.unitScale);
-//                assertEquals("0x0000000000000000000000000000000000000000", asset.contractAddress);
-//            });
-//        });
-//
+package io.merklex.dcn;
+
+import com.greghaskins.spectrum.Spectrum;
+import io.merklex.dcn.contracts.DCN;
+import io.merklex.dcn.utils.StaticNetwork;
+import org.junit.runner.RunWith;
+
+import java.math.BigInteger;
+
+import static com.greghaskins.spectrum.dsl.specification.Specification.describe;
+import static com.greghaskins.spectrum.dsl.specification.Specification.it;
+import static io.merklex.dcn.utils.BetterAssert.assertEquals;
+
+@RunWith(Spectrum.class)
+public class AssetTests {
+    {
+        StaticNetwork.DescribeCheckpoint();
+
+        describe("initial state checks", () -> {
+            it("asset count should be zero", () -> {
+                BigInteger count = DCN.query_get_asset_count(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_asset_count()
+                ).count;
+                assertEquals(0, count);
+            });
+
+            it("ether should exist at asset_id=0", () -> {
+                DCN.GetAssetReturnValue asset = DCN.query_get_asset(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_asset(0)
+                );
+
+                assertEquals("ETH ", asset.symbol);
+                assertEquals(10000000000L, asset.unit_scale);
+                assertEquals("0x0000000000000000000000000000000000000000", asset.contract_address);
+            });
+
+            it("non allocated assets should be empty", () -> {
+                DCN.GetAssetReturnValue asset = DCN.query_get_asset(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_asset(123)
+                );
+
+                assertEquals("", asset.symbol.trim());
+                assertEquals(0L, asset.unit_scale);
+                assertEquals("0x0000000000000000000000000000000000000000", asset.contract_address);
+            });
+        });
+
 //        describe("add assets", () -> {
 //            StaticNetwork.DescribeCheckpoint();
 //
@@ -151,5 +155,5 @@
 //                });
 //            });
 //        });
-//    }
-//}
+    }
+}

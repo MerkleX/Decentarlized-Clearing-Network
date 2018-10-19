@@ -90,4 +90,9 @@ public class EtherTransactions {
     public TransactionReceipt waitForResult(EthSendTransaction ticket) throws IOException, TransactionException {
         return receiptProcessor.waitForTransactionReceipt(ticket.getTransactionHash());
     }
+
+    public String deployContract(BigInteger gasPrice, BigInteger gasLimit,
+                                 String contractData, BigInteger weiValue) throws IOException, TransactionException {
+        return waitForResult(sendCall(gasPrice, gasLimit, null, contractData, weiValue)).getContractAddress();
+    }
 }

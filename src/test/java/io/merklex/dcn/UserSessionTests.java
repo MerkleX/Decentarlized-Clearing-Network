@@ -4,7 +4,7 @@
 //import com.greghaskins.spectrum.Spectrum;
 //import io.merklex.dcn.contracts.DCN;
 //import io.merklex.dcn.contracts.ERC20;
-//import io.merklex.dcn.utils.Genesis;
+//import io.merklex.dcn.utils.Accounts;
 //import io.merklex.dcn.utils.StaticNetwork;
 //import io.merklex.dnc.DCNEvents;
 //import io.merklex.dnc.DCNResults;
@@ -31,7 +31,7 @@
 //        DCN bob = StaticNetwork.DCN("bob");
 //        DCN henry = StaticNetwork.DCN("henry");
 //
-//        Credentials jackKey = Genesis.GetKey("jack");
+//        Credentials jackKey = Accounts.GetKey("jack");
 //
 //        ERC20 token1;
 //        ERC20 token2;
@@ -39,24 +39,24 @@
 //
 //        try {
 //            token1 = ERC20.deploy(StaticNetwork.Web3(), jackKey,
-//                    BigInteger.ONE, new BigInteger(Genesis.getGasLimit()),
+//                    BigInteger.ONE, new BigInteger(Accounts.getGasLimit()),
 //                    BigInteger.valueOf(100000000000L),
 //                    "token1", BigInteger.valueOf(16), "TK1").send();
 //            token2 = ERC20.deploy(StaticNetwork.Web3(), jackKey,
-//                    BigInteger.ONE, new BigInteger(Genesis.getGasLimit()),
+//                    BigInteger.ONE, new BigInteger(Accounts.getGasLimit()),
 //                    BigInteger.valueOf(100000000000L),
 //                    "token2", BigInteger.valueOf(16), "TK2").send();
 //            token3 = ERC20.deploy(StaticNetwork.Web3(), jackKey,
-//                    BigInteger.ONE, new BigInteger(Genesis.getGasLimit()),
+//                    BigInteger.ONE, new BigInteger(Accounts.getGasLimit()),
 //                    BigInteger.valueOf(100000000000L),
 //                    "token3", BigInteger.valueOf(16), "TK3").send();
 //        } catch (Exception e) {
 //            throw new RuntimeException(e);
 //        }
 //
-//        Credentials bobKey = Genesis.GetKey("bob");
-//        Credentials henryKey = Genesis.GetKey("henry");
-//        Credentials merkleKey = Genesis.GetKey("merkle");
+//        Credentials bobKey = Accounts.GetKey("bob");
+//        Credentials henryKey = Accounts.GetKey("henry");
+//        Credentials merkleKey = Accounts.GetKey("merkle");
 //
 //        BigInteger expireTime = BigInteger.valueOf(System.currentTimeMillis() / 1000 + 50000);
 //
@@ -211,7 +211,7 @@
 //
 //                it("should be able to create position with balance", () -> {
 //                    token1.transfer(bobKey.getAddress(), BigInteger.valueOf(100000)).send();
-//                    ERC20 bobERC = ERC20.load(token1.getContractAddress(), StaticNetwork.Web3(), bobKey, BigInteger.ONE, new BigInteger(Genesis.getGasLimit()));
+//                    ERC20 bobERC = ERC20.load(token1.getContractAddress(), StaticNetwork.Web3(), bobKey, BigInteger.ONE, new BigInteger(Accounts.getGasLimit()));
 //                    bobERC.approve(bob.getContractAddress(), BigInteger.valueOf(1000)).send();
 //                    bob.executeTransaction(DCN.deposit_asset(BigInteger.valueOf(0), BigInteger.valueOf(1), BigInteger.valueOf(1000)));
 //
