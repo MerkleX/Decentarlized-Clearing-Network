@@ -62,7 +62,7 @@ public class StaticNetwork {
                 accounts.put(key.getEcKeyPair().getPrivateKey().toString(16), "100000000000000000000000");
             }
 
-            network = new EtherDebugNet(5123, "localhost", accounts, 8000000, 9999);
+            network = new EtherDebugNet(5122, "localhost", accounts, 8000000, 9999);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -25,7 +25,7 @@ public class ExchangeTests {
 
         describe("add exchange", () -> {
             it("initial exchange count should be zero", () -> {
-                BigInteger count = DCN.query_get_exchange_count(
+                int count = DCN.query_get_exchange_count(
                         StaticNetwork.DCN(),
                         StaticNetwork.Web3(),
                         DCN.get_exchange_count()
@@ -41,7 +41,7 @@ public class ExchangeTests {
                 );
                 assertEquals("0x0", receipt.getStatus());
 
-                BigInteger count = DCN.query_get_exchange_count(
+                int count = DCN.query_get_exchange_count(
                         StaticNetwork.DCN(),
                         StaticNetwork.Web3(),
                         DCN.get_exchange_count()
@@ -60,7 +60,7 @@ public class ExchangeTests {
                 assertEquals(1, receipt.getLogs().size());
                 assertEquals("0x00000000", receipt.getLogs().get(0).getData());
 
-                BigInteger count = DCN.query_get_exchange_count(
+                int count = DCN.query_get_exchange_count(
                         StaticNetwork.DCN(),
                         StaticNetwork.Web3(),
                         DCN.get_exchange_count()
@@ -88,7 +88,7 @@ public class ExchangeTests {
                 assertEquals(1, receipt.getLogs().size());
                 assertEquals("0x00000001", receipt.getLogs().get(0).getData());
 
-                BigInteger count = DCN.query_get_exchange_count(
+                int count = DCN.query_get_exchange_count(
                         StaticNetwork.DCN(),
                         StaticNetwork.Web3(),
                         DCN.get_exchange_count()

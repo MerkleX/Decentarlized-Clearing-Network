@@ -21,6 +21,10 @@ public class BetterAssert {
         assertEquals(BigInteger.valueOf(expected), actual);
     }
 
+    public static void assertEquals(long expected, long actual) {
+        Assert.assertEquals(expected, actual);
+    }
+
     public static <T> void assertEquals(T expected, T actual) {
         Assert.assertEquals(expected, actual);
     }

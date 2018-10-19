@@ -239,11 +239,11 @@ public class BalanceTests {
 
                 assertEquals(11234, balance);
 
-                balance = ERC20.query_balanceOf(
+                BigInteger ercBalance = ERC20.query_balanceOf(
                         tokens.get(tokenIndex), StaticNetwork.Web3(),
                         ERC20.balanceOf(bob.credentials().getAddress())
                 ).balance;
-                assertEquals(initialBalance.subtract(deposit), balance);
+                assertEquals(initialBalance.subtract(deposit), ercBalance);
             });
 
             it("should be able to deposit more", () -> {
@@ -258,11 +258,11 @@ public class BalanceTests {
 
                 assertEquals(11334, balance);
 
-                balance = ERC20.query_balanceOf(
+                BigInteger ercBalance = ERC20.query_balanceOf(
                         tokens.get(tokenIndex), StaticNetwork.Web3(),
                         ERC20.balanceOf(bob.credentials().getAddress())
                 ).balance;
-                assertEquals(initialBalance.subtract(BigInteger.valueOf(11334)), balance);
+                assertEquals(initialBalance.subtract(BigInteger.valueOf(11334)), ercBalance);
             });
 
             it("should be able to partial withdraw", () -> {
@@ -280,11 +280,11 @@ public class BalanceTests {
 
                 assertEquals(11000, balance);
 
-                balance = ERC20.query_balanceOf(
+                BigInteger ercBalance = ERC20.query_balanceOf(
                         tokens.get(tokenIndex), StaticNetwork.Web3(),
                         ERC20.balanceOf(bob.credentials().getAddress())
                 ).balance;
-                assertEquals(initialBalance.subtract(BigInteger.valueOf(11000)), balance);
+                assertEquals(initialBalance.subtract(BigInteger.valueOf(11000)), ercBalance);
             });
 
             it("should not be able to overdraft", () -> {
@@ -302,11 +302,11 @@ public class BalanceTests {
 
                 assertEquals(11000, balance);
 
-                balance = ERC20.query_balanceOf(
+                BigInteger ercBalance = ERC20.query_balanceOf(
                         tokens.get(tokenIndex), StaticNetwork.Web3(),
                         ERC20.balanceOf(bob.credentials().getAddress())
                 ).balance;
-                assertEquals(initialBalance.subtract(BigInteger.valueOf(11000)), balance);
+                assertEquals(initialBalance.subtract(BigInteger.valueOf(11000)), ercBalance);
             });
 
             it("should be able to withdraw to zero", () -> {
@@ -324,11 +324,11 @@ public class BalanceTests {
 
                 assertEquals(0, balance);
 
-                balance = ERC20.query_balanceOf(
+                BigInteger ercBalance = ERC20.query_balanceOf(
                         tokens.get(tokenIndex), StaticNetwork.Web3(),
                         ERC20.balanceOf(bob.credentials().getAddress())
                 ).balance;
-                assertEquals(initialBalance, balance);
+                assertEquals(initialBalance, ercBalance);
             });
         });
     }

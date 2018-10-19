@@ -53,7 +53,7 @@ contract DCN {
 
     SESSION {
                0: ether_position
-               1: expire_time
+               1: time_version + expire_time
                2: padding
              
                3: ASSET_1_POSITION_DEF
@@ -78,6 +78,12 @@ contract DCN {
       fee_used          :  64,
       total_deposit     :  64,
       ether_balance     :  64,
+    }
+
+    TIME_DEF {
+      padding           : 128,
+      time_version      :  64,
+      expire_time       :  64,
     }
 
     POSITION_DEF {
@@ -161,7 +167,7 @@ contract DCN {
     }
   }
 
-  function get_exchange(uint32 id) public view returns (string name, address addr, uint256 fee_balance) {
+  function get_exchange(uint32 id) public view returns (string name, address addr, uint64 fee_balance) {
     uint256[5] memory return_value;
 
     assembly {
@@ -184,7 +190,7 @@ contract DCN {
     }
   }
 
-  function get_exchange_count() public view returns (uint256 count) {
+  function get_exchange_count() public view returns (uint32 count) {
     uint256[1] memory return_value;
 
     assembly {
@@ -249,7 +255,7 @@ contract DCN {
     }
   }
 
-  function get_asset_count() public view returns (uint256 count) {
+  function get_asset_count() public view returns (uint32 count) {
     uint256[1] memory return_value;
 
     assembly {
@@ -438,13 +444,24 @@ contract DCN {
         /* SESSION_SIZE 3*(2^32)) */ 12884901888
       ))
 
-      /* Store expire time */
-      sstore(add(session_ptr, 1), expire_time)
+      /* Update expire time */
+      {
+        let time_ptr := add(session_ptr, 1)
+        let time_data := sload(time_ptr)
+        sstore(time_ptr, BUILD_TIME {
+          /* padding */ 0,
+          add(TIME(time_data).time_version, 1),
+          expire_time
+        })
+      }
 
       /* Log expire time update */
       mstore(log_data_ptr, caller)
       mstore(add(log_data_ptr, 32), exchange_id)
-      log1(log_data_ptr, 64, /* TODO: ExpireTimeUpdated(address,uint64) */ 0)
+      log1(
+        log_data_ptr, 64,
+        /* ExpireTimeUpdated(address,uint64) */ 0x0b7aa86552558c13c5c712a29ce9a5fcc5baf53e644fd8775b16905a104e9291
+      )
 
       let ether_deposit := callvalue
       if ether_deposit {
@@ -477,7 +494,10 @@ contract DCN {
         mstore(log_data_ptr, caller)
         mstore(add(log_data_ptr, 32), exchange_id)
         mstore(add(log_data_ptr, 64), 0)
-        log1(log_data_ptr, 96, /* SessionDeposit(address,uint64,uint32) TODO */ 0)
+        log1(
+          log_data_ptr, 96,
+          /* SessionDeposit */ 0x2d586c581dbe2815019662f40a3f39c0a3440d7c4dc4c2d9796f374cdd47f4fd
+        )
       }
     }
   }
@@ -537,7 +557,11 @@ contract DCN {
       mstore(session_deposit_ptr, caller)
       mstore(add(session_deposit_ptr, 32), exchange_id)
       mstore(add(session_deposit_ptr, 64), asset_id)
-      log1(session_deposit_ptr, 96, /* SessionDeposit TODO */ 0)
+      log1(
+        session_deposit_ptr, 96,
+        /* SessionDeposit */ 0x2d586c581dbe2815019662f40a3f39c0a3440d7c4dc4c2d9796f374cdd47f4fd
+      )
+
     }
   }
 
@@ -596,7 +620,10 @@ contract DCN {
       mstore(log_data_ptr, caller)
       mstore(add(log_data_ptr, 32), exchange_id)
       mstore(add(log_data_ptr, 64), 0)
-      log1(log_data_ptr, 96, /* SessionDeposit(address,uint64,uint32) TODO */ 0)
+      log1(
+        log_data_ptr, 96,
+        /* SessionDeposit */ 0x2d586c581dbe2815019662f40a3f39c0a3440d7c4dc4c2d9796f374cdd47f4fd
+      )
     }
   }
 
@@ -674,13 +701,16 @@ contract DCN {
       mstore(log_data_ptr, caller)
       mstore(add(log_data_ptr, 32), exchange_id)
       mstore(add(log_data_ptr, 64), asset_id)
-      log1(log_data_ptr, 96, /* SessionDeposit(address,uint64,uint32) TODO */ 0)
+      log1(
+        log_data_ptr, 96,
+        /* SessionDeposit */ 0x2d586c581dbe2815019662f40a3f39c0a3440d7c4dc4c2d9796f374cdd47f4fd
+      )
     }
   }
 
   function get_session(address user, uint32 exchange_id) public view
-  returns (uint256 expire_time, uint256 fee_limit, uint256 fee_used) {
-    uint256[3] memory return_values;
+  returns (uint64 time_version, uint64 expire_time, uint64 fee_limit, uint64 fee_used) {
+    uint256[4] memory return_values;
 
     assembly {
       let session_ptr := add(sessions_slot, mul(
@@ -689,17 +719,19 @@ contract DCN {
       ))
 
       let session_data := sload(session_ptr)
+      let time_data := sload(add(session_ptr, 1))
 
-      mstore(return_values, sload(add(session_ptr, 1)))
-      mstore(add(return_values, 32), ETHER_POSITION(session_data).fee_limit)
-      mstore(add(return_values, 64), ETHER_POSITION(session_data).fee_used)
+      mstore(return_values, TIME(time_data).time_version)
+      mstore(add(return_values, 32), TIME(time_data).expire_time)
+      mstore(add(return_values, 64), ETHER_POSITION(session_data).fee_limit)
+      mstore(add(return_values, 96), ETHER_POSITION(session_data).fee_used)
 
-      return(return_values, 96)
+      return(return_values, 128)
     }
   }
 
   function get_session_balance(address user, uint32 exchange_id, uint32 asset_id) public view
-  returns (uint256 total_deposit, uint256 asset_balance) {
+  returns (uint64 total_deposit, uint64 asset_balance) {
     uint256[2] memory return_values;
 
     assembly {
@@ -718,7 +750,7 @@ contract DCN {
   }
 
   function get_session_position(address user, uint32 exchange_id, uint32 asset_id) public view
-  returns (uint256 ether_qty, uint256 asset_qty, uint256 ether_shift, uint256 asset_shift) {
+  returns (int64 ether_qty, int64 asset_qty, int64 ether_shift, int64 asset_shift) {
     uint256[4] memory return_values;
 
     assembly {
@@ -741,7 +773,7 @@ contract DCN {
   }
 
   function get_session_limit(address user, uint32 exchange_id, uint32 asset_id) public view
-  returns (uint256 version, uint256 min_ether, uint256 min_asset, uint256 long_max_price, uint256 short_min_price) {
+  returns (uint64 version, int64 min_ether, int64 min_asset, uint64 long_max_price, uint64 short_min_price) {
     uint256[4] memory return_values;
 
     assembly {

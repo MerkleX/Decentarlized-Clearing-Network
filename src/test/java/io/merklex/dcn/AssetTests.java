@@ -21,7 +21,7 @@ public class AssetTests {
 
         describe("initial state checks", () -> {
             it("asset count should be zero", () -> {
-                BigInteger count = DCN.query_get_asset_count(
+                int count = DCN.query_get_asset_count(
                         StaticNetwork.DCN(), StaticNetwork.Web3(),
                         DCN.get_asset_count()
                 ).count;
@@ -59,7 +59,7 @@ public class AssetTests {
                 TransactionReceipt tx = bob.call(StaticNetwork.DCN(), DCN.add_asset("ABCD", 100, bob.credentials().getAddress()));
                 assertEquals("0x0", tx.getStatus());
 
-                BigInteger count = DCN.query_get_asset_count(
+                int count = DCN.query_get_asset_count(
                         StaticNetwork.DCN(), StaticNetwork.Web3(),
                         DCN.get_asset_count()
                 ).count;
@@ -70,7 +70,7 @@ public class AssetTests {
                 TransactionReceipt tx = creator.call(StaticNetwork.DCN(), DCN.add_asset("1234", 1000, bob.credentials().getAddress()));
                 assertEquals("0x1", tx.getStatus());
 
-                BigInteger count = DCN.query_get_asset_count(
+                int count = DCN.query_get_asset_count(
                         StaticNetwork.DCN(), StaticNetwork.Web3(),
                         DCN.get_asset_count()
                 ).count;
@@ -100,7 +100,7 @@ public class AssetTests {
                 TransactionReceipt tx = creator.call(StaticNetwork.DCN(), DCN.add_asset("1234", 0, bob.credentials().getAddress()));
                 assertEquals("0x0", tx.getStatus());
 
-                BigInteger count = DCN.query_get_asset_count(
+                int count = DCN.query_get_asset_count(
                         StaticNetwork.DCN(), StaticNetwork.Web3(),
                         DCN.get_asset_count()
                 ).count;
@@ -111,7 +111,7 @@ public class AssetTests {
                 TransactionReceipt tx = creator.call(StaticNetwork.DCN(), DCN.add_asset("ABCD", 1001, creator.credentials().getAddress()));
                 assertEquals("0x1", tx.getStatus());
 
-                BigInteger count = DCN.query_get_asset_count(
+                int count = DCN.query_get_asset_count(
                         StaticNetwork.DCN(), StaticNetwork.Web3(),
                         DCN.get_asset_count()
                 ).count;
