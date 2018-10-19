@@ -185,22 +185,22 @@ public class BalanceTests {
             BigInteger initialBalance = BigInteger.valueOf(100000);
 
             int assetId = 3;
-            String tokenAddress = tokens.get(2);
+            int tokenIndex = 2;
 
             it("should be able to send bob funds over ERC20", () -> {
                 BigInteger balance = ERC20.query_balanceOf(
-                        tokenAddress, StaticNetwork.Web3(),
+                        tokens.get(tokenIndex), StaticNetwork.Web3(),
                         ERC20.balanceOf(bob.credentials().getAddress())
                 ).balance;
                 assertEquals(0, balance);
 
                 EtherTransactions tokenBoy = Accounts.getTx(assetId);
-                TransactionReceipt tx = tokenBoy.call(tokenAddress, ERC20.transfer(bob.credentials().getAddress(), initialBalance));
+                TransactionReceipt tx = tokenBoy.call(tokens.get(tokenIndex), ERC20.transfer(bob.credentials().getAddress(), initialBalance));
 
                 assertEquals("0x1", tx.getStatus());
 
                 balance = ERC20.query_balanceOf(
-                        tokenAddress, StaticNetwork.Web3(),
+                        tokens.get(tokenIndex), StaticNetwork.Web3(),
                         ERC20.balanceOf(bob.credentials().getAddress())
                 ).balance;
                 assertEquals(100000, balance);
