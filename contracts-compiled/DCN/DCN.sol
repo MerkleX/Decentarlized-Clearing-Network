@@ -53,7 +53,7 @@ contract DCN {
 
     SESSION {
                0: ether_position
-               1: time_version + expire_time
+               1: version + expire_time
                2: padding
              
                3: ASSET_1_POSITION_DEF
@@ -82,7 +82,7 @@ contract DCN {
 
     TIME_DEF {
       padding           : 128,
-      time_version      :  64,
+      version           :  64,
       expire_time       :  64,
     }
 
@@ -448,7 +448,7 @@ contract DCN {
       {
         let time_ptr := add(session_ptr, 1)
         let time_data := sload(time_ptr)
-        sstore(time_ptr, or(mul(/* padding */ /* padding */ 0, 0x100000000000000000000000000000000), or(mul(/* time_version */ add(/* TIME(time_data).time_version */ and(div(time_data, 0x10000000000000000), 0xffffffffffffffff), 1), 0x10000000000000000), expire_time)))
+        sstore(time_ptr, or(mul(/* padding */ /* padding */ 0, 0x100000000000000000000000000000000), or(mul(/* version */ add(/* TIME(time_data).version */ and(div(time_data, 0x10000000000000000), 0xffffffffffffffff), 1), 0x10000000000000000), expire_time)))
       }
 
       /* Log expire time update */
@@ -705,7 +705,7 @@ contract DCN {
   }
 
   function get_session(address user, uint32 exchange_id) public view
-  returns (uint64 time_version, uint64 expire_time, uint64 fee_limit, uint64 fee_used) {
+  returns (uint64 version, uint64 expire_time, uint64 fee_limit, uint64 fee_used) {
     uint256[4] memory return_values;
 
     assembly {
@@ -717,7 +717,7 @@ contract DCN {
       let session_data := sload(session_ptr)
       let time_data := sload(add(session_ptr, 1))
 
-      mstore(return_values, /* TIME(time_data).time_version */ and(div(time_data, 0x10000000000000000), 0xffffffffffffffff))
+      mstore(return_values, /* TIME(time_data).version */ and(div(time_data, 0x10000000000000000), 0xffffffffffffffff))
       mstore(add(return_values, 32), /* TIME(time_data).expire_time */ and(div(time_data, 0x1), 0xffffffffffffffff))
       mstore(add(return_values, 64), /* ETHER_POSITION(session_data).fee_limit */ and(div(session_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
       mstore(add(return_values, 96), /* ETHER_POSITION(session_data).fee_used */ and(div(session_data, 0x100000000000000000000000000000000), 0xffffffffffffffff))

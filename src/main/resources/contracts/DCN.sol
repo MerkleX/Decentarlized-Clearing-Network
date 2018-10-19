@@ -53,7 +53,7 @@ contract DCN {
 
     SESSION {
                0: ether_position
-               1: time_version + expire_time
+               1: version + expire_time
                2: padding
              
                3: ASSET_1_POSITION_DEF
@@ -82,7 +82,7 @@ contract DCN {
 
     TIME_DEF {
       padding           : 128,
-      time_version      :  64,
+      version           :  64,
       expire_time       :  64,
     }
 
@@ -450,7 +450,7 @@ contract DCN {
         let time_data := sload(time_ptr)
         sstore(time_ptr, BUILD_TIME {
           /* padding */ 0,
-          add(TIME(time_data).time_version, 1),
+          add(TIME(time_data).version, 1),
           expire_time
         })
       }
@@ -709,7 +709,7 @@ contract DCN {
   }
 
   function get_session(address user, uint32 exchange_id) public view
-  returns (uint64 time_version, uint64 expire_time, uint64 fee_limit, uint64 fee_used) {
+  returns (uint64 version, uint64 expire_time, uint64 fee_limit, uint64 fee_used) {
     uint256[4] memory return_values;
 
     assembly {
@@ -721,7 +721,7 @@ contract DCN {
       let session_data := sload(session_ptr)
       let time_data := sload(add(session_ptr, 1))
 
-      mstore(return_values, TIME(time_data).time_version)
+      mstore(return_values, TIME(time_data).version)
       mstore(add(return_values, 32), TIME(time_data).expire_time)
       mstore(add(return_values, 64), ETHER_POSITION(session_data).fee_limit)
       mstore(add(return_values, 96), ETHER_POSITION(session_data).fee_used)
