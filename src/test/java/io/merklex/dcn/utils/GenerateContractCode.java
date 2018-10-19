@@ -56,6 +56,7 @@ public class GenerateContractCode {
                 new JavaContractGenerator(abiFile, binFiles[0]).generate(className);
 
         File file = new File(javaFile, packageName.replace('.', '/') + "/" + className + ".java");
+        file.getParentFile().mkdirs();
         try (Writer w = new FileWriter(file)) {
             w.write(generated);
         }
