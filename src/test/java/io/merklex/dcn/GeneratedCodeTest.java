@@ -1,6 +1,6 @@
 package io.merklex.dcn;
 
-import io.merklex.dcn.network.Utils;
+import io.merklex.ether_net.Utils;
 import io.merklex.dcn.utils.GenerateContractCode;
 import org.junit.Assert;
 import org.junit.Test;

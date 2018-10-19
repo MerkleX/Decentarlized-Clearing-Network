@@ -146,7 +146,7 @@ module.exports = function(source) {
       return `div(${subject}, 0x${(1n << BigInt(shift_amount)).toString(16)})`;
     }
     else if (type === 'l') {
-      return `mul(${subject}, 0x${(1n << BigInt(shift_amount)).toShift(16)})`;
+      return `mul(${subject}, 0x${(1n << BigInt(shift_amount)).toString(16)})`;
     }
 
     return og;

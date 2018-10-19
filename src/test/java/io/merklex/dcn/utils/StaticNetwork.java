@@ -1,11 +1,14 @@
 package io.merklex.dcn.utils;
 
-import io.merklex.dcn.network.EtherDebugNet;
 import io.merklex.dcn.contracts.DCN;
+import io.merklex.ether_net.EtherDebugNet;
+import io.merklex.web3.EtherTransactions;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterNumber;
 import org.web3j.protocol.core.methods.response.EthBlockNumber;
+import org.web3j.protocol.core.methods.response.EthSendTransaction;
+import org.web3j.tx.Contract;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -15,29 +18,21 @@ import java.util.Stack;
 import static com.greghaskins.spectrum.dsl.specification.Specification.*;
 
 public class StaticNetwork {
+    public static final BigInteger GAS_LIMIT = BigInteger.valueOf(8000000);
     private static final EtherDebugNet network;
-    private static final DCN dcn;
+    private static final String dcnAddress;
 
     public static Web3j Web3() {
         return network.web3();
     }
 
-    public static DCN DCN() {
-        return dcn;
-    }
-
-    public static DCN DCN(String user) {
-        Credentials credentials = Genesis.GetKey(user);
-        if (credentials == null) {
-            throw new IllegalArgumentException("Invalid user: " + user);
-        }
-        return DCN.load(dcn.getContractAddress(), network.web3(),
-                credentials, BigInteger.ONE, BigInteger.valueOf(1000000));
+    public static String DCN() {
+        return dcnAddress;
     }
 
     public static BigInteger GetBalance(String address) throws IOException {
         EthBlockNumber block = StaticNetwork.Web3().ethBlockNumber().send();
-        return StaticNetwork.Web3().ethGetBalance(address, new DefaultBlockParameterNumber(block.getBlockNumber())).send().getBalance();
+        return Web3().ethGetBalance(address, new DefaultBlockParameterNumber(block.getBlockNumber())).send().getBalance();
     }
 
     private static final Stack<BigInteger> checkpoints = new Stack<>();
@@ -63,21 +58,21 @@ public class StaticNetwork {
     static {
         try {
             HashMap<String, String> accounts = new HashMap<>();
-            for (String keyName : Genesis.KeyNames()) {
-                String privateKey = Genesis.GetKey(keyName).getEcKeyPair().getPrivateKey().toString(16);
-                String balance = Genesis.GetBalance(keyName);
-                accounts.put(privateKey, balance);
+            for (Credentials key : Accounts.keys) {
+                accounts.put(key.getEcKeyPair().getPrivateKey().toString(16), "100000000000000000000000");
             }
 
-            network = new EtherDebugNet(5123, accounts, Long.parseUnsignedLong(Genesis.getGasLimit()));
+            network = new EtherDebugNet(5123, "localhost", accounts, 8000000, 9999);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
         Runtime.getRuntime().addShutdownHook(new Thread(network::close));
 
+        EtherTransactions etherTransactions = new EtherTransactions(network.web3(), Accounts.get(0));
+
         try {
-            dcn = DCN.deploy(network.web3(), Genesis.GetKey("merkle"), BigInteger.ONE, BigInteger.valueOf(8000000)).send();
+            dcnAddress = etherTransactions.deployContract(BigInteger.ZERO, GAS_LIMIT, DCN.DeployData(), BigInteger.ZERO);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -91,5 +86,9 @@ public class StaticNetwork {
     public static void DescribeCheckpointForEach() {
         beforeEach(StaticNetwork::Checkpoint);
         afterEach(StaticNetwork::Revert);
+    }
+
+    public static void main(String[] args) {
+        System.out.println(DCN());
     }
 }
