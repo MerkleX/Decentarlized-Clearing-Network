@@ -1,7 +1,7 @@
 package io.merklex.dcn.utils;
 
-import io.merklex.dcn.network.EtherDebugNet;
 import io.merklex.dcn.contracts.DCN;
+import io.merklex.ether_net.EtherDebugNet;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterNumber;
@@ -69,7 +69,7 @@ public class StaticNetwork {
                 accounts.put(privateKey, balance);
             }
 
-            network = new EtherDebugNet(5123, accounts, Long.parseUnsignedLong(Genesis.getGasLimit()));
+            network = new EtherDebugNet(5123, "localhost", accounts, Long.parseUnsignedLong(Genesis.getGasLimit()), 9999);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
