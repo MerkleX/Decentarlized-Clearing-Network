@@ -1,8 +1,8 @@
 pragma solidity ^0.4.24;
 
 contract DCN {
-  event ExpireTimeUpdated(address user, uint64 exchange_id);
-  event SessionDeposit(address user, uint64 exchange_id, uint32 asset_id); 
+  event SessionUpdated(address user, uint64 exchange_id);
+  event PositionUpdated(address user, uint64 exchange_id, uint32 asset_id); 
 
   uint256 creator;
 
@@ -456,7 +456,7 @@ contract DCN {
       mstore(add(log_data_ptr, 32), exchange_id)
       log1(
         log_data_ptr, 64,
-        /* ExpireTimeUpdated(address,uint64) */ 0x0b7aa86552558c13c5c712a29ce9a5fcc5baf53e644fd8775b16905a104e9291
+        /* SessionUpdated */ 0x1fceb0227bbc8d151c84f6f90cac5b115842ef0ed5dd5b6ee6bf6eca2dae91f7
       )
 
       let ether_deposit := callvalue
@@ -492,7 +492,7 @@ contract DCN {
         mstore(add(log_data_ptr, 64), 0)
         log1(
           log_data_ptr, 96,
-          /* SessionDeposit */ 0x2d586c581dbe2815019662f40a3f39c0a3440d7c4dc4c2d9796f374cdd47f4fd
+          /* PositionUpdated */ 0x80e69f6146713abffddddec8ef3901e1cd3fd9e079375d62e04e2719f1adf500
         )
       }
     }
@@ -555,7 +555,7 @@ contract DCN {
       mstore(add(session_deposit_ptr, 64), asset_id)
       log1(
         session_deposit_ptr, 96,
-        /* SessionDeposit */ 0x2d586c581dbe2815019662f40a3f39c0a3440d7c4dc4c2d9796f374cdd47f4fd
+        /* PositionUpdated */ 0x80e69f6146713abffddddec8ef3901e1cd3fd9e079375d62e04e2719f1adf500
       )
 
     }
@@ -618,7 +618,7 @@ contract DCN {
       mstore(add(log_data_ptr, 64), 0)
       log1(
         log_data_ptr, 96,
-        /* SessionDeposit */ 0x2d586c581dbe2815019662f40a3f39c0a3440d7c4dc4c2d9796f374cdd47f4fd
+        /* PositionUpdated */ 0x80e69f6146713abffddddec8ef3901e1cd3fd9e079375d62e04e2719f1adf500
       )
     }
   }
@@ -699,7 +699,7 @@ contract DCN {
       mstore(add(log_data_ptr, 64), asset_id)
       log1(
         log_data_ptr, 96,
-        /* SessionDeposit */ 0x2d586c581dbe2815019662f40a3f39c0a3440d7c4dc4c2d9796f374cdd47f4fd
+        /* PositionUpdated */ 0x80e69f6146713abffddddec8ef3901e1cd3fd9e079375d62e04e2719f1adf500
       )
     }
   }
