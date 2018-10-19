@@ -278,7 +278,7 @@ contract DCN {
       /* Check balance */
       let ether_balance := sload(ether_ptr)
       if gt(amount, ether_balance) {
-        stop()
+        revert(0, 0)
       }
 
       // Update balance

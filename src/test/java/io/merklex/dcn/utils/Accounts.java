@@ -4,6 +4,7 @@ import io.merklex.web3.EtherTransactions;
 import org.web3j.crypto.Credentials;
 import org.web3j.utils.Numeric;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -25,6 +26,7 @@ public class Accounts {
     }
 
     public static EtherTransactions getTx(int index) {
-        return new EtherTransactions(StaticNetwork.Web3(), keys.get(index));
+        return new EtherTransactions(StaticNetwork.Web3(), keys.get(index))
+                .withGas(BigInteger.ZERO, StaticNetwork.GAS_LIMIT);
     }
 }

@@ -2,8 +2,11 @@ package io.merklex.dcn;
 
 import com.greghaskins.spectrum.Spectrum;
 import io.merklex.dcn.contracts.DCN;
+import io.merklex.dcn.utils.Accounts;
 import io.merklex.dcn.utils.StaticNetwork;
+import io.merklex.web3.EtherTransactions;
 import org.junit.runner.RunWith;
+import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import java.math.BigInteger;
 
@@ -48,112 +51,100 @@ public class AssetTests {
             });
         });
 
-//        describe("add assets", () -> {
-//            StaticNetwork.DescribeCheckpoint();
-//
-//            describe("only creator should be able to add assets", () -> {
-//                DCN bob = StaticNetwork.DCN("bob");
-//
-//                it("failed add should have no logs", () -> {
-//                    TransactionReceipt result = bob.executeTransaction(DCN.add_asset("TEST", BigInteger.ONE, bob.getContractAddress()));
-//                    assertEquals(0, result.getLogs().size());
-//                });
-//
-//                it("query should yield no results", () -> {
-//                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), bob.get_asset(BigInteger.valueOf(1)));
-//                    assertEquals("", asset.symbol.trim());
-//                    assertEquals(0, asset.unitScale);
-//                    assertEquals("0x0000000000000000000000000000000000000000", asset.contractAddress);
-//                });
-//            });
-//
-//
-//            DCN dcn = StaticNetwork.DCN();
-//            String assetAddress = "0xca35b7d915458ef540ade6068dfe2f44e8fa733c";
-//
-//            describe("should validate add asset", () -> {
-//                it("should not be able to add asset with < 4 character symbol", () -> {
-//                    dcn.executeTransaction(DCN.add_asset("TES", BigInteger.ONE, assetAddress));
-//                    assertEquals(0, dcn.get_asset_count());
-//                });
-//
-//                it("should not be able to add asset with > 4 character symbol", () -> {
-//                    dcn.executeTransaction(DCN.add_asset("TESTER", BigInteger.ONE, assetAddress));
-//                    assertEquals(0, dcn.get_asset_count());
-//                });
-//
-//                it("should not be able to add asset with zero unit scale", () -> {
-//                    dcn.executeTransaction(DCN.add_asset("1234", BigInteger.ZERO, assetAddress));
-//                    assertEquals(0, dcn.get_asset_count());
-//                });
-//            });
-//
-//            describe("add first asset", () -> {
-//                Box<TransactionReceipt> receipt = new Box<>();
-//
-//                it("add asset", () -> {
-//                    receipt.value = dcn.executeTransaction(DCN.add_asset("ABCD", BigInteger.ONE, assetAddress));
-//                });
-//
-//                it("should have log as first asset", () -> {
-//                    List<Log> logs = receipt.value.getLogs();
-//                    assertEquals(1, logs.size());
-//                    Log log = logs.get(0);
-//                    assertEquals("0x0001", log.getData());
-//                    assertEquals(BigInteger.ONE, dcn.get_asset_count());
-//                });
-//
-//                it("should not modify ether asset", () -> {
-//                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(0)));
-//                    assertEquals("ETH ", asset.symbol);
-//                    assertEquals(10000000000L, asset.unitScale);
-//                    assertEquals("0x0000000000000000000000000000000000000000", asset.contractAddress);
-//                });
-//
-//                it("should be able to query asset", () -> {
-//                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(1)));
-//                    assertEquals("ABCD", asset.symbol);
-//                    assertEquals(BigInteger.ONE, asset.unitScale);
-//                    assertEquals(assetAddress, asset.contractAddress);
-//                });
-//            });
-//
-//            describe("add second asset", () -> {
-//                Box<TransactionReceipt> receipt = new Box<>();
-//
-//                it("add asset", () -> {
-//                    receipt.value = dcn.executeTransaction(DCN.add_asset("ABC ", BigInteger.valueOf(231421), assetAddress));
-//                });
-//
-//                it("should have log as second asset", () -> {
-//                    List<Log> logs = receipt.value.getLogs();
-//                    assertEquals(1, logs.size());
-//                    Log log = logs.get(0);
-//                    assertEquals("0x0002", log.getData());
-//                    assertEquals(2, dcn.get_asset_count());
-//                });
-//
-//                it("should not modify ether", () -> {
-//                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(0)));
-//                    assertEquals("ETH ", asset.symbol);
-//                    assertEquals(10000000000L, asset.unitScale);
-//                    assertEquals("0x0000000000000000000000000000000000000000", asset.contractAddress);
-//                });
-//
-//                it("should not modify asset 1", () -> {
-//                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(1)));
-//                    assertEquals("ABCD", asset.symbol);
-//                    assertEquals(BigInteger.ONE, asset.unitScale);
-//                    assertEquals(assetAddress, asset.contractAddress);
-//                });
-//
-//                it("should be able to query asset 2", () -> {
-//                    GetAssetResult asset = DCNResults.GetAsset(new GetAssetResult(), dcn.get_asset(BigInteger.valueOf(2)));
-//                    assertEquals("ABC ", asset.symbol);
-//                    assertEquals(231421, asset.unitScale);
-//                    assertEquals(assetAddress, asset.contractAddress);
-//                });
-//            });
-//        });
+        EtherTransactions creator = Accounts.getTx(0);
+        EtherTransactions bob = Accounts.getTx(1);
+
+        describe("add assets", () -> {
+            it("non creator should not be able to add asset", () -> {
+                TransactionReceipt tx = bob.call(StaticNetwork.DCN(), DCN.add_asset("ABCD", 100, bob.credentials().getAddress()));
+                assertEquals("0x0", tx.getStatus());
+
+                BigInteger count = DCN.query_get_asset_count(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_asset_count()
+                ).count;
+                assertEquals(0, count);
+            });
+
+            it("creator should be able to add asset", () -> {
+                TransactionReceipt tx = creator.call(StaticNetwork.DCN(), DCN.add_asset("1234", 1000, bob.credentials().getAddress()));
+                assertEquals("0x1", tx.getStatus());
+
+                BigInteger count = DCN.query_get_asset_count(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_asset_count()
+                ).count;
+                assertEquals(1, count);
+
+
+                DCN.GetAssetReturnValue asset = DCN.query_get_asset(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_asset(1)
+                );
+
+                assertEquals("1234", asset.symbol.trim());
+                assertEquals(1000L, asset.unit_scale);
+                assertEquals(bob.credentials().getAddress(), asset.contract_address);
+
+                asset = DCN.query_get_asset(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_asset(0)
+                );
+
+                assertEquals("ETH ", asset.symbol);
+                assertEquals(10000000000L, asset.unit_scale);
+                assertEquals("0x0000000000000000000000000000000000000000", asset.contract_address);
+            });
+
+            it("should not be able to create asset with 0 unit scale", () -> {
+                TransactionReceipt tx = creator.call(StaticNetwork.DCN(), DCN.add_asset("1234", 0, bob.credentials().getAddress()));
+                assertEquals("0x0", tx.getStatus());
+
+                BigInteger count = DCN.query_get_asset_count(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_asset_count()
+                ).count;
+                assertEquals(1, count);
+            });
+
+            it("second asset should not effect first", () -> {
+                TransactionReceipt tx = creator.call(StaticNetwork.DCN(), DCN.add_asset("ABCD", 1001, creator.credentials().getAddress()));
+                assertEquals("0x1", tx.getStatus());
+
+                BigInteger count = DCN.query_get_asset_count(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_asset_count()
+                ).count;
+                assertEquals(2, count);
+
+
+                DCN.GetAssetReturnValue asset = DCN.query_get_asset(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_asset(1)
+                );
+
+                assertEquals("1234", asset.symbol.trim());
+                assertEquals(1000L, asset.unit_scale);
+                assertEquals(bob.credentials().getAddress(), asset.contract_address);
+
+                asset = DCN.query_get_asset(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_asset(2)
+                );
+
+                assertEquals("ABCD", asset.symbol.trim());
+                assertEquals(1001L, asset.unit_scale);
+                assertEquals(creator.credentials().getAddress(), asset.contract_address);
+
+                asset = DCN.query_get_asset(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_asset(0)
+                );
+
+                assertEquals("ETH ", asset.symbol);
+                assertEquals(10000000000L, asset.unit_scale);
+                assertEquals("0x0000000000000000000000000000000000000000", asset.contract_address);
+            });
+        });
     }
 }
