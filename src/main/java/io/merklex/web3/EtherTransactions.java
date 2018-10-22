@@ -93,6 +93,11 @@ public class EtherTransactions {
 
     public String deployContract(BigInteger gasPrice, BigInteger gasLimit,
                                  String contractData, BigInteger weiValue) throws IOException, TransactionException {
-        return waitForResult(sendCall(gasPrice, gasLimit, null, contractData, weiValue)).getContractAddress();
+        return waitForResult(sendDeployContract(gasPrice, gasLimit, contractData, weiValue)).getContractAddress();
+    }
+
+    public EthSendTransaction sendDeployContract(BigInteger gasPrice, BigInteger gasLimit,
+                                 String contractData, BigInteger weiValue) throws IOException {
+        return sendCall(gasPrice, gasLimit, null, contractData, weiValue);
     }
 }
