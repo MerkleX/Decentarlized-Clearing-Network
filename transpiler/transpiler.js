@@ -152,5 +152,26 @@ module.exports = function(source) {
     return og;
   });
 
+  const define_map = {};
+
+  source = SourceProcessor(source, /#define\s+(\w+)\s+([\w\d]+)/, instance => {
+    const [ og, key, value ] = instance;
+    define_map[key] = value;
+    return og;
+  });
+
+  Object.keys(define_map).forEach(key => {
+    const query = new RegExp(`(define\\s+)?(${key})`);
+    source = SourceProcessor(source, query, instance => {
+      const [ og, define ] = instance;
+
+      if (define) {
+        return og;
+      }
+
+      return `/* ${key} */ ${define_map[key]}`;
+    });
+  });
+
   return source;
 };
