@@ -4,8 +4,14 @@ contract DCN {
   event SessionUpdated(address user, uint64 exchange_id);
   event PositionUpdated(address user, uint64 exchange_id, uint32 asset_id); 
 
-  uint256 creator;
+  /*
+     Contract Constants
 
+     #define CHAIN_ID 1111
+     #define VERSION  1
+  */
+
+  uint256 creator;
   uint256 exchange_count;
   uint256 asset_count;
 
