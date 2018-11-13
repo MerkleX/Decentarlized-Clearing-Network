@@ -78,6 +78,22 @@ public class ExchangeTests {
                 assertEquals("boby network", exchange.name);
             });
 
+            it("should not be able to create exchange with 10 char name", () -> {
+                TransactionReceipt receipt = creator.call(
+                        StaticNetwork.DCN(),
+                        DCN.add_exchange("boby netwo", bob.credentials().getAddress())
+                );
+                assertEquals("0x0", receipt.getStatus());
+            });
+
+            it("should not be able to create exchange with 15 char name", () -> {
+                TransactionReceipt receipt = creator.call(
+                        StaticNetwork.DCN(),
+                        DCN.add_exchange("boby network :)", bob.credentials().getAddress())
+                );
+                assertEquals("0x0", receipt.getStatus());
+            });
+
             it("second exchange should not effect first", () -> {
                 TransactionReceipt receipt = creator.call(
                         StaticNetwork.DCN(),

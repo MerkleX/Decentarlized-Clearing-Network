@@ -19,6 +19,7 @@ contract DCN {
 
   /*
      #define EXCHANGE_COUNT  4294967296
+     #define MAX_EXCHANGE_ID 4294967295
      #define EXCHANGE_SIZE   2
 
      EXCHANGE_DEF {
@@ -35,6 +36,7 @@ contract DCN {
 
   /*
      #define ASSET_COUNT 4294967296
+     #define MAX_ASSET_ID 4294967295
 
      ASSET_DEF {
       symbol            :  32,
@@ -127,6 +129,14 @@ contract DCN {
     }
   */
 
+  /*
+   * Tests:
+   *
+   * CreatorTests
+   * - contract creator should be creator
+   * AssetTests
+   * - eth should exist at asset_id=0
+   */
   constructor() public {
       assembly {
           sstore(creator_slot, caller)
@@ -301,67 +311,97 @@ contract DCN {
     }
   }
 
+  /*
+   * Tests:
+   *
+   * CreatorTests
+   * - non creator should not be able to change creator to self
+   * - non creator should not be able to change creator to other
+   * - creator should be able to change to other
+   * - new creator should be able to change to other
+   */
+
   function set_creator(address new_creator) public {
     assembly {
       let current_creator := sload(creator_slot)
-
-      if eq(current_creator, caller) {
-        sstore(creator_slot, new_creator)
+      if iszero(eq(current_creator, caller)) {
+        revert(0, 0)
       }
+
+      sstore(creator_slot, new_creator)
     }
   }
 
+  /*
+   * Tests:
+   *
+   * ExchangeTests
+   * - add exchange
+   * -- non creator should fail to add exchange
+   * -- creator should be able to create exchange
+   * -- should not be able to create exchange with 10 char name
+   * -- should not be able to create exchange with 15 char name
+   */
   function add_exchange(string name, address addr) public {
     uint256[1] memory revert_reason;
-    uint256[1] memory return_value;
 
     assembly {
       let creator_address := sload(creator_slot)
 
-      // Only the creator can add an exchange
+      /* Only the creator can add an exchange */
       if iszero(eq(creator_address, caller)) {
         mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
       }
 
-      // Name must be 12 bytes long
+      /* Name must be 12 bytes long */
       let name_len := mload(name)
       if iszero(eq(name_len, 12)) {
         mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
       }
 
-      // Do not overflow exchanges
+      /* Do not overflow exchanges */
       let exchange_count := sload(exchange_count_slot)
-      if gt(exchange_count, 4294967295 /* 2^32 - 1 */) {
+      if gt(exchange_count, MAX_EXCHANGE_ID) {
         mstore(revert_reason, 3) revert(add(revert_reason, 31), 1)
       }
 
       let exchange_ptr := add(exchanges_slot, mul(exchange_count, EXCHANGE_SIZE))
 
+      /*
+       * name_data will start with 12 bytes of name data
+       * and addr is 20 bytes. Total 32 bytes (one word)
+       */
       let name_data := mload(add(name, 32))
       let exchange_data := or(name_data, addr)
       sstore(exchange_ptr, exchange_data)
 
-      mstore(return_value, exchange_count)
       exchange_count := add(exchange_count, 1)
       sstore(exchange_count_slot, exchange_count)
-
-      log0(add(return_value, 28), 4)
     }
   }
 
+  /*
+   * Tests:
+   *
+   * AssetTests
+   * - add assets
+   * -- non creator should not be able to add asset
+   * -- creator should be able to add asset
+   * -- should not be able to create asset with 0 unit scale
+   */
   function add_asset(string symbol, uint64 unit_scale, address contract_address) public {
-    uint256[1] memory return_value;
     uint256[1] memory revert_reason;
 
     assembly {
       let creator_address := sload(creator_slot)
 
+      /* only creator can add asset */
       if iszero(eq(creator_address, caller)) {
         mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
       }
 
       let asset_count := add(sload(asset_count_slot), 1)
-      if gt(asset_count, 4294967295 /* 2^32 - 1 */) {
+      if gt(asset_count, MAX_ASSET_ID) {
         mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
       }
 
@@ -380,22 +420,38 @@ contract DCN {
       let data := or(asset_symbol, BUILD_ASSET{ 0, unit_scale, contract_address })
       sstore(add(assets_slot, asset_count), data)
       sstore(asset_count_slot, asset_count)
-
-      mstore(return_value, asset_count)
-      log0(add(return_value, 28), 4)
     }
   }
 
+
+  /*
+   * Tests:
+   *
+   * BalanceTests
+   * - manage ether
+   * -- should be able to deposit
+   */
   function deposit_eth() public payable {
     assembly {
-      let user_ptr := add(users_slot, mul(caller, USER_SIZE))
-
       /* First item is asset 0 (ether) */
+      let user_ptr := add(users_slot, mul(caller, USER_SIZE))
       let current_balance := sload(user_ptr)
+
+      /* Note, total ether supply should never overflow 2^256 */
       sstore(user_ptr, add(current_balance, callvalue))
     }
   }
 
+  /*
+   * Tests:
+   *
+   * BalanceTests
+   * - manage ether
+   * -- should be able to partially withdraw
+   * -- should fail to over withdraw
+   * -- should be able to withdraw to zero
+   * -- should not be able to withdraw at zero
+   */
   function withdraw_eth(address destination, uint256 amount) public {
     uint256[1] memory empty_return;
 
@@ -408,10 +464,10 @@ contract DCN {
         revert(0, 0)
       }
 
-      // Update balance
+      /* Update balance */
       sstore(ether_ptr, sub(ether_balance, amount))
 
-      // Send funds
+      /* Send funds */
       let result := call(
         /* do not forward any gas, use min for transfer */
         0,
@@ -429,6 +485,16 @@ contract DCN {
     }
   }
 
+  /*
+   * Tests
+   *
+   * BalanceTests
+   * - manage assets
+   * -- should fail to deposit asset without allowance
+   * -- should be able to deposit asset
+   * -- should fail to deposit more than allowance
+   * -- should be able to deposit more
+   */
   function deposit_asset(uint32 asset_id, uint256 amount) public {
     uint256[1] memory revert_reason;
     uint256[4] memory transfer_in;
@@ -480,6 +546,15 @@ contract DCN {
     }
   }
 
+  /*
+   * Tests:
+   *
+   * BalanceTests
+   * - manage assets
+   * -- should be able to partial withdraw
+   * -- should not be able to overdraft
+   * -- should be able to withdraw to zero
+   */
   function withdraw_asset(uint32 asset_id, address destination, uint256 amount) {
     uint256[3] memory transfer_in;
     uint256[1] memory transfer_out;
@@ -530,6 +605,16 @@ contract DCN {
     }
   }
 
+  /*
+   * Tests:
+   *
+   * UpdateSessionTests
+   * - should fail to update with expire time = now
+   * - should fail to update with expire time = now + 31 days
+   * - should fail to update with non existent exchange_id
+   * - should be able to update, send log, update version/state
+   * - should be able to deposit with update_session, check remainder
+   */
   function update_session(uint32 exchange_id, uint64 expire_time) public payable {
     uint256[1] memory revert_reason;
     uint256[3] memory log_data_ptr;
@@ -564,20 +649,70 @@ contract DCN {
         })
       }
 
-      /* Log expire time update */
+      /* Log */
       mstore(log_data_ptr, caller)
       mstore(add(log_data_ptr, 32), exchange_id)
       log1(
         log_data_ptr, 64,
         /* SessionUpdated */ 0x1fceb0227bbc8d151c84f6f90cac5b115842ef0ed5dd5b6ee6bf6eca2dae91f7
       )
-
-      if not(callvalue) {
-        stop()
-      }
     }
 
     deposit_eth_to_session(exchange_id);
+  }
+
+  function deposit_eth_to_session(uint32 exchange_id) public payable {
+    uint256[3] memory log_data_ptr;
+    uint256[1] memory revert_reason;
+
+    assembly {
+      let ether_deposit := callvalue
+
+      /* ignore zero value deposits */
+      if iszero(ether_deposit) {
+        stop()
+      }
+
+      /* calculate ether amount to send to session (session_deposit) */
+      let session_deposit := and(div(ether_deposit, 10000000000), 0xFFFFFFFFFFFFFFFF)
+      ether_deposit := sub(ether_deposit, mul(session_deposit, 10000000000))
+
+      let session_ptr := add(sessions_slot, mul(
+        add(mul(caller, EXCHANGE_COUNT), exchange_id),
+        SESSION_SIZE
+      ))
+
+      let ether_position := sload(session_ptr)
+      let total_deposit := and(add(ETHER_POSITION(ether_position).total_deposit, session_deposit), 0xFFFFFFFFFFFFFFFF)
+      let ether_balance := add(ETHER_POSITION(ether_position).ether_balance, session_deposit)
+
+      /* check for ether_balance overflow */
+      if gt(ether_balance, 0xFFFFFFFFFFFFFFFF) {
+        mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
+      }
+
+      sstore(
+        session_ptr,
+        or(
+          and(ether_position, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000),
+          or(lshift(total_deposit, 64), ether_balance)
+        )
+      )
+
+      /* Store the leftover funds in the user's wallet */
+      if ether_deposit {
+        let user_ptr := add(users_slot, mul(caller, USER_SIZE))
+        sstore(user_ptr, add(sload(user_ptr), ether_deposit))
+      }
+
+      mstore(log_data_ptr, caller)
+      mstore(add(log_data_ptr, 32), exchange_id)
+      mstore(add(log_data_ptr, 64), 0)
+      log1(
+        log_data_ptr, 96,
+        /* PositionUpdated */ 0x80e69f6146713abffddddec8ef3901e1cd3fd9e079375d62e04e2719f1adf500
+      )
+    }
   }
 
   function transfer_to_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) {
@@ -637,69 +772,6 @@ contract DCN {
       mstore(add(session_deposit_ptr, 64), asset_id)
       log1(
         session_deposit_ptr, 96,
-        /* PositionUpdated */ 0x80e69f6146713abffddddec8ef3901e1cd3fd9e079375d62e04e2719f1adf500
-      )
-
-    }
-  }
-
-  function deposit_eth_to_session(uint32 exchange_id) public payable {
-    uint256[3] memory log_data_ptr;
-    uint256[1] memory revert_reason;
-
-    assembly {
-      let ether_deposit := callvalue
-
-      /* ignore zero value deposits */
-      if iszero(ether_deposit) {
-        stop()
-      }
-
-      /* ensure exchange_id is valid */
-      {
-        let exchange_count := sload(exchange_count_slot)
-        if iszero(lt(exchange_id, exchange_count)) {
-          mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
-        }
-      }
-
-      /* calculate ether amount to send to session (session_deposit) */
-      let session_deposit := and(div(ether_deposit, 10000000000), 0xFFFFFFFFFFFFFFFF)
-      ether_deposit := sub(ether_deposit, mul(session_deposit, 10000000000))
-
-      let session_ptr := add(sessions_slot, mul(
-        add(mul(caller, EXCHANGE_COUNT), exchange_id),
-        SESSION_SIZE
-      ))
-
-      let ether_position := sload(session_ptr)
-      let total_deposit := and(add(ETHER_POSITION(ether_position).total_deposit, session_deposit), 0xFFFFFFFFFFFFFFFF)
-      let ether_balance := add(ETHER_POSITION(ether_position).ether_balance, session_deposit)
-
-      /* check for ether_balance overflow */
-      if gt(ether_balance, 0xFFFFFFFFFFFFFFFF) {
-        mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
-      }
-
-      sstore(
-        session_ptr,
-        or(
-          and(ether_position, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000),
-          or(lshift(total_deposit, 64), ether_balance)
-        )
-      )
-
-      /* Store the leftover funds in the user's wallet */
-      if ether_deposit {
-        let user_ptr := add(users_slot, mul(caller, USER_SIZE))
-        sstore(user_ptr, add(sload(user_ptr), ether_deposit))
-      }
-
-      mstore(log_data_ptr, caller)
-      mstore(add(log_data_ptr, 32), exchange_id)
-      mstore(add(log_data_ptr, 64), 0)
-      log1(
-        log_data_ptr, 96,
         /* PositionUpdated */ 0x80e69f6146713abffddddec8ef3901e1cd3fd9e079375d62e04e2719f1adf500
       )
     }

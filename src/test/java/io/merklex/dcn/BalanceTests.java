@@ -246,6 +246,25 @@ public class BalanceTests {
                 assertEquals(initialBalance.subtract(deposit), ercBalance);
             });
 
+            it("should fail to deposit more than allowance", () -> {
+                BigInteger deposit = BigInteger.valueOf(11235);
+                TransactionReceipt tx = bob.call(StaticNetwork.DCN(), DCN.deposit_asset(assetId, deposit));
+                assertEquals("0x0", tx.getStatus());
+
+                BigInteger balance = DCN.query_get_balance(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_balance(bob.credentials().getAddress(), assetId)
+                ).return_balance;
+
+                assertEquals(11234, balance);
+
+                BigInteger ercBalance = ERC20.query_balanceOf(
+                        tokens.get(tokenIndex), StaticNetwork.Web3(),
+                        ERC20.balanceOf(bob.credentials().getAddress())
+                ).balance;
+                assertEquals(initialBalance.subtract(BigInteger.valueOf(11234)), ercBalance);
+            });
+
             it("should be able to deposit more", () -> {
                 BigInteger deposit = BigInteger.valueOf(100);
                 TransactionReceipt tx = bob.call(StaticNetwork.DCN(), DCN.deposit_asset(assetId, deposit));
