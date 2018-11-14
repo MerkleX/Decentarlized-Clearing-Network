@@ -494,6 +494,9 @@ contract DCN {
    * -- should be able to deposit asset
    * -- should fail to deposit more than allowance
    * -- should be able to deposit more
+   *
+   * TODO:
+   * - should fail if asset_id is invalid
    */
   function deposit_asset(uint32 asset_id, uint256 amount) public {
     uint256[1] memory revert_reason;
@@ -554,6 +557,9 @@ contract DCN {
    * -- should be able to partial withdraw
    * -- should not be able to overdraft
    * -- should be able to withdraw to zero
+   *
+   * TODO:
+   * - should exit with zero affect if amount is zero
    */
   function withdraw_asset(uint32 asset_id, address destination, uint256 amount) {
     uint256[3] memory transfer_in;
@@ -561,15 +567,15 @@ contract DCN {
     uint256[1] memory revert_reason;
 
     assembly {
-      let user_ptr := add(users_slot, mul(caller, USER_SIZE))
-
-      let asset_data := sload(add(assets_slot, asset_id))
-
-      /* Ensure asset_id is valid */
-      if or(iszero(asset_id), iszero(asset_data)) {
-        mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
+      if iszero(amount) {
+        stop()
       }
 
+      /*
+       * Note, don't need to validate asset_id as will have 0 funds if doesn't exist
+       */
+
+      let user_ptr := add(users_slot, mul(caller, USER_SIZE))
       let asset_ptr := add(user_ptr, asset_id)
       let current_balance := sload(asset_ptr)
       if lt(current_balance, amount) {
@@ -580,6 +586,7 @@ contract DCN {
       mstore(add(transfer_in, 4), destination)
       mstore(add(transfer_in, 36), amount)
 
+      let asset_data := sload(add(assets_slot, asset_id))
       let asset_address := ASSET(asset_data).address
 
       let success := call(
@@ -725,68 +732,9 @@ contract DCN {
     }
   }
 
-  function transfer_to_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) {
-    uint256[1] memory revert_reason;
-    uint256[1] memory session_id_ptr;
-    uint256[4] memory session_deposit_ptr;
-
-    assembly {
-      let session_ptr := add(sessions_slot, mul(
-        add(mul(caller, EXCHANGE_COUNT), exchange_id),
-        SESSION_SIZE
-      ))
-
-      let user_ptr := add(users_slot, mul(caller, USER_SIZE))
-      let asset_ptr := add(user_ptr, asset_id)
-      let asset_balance := sload(asset_ptr)
-
-      /* Update asset_balance variable */
-      {
-        /* Convert quantity to amount using unit_scale */
-        let asset_data := sload(add(assets_slot, asset_id))
-        let unit_scale := ASSET(asset_data).unit_scale
-
-        /* Note mul cannot overflow as both numbers are 64 bit and result is 256 bits */
-        let amount := mul(quantity, unit_scale)
-
-        /* Ensure user has enough asset_balance for deposit */
-        if gt(amount, asset_balance) {
-          mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
-        }
-
-        asset_balance := sub(asset_balance, amount)
-      }
-
-      /* Update session asset_balance */
-      let position_ptr := add(session_ptr, mul(3, asset_id))
-      let position_data := sload(position_ptr)
-
-      let total_deposit := and(add(POSITION(position_data).total_deposit, quantity), 0xFFFFFFFFFFFFFFFF)
-      let position_balance := add(POSITION(position_data).asset_balance, quantity)
-
-      /* ensure position_balance doesn't overflow */
-      if gt(position_balance, 0xFFFFFFFFFFFFFFFF) {
-        mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
-      }
-
-      /* Update balances */
-      sstore(asset_ptr, asset_balance)
-      sstore(position_ptr, or(
-        and(position_data, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000),
-        or(lshift(total_deposit, 64), position_balance)
-      ))
-
-      /* log */
-      mstore(session_deposit_ptr, caller)
-      mstore(add(session_deposit_ptr, 32), exchange_id)
-      mstore(add(session_deposit_ptr, 64), asset_id)
-      log1(
-        session_deposit_ptr, 96,
-        /* PositionUpdated */ 0x80e69f6146713abffddddec8ef3901e1cd3fd9e079375d62e04e2719f1adf500
-      )
-    }
-  }
-
+  /*
+   * Test, TODO
+   */
   function deposit_asset_to_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
     uint256[1] memory revert_reason;
     uint256[4] memory transfer_in;
@@ -868,4 +816,123 @@ contract DCN {
     }
   }
 
+  /*
+   * Tests, TODO
+   *
+   * TransferToSessionTests
+   * - should not be able to transfer from 0 funds account
+   */
+  function transfer_to_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) {
+    uint256[1] memory revert_reason;
+    uint256[1] memory session_id_ptr;
+    uint256[4] memory session_deposit_ptr;
+
+    assembly {
+      /*
+       * Note, doesn't check exchange_id because safe to deposit into a non existent exchange.
+       * You cannot update expire time if the exchnage is not created so you can always withdraw from
+       * the session.
+       *
+       * Note, asset_id is not checked because if it doesn't exist source of funds will be 0
+       */
+      let session_ptr := add(sessions_slot, mul(
+        add(mul(caller, EXCHANGE_COUNT), exchange_id),
+        SESSION_SIZE
+      ))
+
+      let user_ptr := add(users_slot, mul(caller, USER_SIZE))
+      let asset_ptr := add(user_ptr, asset_id)
+      let asset_balance := sload(asset_ptr)
+
+      /* Update asset_balance variable */
+      {
+        /* Convert quantity to amount using unit_scale */
+        let asset_data := sload(add(assets_slot, asset_id))
+        let unit_scale := ASSET(asset_data).unit_scale
+
+        /* Note mul cannot overflow as both numbers are 64 bit and result is 256 bits */
+        let amount := mul(quantity, unit_scale)
+
+        /* Ensure user has enough asset_balance for deposit */
+        if gt(amount, asset_balance) {
+          mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
+        }
+
+        asset_balance := sub(asset_balance, amount)
+      }
+
+      /* Update session asset_balance */
+      let position_ptr := add(session_ptr, mul(3, asset_id))
+      let position_data := sload(position_ptr)
+
+      let total_deposit := and(add(POSITION(position_data).total_deposit, quantity), 0xFFFFFFFFFFFFFFFF)
+      let position_balance := add(POSITION(position_data).asset_balance, quantity)
+
+      /* ensure position_balance doesn't overflow */
+      if gt(position_balance, 0xFFFFFFFFFFFFFFFF) {
+        mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
+      }
+
+      /* Update balances */
+      sstore(asset_ptr, asset_balance)
+      sstore(position_ptr, or(
+        and(position_data, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000),
+        or(lshift(total_deposit, 64), position_balance)
+      ))
+
+      /* log */
+      mstore(session_deposit_ptr, caller)
+      mstore(add(session_deposit_ptr, 32), exchange_id)
+      mstore(add(session_deposit_ptr, 64), asset_id)
+      log1(
+        session_deposit_ptr, 96,
+        /* PositionUpdated */ 0x80e69f6146713abffddddec8ef3901e1cd3fd9e079375d62e04e2719f1adf500
+      )
+    }
+  }
+
+  /*
+
+    #define SETTLEMENT_HEADER_SIZE 40
+    #define SETTLEMENT_SIZE 352
+
+    SETTLEMENT_HEADER_DEF {
+      asset_id : 32,
+      user_count : 8,
+    }
+
+    SETTLEMENT_1_DEF {
+      user_address : 160,
+    }
+
+    SETTLEMENT_2_DEF {
+      ether_delta : 64,
+      asset_delta : 64,
+      fees        : 64,
+    }
+   */
+
+  function apply_settlement_groups(bytes data) public {
+    assembly {
+      let data_len := add(mload(data), 1)
+      let cursor := 1
+
+      /* keep looping while there is space for a header */
+      for {} iszero(lt(sub(data_len, cursor), SETTLEMENT_HEADER_SIZE)) {} {
+        let header_data := sload(cursor)
+        let user_count := SETTLEMENT_HEADER(header_data).user_count
+
+        {
+          /* is there enough space for the settlement group? */
+          let group_size := add(mul(user_count, SETTLEMENT_SIZE), SETTLEMENT_HEADER_SIZE)
+          if gt(add(cursor, group_size), data_len) {
+            revert(0, 0)
+          }
+        }
+
+        let ether_net := 0
+        let asset_net := 0
+      }
+    }
+  }
 }
