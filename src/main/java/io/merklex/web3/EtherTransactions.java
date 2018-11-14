@@ -58,6 +58,10 @@ public class EtherTransactions {
         return sendCall(gasPrice, gasLimit, contractAddress, function, weiValue);
     }
 
+    public EthSendTransaction sendCall(String contractAddress, Function function) throws IOException {
+        return sendCall(gasPrice, gasLimit, contractAddress, function, BigInteger.ZERO);
+    }
+
     public EthSendTransaction sendCall(BigInteger gasPrice, BigInteger gasLimit,
                                        String contractAddress, Function function, BigInteger weiValue) throws IOException {
         String encode = FunctionEncoder.encode(function);

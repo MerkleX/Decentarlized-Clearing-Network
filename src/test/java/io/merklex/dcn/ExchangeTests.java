@@ -3,9 +3,13 @@ package io.merklex.dcn;
 import com.greghaskins.spectrum.Spectrum;
 import io.merklex.dcn.contracts.DCN;
 import io.merklex.dcn.utils.Accounts;
+import io.merklex.dcn.utils.RevertCodeExtractor;
 import io.merklex.dcn.utils.StaticNetwork;
 import io.merklex.web3.EtherTransactions;
+import org.junit.Assert;
 import org.junit.runner.RunWith;
+import org.web3j.protocol.core.Response;
+import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import java.math.BigInteger;
@@ -35,10 +39,14 @@ public class ExchangeTests {
             });
 
             it("non creator should fail to add exchange", () -> {
-                TransactionReceipt receipt = bob.call(
+                EthSendTransaction tx = bob.sendCall(
                         StaticNetwork.DCN(),
                         DCN.add_exchange("bobs network", bob.credentials().getAddress())
                 );
+                Assert.assertTrue(tx.hasError());
+                Assert.assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
+
+                TransactionReceipt receipt = bob.waitForResult(tx);
                 assertEquals("0x0", receipt.getStatus());
 
                 int count = DCN.query_get_exchange_count(
