@@ -43,8 +43,10 @@ public class TransferToSessionTests {
             user.call(tokenAddress.value, ERC20.approve(StaticNetwork.DCN(), BigInteger.valueOf(5_000000L)));
         });
 
-        RunTestWith(user, 0);
-        RunTestWith(user, 1);
+        // TODO
+
+//        RunTestWith(user, 0);
+//        RunTestWith(user, 1);
     }
 
     private static void RunTestWith(EtherTransactions user, int assetId) {
