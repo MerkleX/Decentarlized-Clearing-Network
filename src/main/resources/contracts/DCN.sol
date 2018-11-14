@@ -60,10 +60,11 @@ contract DCN {
 
 
   /*
-     #define SESSION_COUNT 6277101735386680763835789423207666416102355444464034512896
-     #define SESSION_SIZE  12884901888
+     #define SESSION_COUNT       6277101735386680763835789423207666416102355444464034512896
+     #define SESSION_SIZE        12884901888
+     #define SESSION_ASSET_SIZE  3
 
-     size = 3 * asset_count
+     size = session_asset_size * asset_count
      count = user_count * exchange_count
 
      sessions[address][exchange_id] = session
@@ -893,23 +894,33 @@ contract DCN {
 
   /*
 
-    #define SETTLEMENT_HEADER_SIZE 40
+    #define SETTLEMENT_HEADER_SIZE 44
     #define SETTLEMENT_SIZE 352
 
     SETTLEMENT_HEADER_DEF {
+      exchange_id : 32,
       asset_id : 32,
       user_count : 8,
     }
 
-    SETTLEMENT_1_DEF {
+    SETTLEMENT_ADDR_DEF {
       user_address : 160,
     }
 
-    SETTLEMENT_2_DEF {
+    SETTLEMENT_DATA_DEF {
       ether_delta : 64,
       asset_delta : 64,
       fees        : 64,
     }
+
+    #define NEG_64_FLAG 0x8000000000000000
+    #define I64_MIN 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000
+    #define I64_TO_NEG 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000
+    #define U64_INV_MASK 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000
+    #define U64_MASK 0xffffffffffffffff
+    #define I64_MAX 0x7fffffffffffffff
+    #define PRICE_UNITS 100000000
+    #define POSITION_BALANCES_MASK 0xffffffffffffffffffffffffffffffff
    */
 
   function apply_settlement_groups(bytes data) public {
@@ -919,19 +930,169 @@ contract DCN {
 
       /* keep looping while there is space for a header */
       for {} iszero(lt(sub(data_len, cursor), SETTLEMENT_HEADER_SIZE)) {} {
-        let header_data := sload(cursor)
+        let header_data := mload(cursor)
         let user_count := SETTLEMENT_HEADER(header_data).user_count
 
-        {
-          /* is there enough space for the settlement group? */
-          let group_size := add(mul(user_count, SETTLEMENT_SIZE), SETTLEMENT_HEADER_SIZE)
-          if gt(add(cursor, group_size), data_len) {
-            revert(0, 0)
-          }
+        // TODO: validate exchange id and asset_id
+
+        let exchange_id := SETTLEMENT_HEADER(header_data).exchange_id
+        let asset_id := SETTLEMENT_HEADER(header_data).asset_id
+        let cursor_end := add(cursor, add(mul(user_count, SETTLEMENT_SIZE), SETTLEMENT_HEADER_SIZE))
+
+        /* make sure there is enough size for the group */
+        if gt(cursor_end, data_len) {
+          revert(0, 0)
         }
 
         let ether_net := 0
         let asset_net := 0
+
+        for {} lt(cursor, cursor_end) {} {
+          header_data := mload(cursor)
+
+          let session_ptr := add(
+            sessions_slot,
+            mul(
+              add(
+                mul(
+                  SETTLEMENT_ADDR(header_data).user_address,
+                  EXCHANGE_COUNT
+                ),
+                exchange_id
+              ),
+              SESSION_SIZE
+            )
+          )
+
+          cursor := add(cursor, 20)
+          let settlement_data := mload(cursor)
+
+          let ether_delta := SETTLEMENT_DATA(settlement_data).ether_delta
+          let asset_delta := SETTLEMENT_DATA(settlement_data).asset_delta
+          let fees := SETTLEMENT_DATA(settlement_data).fees
+
+          /* convert i64 to i256 */
+          if and(ether_delta, NEG_64_FLAG) {
+            ether_delta := or(ether_delta, I64_TO_NEG)
+          }
+          if and(asset_delta, NEG_64_FLAG) {
+            asset_delta := or(asset_delta, I64_TO_NEG)
+          }
+
+          /* update net totals */
+          ether_net := add(ether_net, ether_delta)
+          asset_net := add(asset_net, asset_delta)
+
+          /* update ether balance */
+          {
+            let ether_data := sload(session_ptr)
+            let ether_balance := ETHER_POSITION(ether_data).ether_balance
+            ether_balance := add(ether_balance, ether_delta)
+
+            /* make sure ether balance is positive and doesn't overflow */
+            if gt(ether_balance, U64_MASK) {
+              revert(0, 0)
+            }
+            sstore(session_ptr, or(and(ether_data, U64_INV_MASK), ether_balance))
+          }
+
+          let position_ptr := add(session_ptr, mul(asset_id, SESSION_ASSET_SIZE))
+          let position_data := sload(position_ptr)
+          let asset_balance := POSITION(position_data).asset_balance
+
+          asset_balance := add(asset_balance, asset_delta)
+          if gt(asset_balance, U64_MASK) {
+            revert(0, 0)
+          }
+
+          /* load position and convert i64 to i256 */
+          let ether_qty := POSITION(position_data).ether_qty
+          if and(ether_qty, NEG_64_FLAG) {
+            ether_qty := or(ether_qty, I64_TO_NEG)
+          }
+          let asset_qty := POSITION(position_data).asset_qty
+          if and(asset_qty, NEG_64_FLAG) {
+            asset_qty := or(asset_qty, I64_TO_NEG)
+          }
+
+          /* Note, shift is applied in limit update and is factored into _qty */
+
+          ether_qty := add(ether_qty, ether_delta)
+          asset_qty := add(asset_qty, asset_delta)
+
+          position_data := BUILD_POSITION{
+            ether_qty,
+            asset_qty,
+            POSITION(position_data).total_deposit,
+            asset_balance
+          }
+          sstore(position_ptr, position_data)
+
+          if or(sgt(ether_qty, I64_MAX), sgt(asset_qty, I64_MAX)) {
+            revert(0, 0)
+          }
+
+          /* Ensure position fits min limits */
+          {
+            let limit_data := sload(add(position_ptr, 1))
+
+            let min_ether := POS_LIMIT(limit_data).min_ether
+            if and(min_ether, NEG_64_FLAG) {
+              min_ether := or(min_ether, I64_TO_NEG)
+            }
+
+            let min_asset := POS_LIMIT(limit_data).min_asset
+            if and(min_asset, NEG_64_FLAG) {
+              min_asset := or(min_asset, I64_TO_NEG)
+            }
+
+            if or(slt(ether_qty, min_ether), slt(asset_qty, min_asset)) {
+              revert(0, 0)
+            }
+          }
+
+          /* Ensure there is no overflow */
+          if or(slt(ether_qty, I64_MIN), slt(asset_qty, I64_MIN)) {
+            revert(0, 0)
+          }
+
+          let price_limit_data := sload(add(position_ptr, 2))
+
+          /* Check if price fits limit */
+          let negatives := add(slt(ether_qty, 0), mul(slt(asset_qty, 0), 2))
+          switch negatives
+          /* Both negative */
+          case 3 {
+            revert(0, 0)
+          }
+          /* long: ether_qty negative */
+          case 1 {
+            if iszero(asset_qty) {
+              revert(0, 0)
+            }
+
+            let current_price := div(mul(sub(0, ether_qty), PRICE_UNITS), asset_qty)
+            if gt(current_price, PRICE_LIMIT(price_limit_data).long_max_price) {
+              revert(0, 0)
+            }
+          }
+          /* short: asset_qty negative */
+          case 2 {
+            if iszero(ether_qty) {
+              revert(0, 0)
+            }
+
+            let current_price := div(mul(ether_qty, PRICE_UNITS), sub(0, asset_qty))
+            if lt(current_price, PRICE_LIMIT(price_limit_data).short_min_price) {
+              revert(0, 0)
+            }
+          }
+        }
+
+        /* ensure net balance is 0 for settlement group */
+        if or(ether_net, asset_net) {
+          revert(0, 0)
+        }
       }
     }
   }
