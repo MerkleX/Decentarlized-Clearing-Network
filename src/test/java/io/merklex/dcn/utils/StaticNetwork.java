@@ -59,7 +59,7 @@ public class StaticNetwork {
         try {
             HashMap<String, String> accounts = new HashMap<>();
             for (Credentials key : Accounts.keys) {
-                accounts.put(key.getEcKeyPair().getPrivateKey().toString(16), "100000000000000000000000");
+                accounts.put(key.getEcKeyPair().getPrivateKey().toString(16), "1000000000000000000000000000000000");
             }
 
             network = new EtherDebugNet(5123, "localhost", accounts, 8000000, 9999);

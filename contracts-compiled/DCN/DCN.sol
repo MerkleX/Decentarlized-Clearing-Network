@@ -657,6 +657,16 @@ contract DCN {
     deposit_eth_to_session(exchange_id);
   }
 
+  /*
+   * Tests
+   *
+   * DepositEthToSessionTests
+   * - should not rever, update, nor log with no value
+   * - should move remainder to balance
+   * - should fail on session balance overflow
+   * - should just move to balance if under unit scale
+   * - should move overflow to balance
+   */
   function deposit_eth_to_session(uint32 exchange_id) public payable {
     uint256[3] memory log_data_ptr;
     uint256[1] memory revert_reason;

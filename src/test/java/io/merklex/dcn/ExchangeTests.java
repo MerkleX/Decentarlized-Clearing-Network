@@ -57,9 +57,6 @@ public class ExchangeTests {
                 );
                 assertEquals("0x1", receipt.getStatus());
 
-                assertEquals(1, receipt.getLogs().size());
-                assertEquals("0x00000000", receipt.getLogs().get(0).getData());
-
                 int count = DCN.query_get_exchange_count(
                         StaticNetwork.DCN(),
                         StaticNetwork.Web3(),
@@ -100,9 +97,6 @@ public class ExchangeTests {
                         DCN.add_exchange("hens network", henry.credentials().getAddress())
                 );
                 assertEquals("0x1", receipt.getStatus());
-
-                assertEquals(1, receipt.getLogs().size());
-                assertEquals("0x00000001", receipt.getLogs().get(0).getData());
 
                 int count = DCN.query_get_exchange_count(
                         StaticNetwork.DCN(),

@@ -100,4 +100,8 @@ public class EtherTransactions {
                                  String contractData, BigInteger weiValue) throws IOException {
         return sendCall(gasPrice, gasLimit, null, contractData, weiValue);
     }
+
+    public String getAddress() {
+        return credentials.getAddress();
+    }
 }
