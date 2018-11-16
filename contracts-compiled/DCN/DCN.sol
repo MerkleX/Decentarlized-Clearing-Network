@@ -162,8 +162,8 @@ contract DCN {
       mstore(add(return_value, 96), 4)
       mstore(add(return_value, 128), data)
 
-      mstore(add(return_value, 32), /* ASSET(data).unit_scale */ and(div(data, 0x10000000000000000000000000000000000000000), 0xffffffffffffffff))
-      mstore(add(return_value, 64), /* ASSET(data).address */ and(div(data, 0x1), 0xffffffffffffffffffffffffffffffffffffffff))
+      mstore(add(return_value, /* 1_WORD */ 32), /* ASSET(data).unit_scale */ and(div(data, 0x10000000000000000000000000000000000000000), 0xffffffffffffffff))
+      mstore(add(return_value, /* 2_WORD */ 64), /* ASSET(data).address */ and(div(data, 0x1), 0xffffffffffffffffffffffffffffffffffffffff))
 
       return(return_value, 132)
     }
@@ -182,11 +182,11 @@ contract DCN {
       mstore(add(return_value, 128), exchange_data)
 
       // Store addr
-      mstore(add(return_value, 32), /* EXCHANGE(exchange_data).address */ and(div(exchange_data, 0x1), 0xffffffffffffffffffffffffffffffffffffffff))
+      mstore(add(return_value, /* 1_WORD */ 32), /* EXCHANGE(exchange_data).address */ and(div(exchange_data, 0x1), 0xffffffffffffffffffffffffffffffffffffffff))
 
       // Store fee_balance
       exchange_data := sload(add(exchange_ptr, 1))
-      mstore(add(return_value, 64), exchange_data)
+      mstore(add(return_value, /* 2_WORD */ 64), exchange_data)
 
       return(return_value, 140)
     }
@@ -198,7 +198,7 @@ contract DCN {
     assembly {
       let data := sload(exchange_count_slot)
       mstore(return_value, data)
-      return(return_value, 32)
+      return(return_value, /* 1_WORD */ 32)
     }
   }
 
@@ -208,7 +208,7 @@ contract DCN {
     assembly {
       let asset_count := sload(asset_count_slot)
       mstore(return_value, asset_count)
-      return(return_value, 32)
+      return(return_value, /* 1_WORD */ 32)
     }
   }
 
@@ -220,7 +220,7 @@ contract DCN {
 
       let asset_balance := sload(add(user_ptr, asset_id))
       mstore(return_value, asset_balance)
-      return(return_value, 32)
+      return(return_value, /* 1_WORD */ 32)
     }
   }
 
@@ -238,11 +238,11 @@ contract DCN {
       let time_data := sload(add(session_ptr, 1))
 
       mstore(return_values, /* TIME(time_data).version */ and(div(time_data, 0x10000000000000000), 0xffffffffffffffff))
-      mstore(add(return_values, 32), /* TIME(time_data).expire_time */ and(div(time_data, 0x1), 0xffffffffffffffff))
-      mstore(add(return_values, 64), /* ETHER_POSITION(session_data).fee_limit */ and(div(session_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
-      mstore(add(return_values, 96), /* ETHER_POSITION(session_data).fee_used */ and(div(session_data, 0x100000000000000000000000000000000), 0xffffffffffffffff))
+      mstore(add(return_values, /* 1_WORD */ 32), /* TIME(time_data).expire_time */ and(div(time_data, 0x1), 0xffffffffffffffff))
+      mstore(add(return_values, /* 2_WORD */ 64), /* ETHER_POSITION(session_data).fee_limit */ and(div(session_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
+      mstore(add(return_values, /* 3_WORD */ 96), /* ETHER_POSITION(session_data).fee_used */ and(div(session_data, 0x100000000000000000000000000000000), 0xffffffffffffffff))
 
-      return(return_values, 128)
+      return(return_values, /* 4_WORD */ 128)
     }
   }
 
@@ -259,9 +259,9 @@ contract DCN {
       let data := sload(add(session_ptr, mul(3, asset_id)))
 
       mstore(return_values, /* POSITION(data).total_deposit */ and(div(data, 0x10000000000000000), 0xffffffffffffffff))
-      mstore(add(return_values, 32), /* POSITION(data).asset_balance */ and(div(data, 0x1), 0xffffffffffffffff))
+      mstore(add(return_values, /* 1_WORD */ 32), /* POSITION(data).asset_balance */ and(div(data, 0x1), 0xffffffffffffffff))
 
-      return(return_values, 64)
+      return(return_values, /* 2_WORD */ 64)
     }
   }
 
@@ -280,11 +280,11 @@ contract DCN {
       let limit_data := sload(add(ptr, 1))
 
       mstore(return_values, /* POSITION(pos_data).ether_qty */ and(div(pos_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
-      mstore(add(return_values, 32), /* POSITION(pos_data).asset_qty */ and(div(pos_data, 0x100000000000000000000000000000000), 0xffffffffffffffff))
-      mstore(add(return_values, 64), /* POS_LIMIT(limit_data).ether_shift */ and(div(limit_data, 0x10000000000000000), 0xffffffffffffffff))
-      mstore(add(return_values, 96), /* POS_LIMIT(limit_data).asset_shift */ and(div(limit_data, 0x1), 0xffffffffffffffff))
+      mstore(add(return_values, /* 1_WORD */ 32), /* POSITION(pos_data).asset_qty */ and(div(pos_data, 0x100000000000000000000000000000000), 0xffffffffffffffff))
+      mstore(add(return_values, /* 2_WORD */ 64), /* POS_LIMIT(limit_data).ether_shift */ and(div(limit_data, 0x10000000000000000), 0xffffffffffffffff))
+      mstore(add(return_values, /* 3_WORD */ 96), /* POS_LIMIT(limit_data).asset_shift */ and(div(limit_data, 0x1), 0xffffffffffffffff))
 
-      return(return_values, 128)
+      return(return_values, /* 4_WORD */ 128)
     }
   }
 
@@ -298,17 +298,17 @@ contract DCN {
         /* SESSION_SIZE */ 12884901888
       ))
 
-      let ptr := add(session_ptr, mul(3, asset_id))
+      let ptr := add(session_ptr, mul(asset_id, 3))
       let limit_data := sload(add(ptr, 1))
       let price_data := sload(add(ptr, 2))
 
       mstore(return_values, /* PRICE_LIMIT(price_data).limit_version */ and(div(price_data, 0x100000000000000000000000000000000), 0xffffffffffffffff))
-      mstore(add(return_values, 32), /* POS_LIMIT(limit_data).min_ether */ and(div(limit_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
-      mstore(add(return_values, 64), /* POS_LIMIT(limit_data).min_asset */ and(div(limit_data, 0x100000000000000000000000000000000), 0xffffffffffffffff))
-      mstore(add(return_values, 96), /* PRICE_LIMIT(price_data).long_max_price */ and(div(price_data, 0x10000000000000000), 0xffffffffffffffff))
-      mstore(add(return_values, 128), /* PRICE_LIMIT(price_data).short_min_price */ and(div(price_data, 0x1), 0xffffffffffffffff))
+      mstore(add(return_values, /* 1_WORD */ 32), /* POS_LIMIT(limit_data).min_ether */ and(div(limit_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
+      mstore(add(return_values, /* 2_WORD */ 64), /* POS_LIMIT(limit_data).min_asset */ and(div(limit_data, 0x100000000000000000000000000000000), 0xffffffffffffffff))
+      mstore(add(return_values, /* 3_WORD */ 96), /* PRICE_LIMIT(price_data).long_max_price */ and(div(price_data, 0x10000000000000000), 0xffffffffffffffff))
+      mstore(add(return_values, /* 4_WORD */ 128), /* PRICE_LIMIT(price_data).short_min_price */ and(div(price_data, 0x1), 0xffffffffffffffff))
 
-      return(return_values, 160)
+      return(return_values, /* 5_WORD */ 160)
     }
   }
 
@@ -889,12 +889,265 @@ contract DCN {
   }
 
   /*
+     #define SIG_HASH_HEADER 0x1901000000000000000000000000000000000000000000000000000000000000
+     #define DCN_HEADER_HASH 0x8bdc799ab1e4f88b464481578308e5bde325b7ed088fe2b99495c7924d58c7f9
+     #define UPDATE_LIMIT_TYPE_HASH 0x74be7520fc933d8061b6cf113d28a772f7a40539ab5e0e8276dd066dd71a7d69
 
-    #define SETTLEMENT_HEADER_SIZE 44
+     Layout
+     [ UPDATE_LIMIT_ADDR, UPDATE_LIMIT_1, UPDATE_LIMIT_2, UPDATE_LIMIT_3, sig_r, sig_s, SIG_V ]
+
+     #define LIMIT_UPDATE_SIZE 149
+     #define UPDATE_LIMIT_ADDR_SIZE 20
+     #define UPDATE_LIMIT_1_SIZE 32
+     #define UPDATE_LIMIT_2_SIZE 32
+
+
+     UPDATE_LIMIT_ADDR_DEF {
+      user_address : 160,
+     }
+
+     UPDATE_LIMIT_1_DEF {
+      exchange_id : 32,
+      asset_id : 32,
+      version : 64,
+      max_long_price : 64,
+      min_short_price : 64,
+     }
+
+     UPDATE_LIMIT_2_DEF {
+      min_ether_qty : 64,
+      min_asset_qty : 64,
+      ether_shift   : 64,
+      asset_shift   : 64,
+     }
+
+     SIG_V_DEF {
+      sig_v : 8,
+     }
+
+     #define 1_WORD 32
+     #define 2_WORD 64
+     #define 3_WORD 96
+     #define 4_WORD 128
+     #define 5_WORD 160
+     #define 6_WORD 192
+     #define 7_WORD 224
+     #define 8_WORD 256
+     #define 9_WORD 288
+     #define 10_WORD 320
+
+     #define U128_MASK 0xffffffffffffffffffffffffffffffff
+  */
+
+  function set_limit(bytes data) public {
+    uint256[1] memory revert_reason;
+    uint256[10] memory data_hash_buffer;
+    uint256[4] memory final_hash_buffer;
+
+    uint256 user_addr;
+
+    assembly {
+      let data_size := mload(data)
+      let cursor := add(data, 32)
+
+      if iszero(eq(data_size, /* LIMIT_UPDATE_SIZE */ 149)) {
+        mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
+      }
+
+      let update_data := mload(cursor)
+      cursor := add(cursor, /* UPDATE_LIMIT_ADDR_SIZE */ 20)
+
+      user_addr := /* UPDATE_LIMIT_ADDR(update_data).user_address */ and(div(update_data, 0x1000000000000000000000000), 0xffffffffffffffffffffffffffffffffffffffff)
+
+      /* fill data_hash_buffer */
+
+      mstore(data_hash_buffer, /* UPDATE_LIMIT_TYPE_HASH */ 0x74be7520fc933d8061b6cf113d28a772f7a40539ab5e0e8276dd066dd71a7d69)
+
+      update_data := mload(cursor)
+      cursor := add(cursor, /* UPDATE_LIMIT_1_SIZE */ 32)
+
+      let position_ptr := 0
+      {
+        let exchange_id := /* UPDATE_LIMIT_1(update_data).exchange_id */ and(div(update_data, 0x100000000000000000000000000000000000000000000000000000000), 0xffffffff)
+        mstore(add(data_hash_buffer, /* 1_WORD */ 32), exchange_id)
+
+        let asset_id := /* UPDATE_LIMIT_1(update_data).asset_id */ and(div(update_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffff)
+        mstore(add(data_hash_buffer, /* 3_WORD */ 96), asset_id)
+
+        /* exchange address must be caller */
+        {
+          let exchange_data := sload(add(
+            exchanges_slot,
+            mul(exchange_id, /* EXCHANGE_SIZE */ 2)
+          ))
+
+          let exchange_address := /* EXCHANGE(exchange_data).address */ and(div(exchange_data, 0x1), 0xffffffffffffffffffffffffffffffffffffffff)
+
+          if iszero(eq(caller, exchange_address)) {
+            mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
+          }
+        }
+
+        position_ptr := add(
+          add(sessions_slot, mul(
+            add(mul(user_addr, /* EXCHANGE_COUNT */ 4294967296), exchange_id),
+            /* SESSION_SIZE */ 12884901888
+          )),
+          mul(asset_id, /* SESSION_ASSET_SIZE */ 3)
+        )
+      }
+
+      {
+        let version := /* UPDATE_LIMIT_1(update_data).version */ and(div(update_data, 0x100000000000000000000000000000000), 0xffffffffffffffff)
+        // mstore(revert_reason, update_data) revert(revert_reason, 32)
+
+        mstore(add(data_hash_buffer, /* 2_WORD */ 64), version)
+
+        /* version must increase */
+        {
+          let version_data := sload(add(position_ptr, 2))
+          let current_version := /* PRICE_LIMIT(version_data).limit_version */ and(div(version_data, 0x100000000000000000000000000000000), 0xffffffffffffffff)
+
+          if iszero(lt(current_version, version)) {
+            mstore(revert_reason, 3) revert(add(revert_reason, 31), 1)
+          }
+        }
+
+        let max_long_price := /* UPDATE_LIMIT_1(update_data).max_long_price */ and(div(update_data, 0x10000000000000000), 0xffffffffffffffff)
+        mstore(add(data_hash_buffer, /* 4_WORD */ 128), max_long_price)
+
+        let min_short_price := /* UPDATE_LIMIT_1(update_data).min_short_price */ and(div(update_data, 0x1), 0xffffffffffffffff)
+        mstore(add(data_hash_buffer, /* 5_WORD */ 160), min_short_price)
+
+        sstore(add(position_ptr, 2), or(mul(/* limit_version */ version, 0x100000000000000000000000000000000), or(mul(/* long_max_price */ max_long_price, 0x10000000000000000), min_short_price)))
+      }
+
+      update_data := mload(cursor)
+      cursor := add(cursor, /* UPDATE_LIMIT_2_SIZE */ 32)
+
+      {
+        let pos_limit := 0
+
+        /* Note, set pos_limit before handling neg so we don't need to mask */
+        {
+          let min_ether_qty := /* UPDATE_LIMIT_2(update_data).min_ether_qty */ and(div(update_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
+          pos_limit := mul(/* min_ether */ min_ether_qty, 0x1000000000000000000000000000000000000000000000000)
+
+          if and(min_ether_qty, /* NEG_64_FLAG */ 0x8000000000000000) {
+            min_ether_qty := or(min_ether_qty, /* I64_TO_NEG */ 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
+          }
+          mstore(add(data_hash_buffer, /* 6_WORD */ 192), min_ether_qty)
+        }
+
+        {
+          let min_asset_qty := /* UPDATE_LIMIT_2(update_data).min_asset_qty */ and(div(update_data, 0x100000000000000000000000000000000), 0xffffffffffffffff)
+          pos_limit := or(pos_limit, mul(/* min_asset */ min_asset_qty, 0x100000000000000000000000000000000))
+
+          if and(min_asset_qty, /* NEG_64_FLAG */ 0x8000000000000000) {
+            min_asset_qty := or(min_asset_qty, /* I64_TO_NEG */ 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
+          }
+          mstore(add(data_hash_buffer, /* 7_WORD */ 224), min_asset_qty)
+        }
+
+        let ether_shift := /* UPDATE_LIMIT_2(update_data).ether_shift */ and(div(update_data, 0x10000000000000000), 0xffffffffffffffff)
+        pos_limit := or(pos_limit, mul(/* ether_shift */ ether_shift, 0x10000000000000000))
+
+        if and(ether_shift, /* NEG_64_FLAG */ 0x8000000000000000) {
+          ether_shift := or(ether_shift, /* I64_TO_NEG */ 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
+        }
+        mstore(add(data_hash_buffer, /* 8_WORD */ 256), ether_shift)
+
+        let asset_shift := /* UPDATE_LIMIT_2(update_data).asset_shift */ and(div(update_data, 0x1), 0xffffffffffffffff)
+        pos_limit := or(pos_limit, asset_shift)
+
+        if and(asset_shift, /* NEG_64_FLAG */ 0x8000000000000000) {
+          asset_shift := or(asset_shift, /* I64_TO_NEG */ 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
+        }
+        mstore(add(data_hash_buffer, /* 9_WORD */ 288), asset_shift)
+
+        /* Normalize ether shift against existing */
+        {
+          let current_pos_limit_data := sload(add(position_ptr, 1))
+
+          {
+            let current_ether_shift := /* POS_LIMIT(current_pos_limit_data).ether_shift */ and(div(current_pos_limit_data, 0x10000000000000000), 0xffffffffffffffff)
+            if and(current_ether_shift, /* NEG_64_FLAG */ 0x8000000000000000) {
+              current_ether_shift := or(current_ether_shift, /* I64_TO_NEG */ 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
+            }
+            ether_shift := sub(ether_shift, current_ether_shift)
+          }
+
+          {
+            let current_asset_shift := /* POS_LIMIT(current_pos_limit_data).asset_shift */ and(div(current_pos_limit_data, 0x1), 0xffffffffffffffff)
+            if and(current_asset_shift, /* NEG_64_FLAG */ 0x8000000000000000) {
+              current_asset_shift := or(current_asset_shift, /* I64_TO_NEG */ 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
+            }
+            asset_shift := sub(asset_shift, current_asset_shift)
+          }
+        }
+
+        let position_data := sload(position_ptr)
+        let ether_qty := add(ether_shift, /* POSITION(position_data).ether_qty */ and(div(position_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
+        let asset_qty := add(asset_shift, /* POSITION(position_data).asset_qty */ and(div(position_data, 0x100000000000000000000000000000000), 0xffffffffffffffff))
+
+        sstore(position_ptr, or(
+          and(position_data, /* U128_MASK */ 0xffffffffffffffffffffffffffffffff),
+          or(mul(/* ether_qty */ ether_qty, 0x1000000000000000000000000000000000000000000000000), mul(/* asset_qty */ asset_qty, 0x100000000000000000000000000000000))
+        ))
+        sstore(add(position_ptr, 1), pos_limit)
+      }
+
+      let hash := keccak256(data_hash_buffer, /* 10_WORD */ 320)
+
+      {
+        let final_ptr := data_hash_buffer
+        mstore(final_ptr, /* SIG_HASH_HEADER */ 0x1901000000000000000000000000000000000000000000000000000000000000)
+        final_ptr := add(final_ptr, 2)
+        mstore(final_ptr, /* DCN_HEADER_HASH */ 0x8bdc799ab1e4f88b464481578308e5bde325b7ed088fe2b99495c7924d58c7f9)
+        final_ptr := add(final_ptr, /* 1_WORD */ 32)
+        mstore(final_ptr, hash)
+      }
+
+      hash := keccak256(data_hash_buffer, 66)
+      mstore(data_hash_buffer, hash)
+
+      update_data := mload(cursor)
+      cursor := add(cursor, /* 1_WORD */ 32)
+      mstore(add(data_hash_buffer, /* 1_WORD */ 32), update_data)
+
+      update_data := mload(cursor)
+      cursor := add(cursor, /* 1_WORD */ 32)
+      mstore(add(data_hash_buffer, /* 2_WORD */ 64), update_data)
+
+      update_data := mload(cursor)
+      mstore(add(data_hash_buffer, /* 3_WORD */ 96), /* SIG_V(update_data).sig_v */ and(div(update_data, 0x100000000000000000000000000000000000000000000000000000000000000), 0xff))
+    }
+
+    uint256 recover_address = uint256(ecrecover(
+      bytes32(data_hash_buffer[0]),
+      uint8(data_hash_buffer[3]),
+      bytes32(data_hash_buffer[1]),
+      bytes32(data_hash_buffer[2])
+    ));
+
+    assembly {
+      if iszero(eq(recover_address, user_addr)) {
+        mstore(revert_reason, 4) revert(add(revert_reason, 31), 1)
+      }
+    }
+  }
+
+  /*
+
+    #define GROUPS_HEADER_SIZE 4
+    #define GROUP_HEADER_SIZE 40
     #define SETTLEMENT_SIZE 352
 
-    SETTLEMENT_HEADER_DEF {
-      exchange_id : 32,
+    GROUPS_HEADER_DEF {
+      exchange_id: 32,
+    }
+
+    GROUP_HEADER_DEF {
       asset_id : 32,
       user_count : 8,
     }
@@ -921,22 +1174,25 @@ contract DCN {
 
   function apply_settlement_groups(bytes data) public {
     assembly {
-      let data_len := add(mload(data), 1)
-      let cursor := 1
+      let cursor := add(data, 1)
+      let data_end := add(cursor, mload(data))
+
+      let header_data := mload(cursor)
+      let exchange_id := /* GROUPS_HEADER(header_data).exchange_id */ and(div(header_data, 0x100000000000000000000000000000000000000000000000000000000), 0xffffffff)
+      cursor := add(cursor, /* GROUPS_HEADER_SIZE */ 4)
 
       /* keep looping while there is space for a header */
-      for {} iszero(lt(sub(data_len, cursor), /* SETTLEMENT_HEADER_SIZE */ 44)) {} {
-        let header_data := mload(cursor)
-        let user_count := /* SETTLEMENT_HEADER(header_data).user_count */ and(div(header_data, 0x10000000000000000000000000000000000000000000000), 0xff)
+      for {} iszero(lt(sub(data_end, cursor), /* GROUP_HEADER_SIZE */ 40)) {} {
+        header_data := mload(cursor)
+        let user_count := /* GROUP_HEADER(header_data).user_count */ and(div(header_data, 0x1000000000000000000000000000000000000000000000000000000), 0xff)
 
-        // TODO: validate exchange id and asset_id
+        // TODO: validate asset_id?
 
-        let exchange_id := /* SETTLEMENT_HEADER(header_data).exchange_id */ and(div(header_data, 0x100000000000000000000000000000000000000000000000000000000), 0xffffffff)
-        let asset_id := /* SETTLEMENT_HEADER(header_data).asset_id */ and(div(header_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffff)
-        let cursor_end := add(cursor, add(mul(user_count, /* SETTLEMENT_SIZE */ 352), /* SETTLEMENT_HEADER_SIZE */ 44))
+        let asset_id := /* GROUP_HEADER(header_data).asset_id */ and(div(header_data, 0x100000000000000000000000000000000000000000000000000000000), 0xffffffff)
+        let cursor_end := add(cursor, add(mul(user_count, /* SETTLEMENT_SIZE */ 352), /* GROUP_HEADER_SIZE */ 40))
 
         /* make sure there is enough size for the group */
-        if gt(cursor_end, data_len) {
+        if gt(cursor_end, data_end) {
           revert(0, 0)
         }
 
@@ -984,6 +1240,7 @@ contract DCN {
             let ether_data := sload(session_ptr)
             let ether_balance := /* ETHER_POSITION(ether_data).ether_balance */ and(div(ether_data, 0x1), 0xffffffffffffffff)
             ether_balance := add(ether_balance, ether_delta)
+            ether_balance := sub(ether_balance, /* SETTLEMENT_DATA(settlement_data).fees */ and(div(settlement_data, 0x10000000000000000), 0xffffffffffffffff))
 
             /* make sure ether balance is positive and doesn't overflow */
             if gt(ether_balance, /* U64_MASK */ 0xffffffffffffffff) {

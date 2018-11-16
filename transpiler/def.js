@@ -2,7 +2,7 @@
  * Parse source and extract out all of the DEF macros
 */
 module.exports = function(source) {
-  const def_regex = /(\w+)_DEF\s*{([\w\s\d,:]+)}/;
+  const def_regex = /([\w\d]+)_DEF\s*{([\w\s\d,:]+)}/;
   const def_attr_regex = /([\w]+)\s*:\s*(\d+)\s*,/;
 
   const def_regex_all = new RegExp(def_regex, 'g');

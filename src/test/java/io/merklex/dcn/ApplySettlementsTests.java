@@ -8,16 +8,18 @@ import io.merklex.dcn.utils.Box;
 import io.merklex.dcn.utils.StaticNetwork;
 import io.merklex.web3.EtherTransactions;
 import io.merklex.web3.QueryHelper;
+import org.agrona.concurrent.UnsafeBuffer;
 import org.junit.Assert;
 import org.junit.runner.RunWith;
 
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 
 import static com.greghaskins.spectrum.Spectrum.beforeAll;
 import static com.greghaskins.spectrum.Spectrum.it;
 
 @RunWith(Spectrum.class)
-public class ApplySettlementGroupTests {
+public class ApplySettlementsTests {
     {
         StaticNetwork.DescribeCheckpoint();
 
@@ -90,6 +92,14 @@ public class ApplySettlementGroupTests {
                     10000000000000L,
                     helper.query(DCN::query_get_session_balance, DCN.get_session_balance(user3.getAddress(), 1, 1)).asset_balance
             );
+        });
+
+        it("apply simple settlement", () -> {
+            UnsafeBuffer buffer = new UnsafeBuffer(ByteBuffer.allocateDirect(1000));
+            Settlements settlements = new Settlements().wrap(buffer, 0);
+
+            Settlements.Group group = settlements.firstGruop(new Settlements.Group());
+            group.assetId(1);
         });
     }
 }

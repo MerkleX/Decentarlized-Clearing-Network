@@ -6,7 +6,7 @@ module.exports = function(source) {
   const defs = ParseDefs(source);
 
   // Process attribute selection
-  source = SourceProcessor(source, /([A-Z_]+)\s*\(\s*(\w+)\s*\)\s*\.\s*(\w+)(\((\d+)\))?/, instance => {
+  source = SourceProcessor(source, /([\w\d]+)\s*\(\s*(\w+)\s*\)\s*\.\s*(\w+)(\((\d+)\))?/, instance => {
     const [ og, name, word, attr_name, _, shift_offset ] = instance;
 
     const def = defs[name];
