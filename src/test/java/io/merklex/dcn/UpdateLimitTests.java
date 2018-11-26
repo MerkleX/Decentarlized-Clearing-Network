@@ -29,7 +29,8 @@ public class UpdateLimitTests {
         EtherTransactions exchange = Accounts.getTx(1);
 
         beforeAll(() -> {
-            creator.call(StaticNetwork.DCN(), DCN.add_exchange("testexchange", exchange.getAddress()));
+            TransactionReceipt tx = creator.call(StaticNetwork.DCN(), DCN.add_exchange("merklex ", 0, exchange.getAddress()));
+            Assert.assertEquals("0x1", tx.getStatus());
         });
 
         QueryHelper helper = new QueryHelper(StaticNetwork.DCN(), StaticNetwork.Web3());

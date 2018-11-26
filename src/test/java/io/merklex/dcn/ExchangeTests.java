@@ -16,7 +16,7 @@ import java.math.BigInteger;
 
 import static com.greghaskins.spectrum.Spectrum.describe;
 import static com.greghaskins.spectrum.dsl.specification.Specification.it;
-import static io.merklex.dcn.utils.BetterAssert.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 @RunWith(Spectrum.class)
 public class ExchangeTests {
@@ -41,7 +41,7 @@ public class ExchangeTests {
             it("non creator should fail to add exchange", () -> {
                 EthSendTransaction tx = bob.sendCall(
                         StaticNetwork.DCN(),
-                        DCN.add_exchange("bobs network", bob.credentials().getAddress())
+                        DCN.add_exchange("bobs network", 0, bob.credentials().getAddress())
                 );
                 Assert.assertTrue(tx.hasError());
                 Assert.assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
@@ -61,7 +61,7 @@ public class ExchangeTests {
             it("creator should be able to create exchange", () -> {
                 TransactionReceipt receipt = creator.call(
                         StaticNetwork.DCN(),
-                        DCN.add_exchange("boby network", bob.credentials().getAddress())
+                        DCN.add_exchange("merklex ", 0, bob.credentials().getAddress())
                 );
                 assertEquals("0x1", receipt.getStatus());
 
@@ -80,13 +80,13 @@ public class ExchangeTests {
 
                 assertEquals(0, exchange.fee_balance);
                 assertEquals(bob.credentials().getAddress(), exchange.addr);
-                assertEquals("boby network", exchange.name);
+                assertEquals("merklex ", exchange.name);
             });
 
-            it("should not be able to create exchange with 10 char name", () -> {
+            it("should not be able to create exchange with 5 char name", () -> {
                 TransactionReceipt receipt = creator.call(
                         StaticNetwork.DCN(),
-                        DCN.add_exchange("boby netwo", bob.credentials().getAddress())
+                        DCN.add_exchange("12345", 0, bob.credentials().getAddress())
                 );
                 assertEquals("0x0", receipt.getStatus());
             });
@@ -94,7 +94,7 @@ public class ExchangeTests {
             it("should not be able to create exchange with 15 char name", () -> {
                 TransactionReceipt receipt = creator.call(
                         StaticNetwork.DCN(),
-                        DCN.add_exchange("boby network :)", bob.credentials().getAddress())
+                        DCN.add_exchange("boby network :)", 0, bob.credentials().getAddress())
                 );
                 assertEquals("0x0", receipt.getStatus());
             });
@@ -102,7 +102,7 @@ public class ExchangeTests {
             it("second exchange should not effect first", () -> {
                 TransactionReceipt receipt = creator.call(
                         StaticNetwork.DCN(),
-                        DCN.add_exchange("hens network", henry.credentials().getAddress())
+                        DCN.add_exchange("12345678", 0, henry.credentials().getAddress())
                 );
                 assertEquals("0x1", receipt.getStatus());
 
@@ -121,7 +121,7 @@ public class ExchangeTests {
 
                 assertEquals(0, exchange.fee_balance);
                 assertEquals(bob.credentials().getAddress(), exchange.addr);
-                assertEquals("boby network", exchange.name);
+                assertEquals("merklex ", exchange.name);
 
                 exchange = DCN.query_get_exchange(
                         StaticNetwork.DCN(), StaticNetwork.Web3(),
@@ -130,7 +130,26 @@ public class ExchangeTests {
 
                 assertEquals(0, exchange.fee_balance);
                 assertEquals(henry.credentials().getAddress(), exchange.addr);
-                assertEquals("hens network", exchange.name);
+                assertEquals("12345678", exchange.name);
+            });
+
+            it("should not be able to add exchange with invalid quote_asset", () -> {
+                TransactionReceipt receipt = creator.call(
+                        StaticNetwork.DCN(),
+                        DCN.add_exchange("12 45 78", 1, bob.credentials().getAddress())
+                );
+                assertEquals("0x0", receipt.getStatus());
+            });
+
+            it("should be able to add exchange with non eth asset", () -> {
+                TransactionReceipt tx = creator.call(StaticNetwork.DCN(), DCN.add_asset("1234", 100, "0x0"));
+                assertEquals("0x1", tx.getStatus());
+
+                TransactionReceipt receipt = creator.call(
+                        StaticNetwork.DCN(),
+                        DCN.add_exchange("12 45 78", 1, bob.credentials().getAddress())
+                );
+                assertEquals("0x1", receipt.getStatus());
             });
         });
     }

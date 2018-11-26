@@ -44,7 +44,7 @@ public class ApplySettlementsTests {
             ), BigInteger.ZERO);
 
             creator.call(StaticNetwork.DCN(), DCN.add_asset("TT_1", 100, token.value));
-            creator.call(StaticNetwork.DCN(), DCN.add_exchange("testexchange", exchangeOwner.getAddress()));
+            creator.call(StaticNetwork.DCN(), DCN.add_exchange("testexchange", 0, exchangeOwner.getAddress()));
 
             BigInteger tokenValue = new BigInteger("1000000000000000");
             tokenOwner.call(token.value, ERC20.transfer(user1.getAddress(), tokenValue));

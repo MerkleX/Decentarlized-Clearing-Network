@@ -1,6 +1,6 @@
 // Reference https://github.com/ConsenSys/Tokens/blob/master/contracts/eip20/EIP20.sol
 
-pragma solidity ^0.4.21;
+pragma solidity ^0.5.0;
 
 contract ERC20 {
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
@@ -15,11 +15,11 @@ contract ERC20 {
     uint8 public decimals;
     string public symbol;
 
-    function ERC20(
+    constructor(
         uint256 _initialAmount,
-        string _tokenName,
+        string memory _tokenName,
         uint8 _decimalUnits,
-        string _tokenSymbol
+        string memory _tokenSymbol
     ) public {
         balances[msg.sender] = _initialAmount;
         totalSupply = _initialAmount;

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.0;
 
 contract DCN {
   event SessionUpdated(address user, uint64 exchange_id);
@@ -23,7 +23,8 @@ contract DCN {
      #define EXCHANGE_SIZE   2
 
      EXCHANGE_DEF {
-      name              :  96,
+      name              :  64,
+      quote_asset_id    :  32,
       address           : 160,
      }
 
@@ -152,7 +153,7 @@ contract DCN {
   }
 
   function get_asset(uint32 asset_id) public view
-  returns (string symbol, uint64 unit_scale, address contract_address) {
+  returns (string memory symbol, uint64 unit_scale, address contract_address) {
     uint256[5] memory return_value;
 
     assembly {
@@ -169,26 +170,30 @@ contract DCN {
     }
   }
 
-  function get_exchange(uint32 id) public view returns (string name, address addr, uint64 fee_balance) {
-    uint256[5] memory return_value;
+  function get_exchange(uint32 id) public view returns (string memory name, uint64 quote_asset_id, address addr, uint64 fee_balance) {
+    /* [ name_offset, quote_asset_id, addr, fee_balance, name_len, name_data(8) ] */
+    uint256[6] memory return_value;
 
     assembly {
       let exchange_ptr := add(exchanges_slot, mul(id, EXCHANGE_SIZE))
       let exchange_data := sload(exchange_ptr)
 
-      // Store name
-      mstore(return_value, 96 /* address(20) + uint256(32) */)
-      mstore(add(return_value, 96), 12)
-      mstore(add(return_value, 128), exchange_data)
+      /* Store name */
+      mstore(return_value, 4_WORD)
+      mstore(add(return_value, 4_WORD), 8)
+      mstore(add(return_value, 5_WORD), exchange_data)
 
-      // Store addr
-      mstore(add(return_value, 1_WORD), EXCHANGE(exchange_data).address)
+      /* Store quote_asset_id */
+      mstore(add(return_value, 1_WORD), EXCHANGE(exchange_data).quote_asset_id)
 
-      // Store fee_balance
+      /* Store addr */
+      mstore(add(return_value, 2_WORD), EXCHANGE(exchange_data).address)
+
+      /* Store fee_balance */
       exchange_data := sload(add(exchange_ptr, 1))
-      mstore(add(return_value, 2_WORD), exchange_data)
+      mstore(add(return_value, 3_WORD), exchange_data)
 
-      return(return_value, 140)
+      return(return_value, 168)
     }
   }
 
@@ -342,8 +347,10 @@ contract DCN {
    * -- creator should be able to create exchange
    * -- should not be able to create exchange with 10 char name
    * -- should not be able to create exchange with 15 char name
+   * -- should not be able to add exchange with invalid quote_asset
+   * -- should be able to add exchange with non eth asset
    */
-  function add_exchange(string name, address addr) public {
+  function add_exchange(string memory name, uint32 quote_asset_id, address addr) public {
     uint256[1] memory revert_reason;
 
     assembly {
@@ -354,16 +361,22 @@ contract DCN {
         mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
       }
 
-      /* Name must be 12 bytes long */
+      /* Name must be 8 bytes long */
       let name_len := mload(name)
-      if iszero(eq(name_len, 12)) {
+      if iszero(eq(name_len, 8)) {
         mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
+      }
+
+      /* Quote asset must exist */
+      let asset_count := sload(asset_count_slot)
+      if gt(quote_asset_id, asset_count) {
+        mstore(revert_reason, 3) revert(add(revert_reason, 31), 1)
       }
 
       /* Do not overflow exchanges */
       let exchange_count := sload(exchange_count_slot)
       if gt(exchange_count, MAX_EXCHANGE_ID) {
-        mstore(revert_reason, 3) revert(add(revert_reason, 31), 1)
+        mstore(revert_reason, 4) revert(add(revert_reason, 31), 1)
       }
 
       let exchange_ptr := add(exchanges_slot, mul(exchange_count, EXCHANGE_SIZE))
@@ -373,8 +386,11 @@ contract DCN {
        * and addr is 20 bytes. Total 32 bytes (one word)
        */
       let name_data := mload(add(name, 32))
-      let exchange_data := or(name_data, addr)
-      sstore(exchange_ptr, exchange_data)
+      sstore(exchange_ptr, or(name_data, BUILD_EXCHANGE{
+        0,
+        quote_asset_id,
+        addr
+      }))
 
       exchange_count := add(exchange_count, 1)
       sstore(exchange_count_slot, exchange_count)
@@ -390,7 +406,7 @@ contract DCN {
    * -- creator should be able to add asset
    * -- should not be able to create asset with 0 unit scale
    */
-  function add_asset(string symbol, uint64 unit_scale, address contract_address) public {
+  function add_asset(string memory symbol, uint64 unit_scale, address contract_address) public {
     uint256[1] memory revert_reason;
 
     assembly {
@@ -562,7 +578,7 @@ contract DCN {
    * TODO:
    * - should exit with zero affect if amount is zero
    */
-  function withdraw_asset(uint32 asset_id, address destination, uint256 amount) {
+  function withdraw_asset(uint32 asset_id, address destination, uint256 amount) public {
     uint256[3] memory transfer_in;
     uint256[1] memory transfer_out;
     uint256[1] memory revert_reason;
@@ -823,7 +839,7 @@ contract DCN {
    * TransferToSessionTests
    * - should not be able to transfer from 0 funds account
    */
-  function transfer_to_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) {
+  function transfer_to_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
     uint256[1] memory revert_reason;
     uint256[1] memory session_id_ptr;
     uint256[4] memory session_deposit_ptr;
@@ -943,7 +959,7 @@ contract DCN {
      #define U128_MASK 0xffffffffffffffffffffffffffffffff
   */
 
-  function set_limit(bytes data) public {
+  function set_limit(bytes memory data) public {
     uint256[1] memory revert_reason;
     uint256[10] memory data_hash_buffer;
     uint256[4] memory final_hash_buffer;
@@ -1181,7 +1197,7 @@ contract DCN {
     #define POSITION_BALANCES_MASK 0xffffffffffffffffffffffffffffffff
    */
 
-  function apply_settlement_groups(bytes data) public {
+  function apply_settlement_groups(bytes memory data) public {
     assembly {
       let cursor := add(data, 1)
       let data_end := add(cursor, mload(data))

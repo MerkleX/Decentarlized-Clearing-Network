@@ -29,7 +29,7 @@ public class UpdateSessionTests {
 
         beforeAll(() -> {
             TransactionReceipt tx = creator.call(StaticNetwork.DCN(),
-                    DCN.add_exchange("testexchange", exchangeOwner.credentials().getAddress()));
+                    DCN.add_exchange("merklex ", 0, exchangeOwner.credentials().getAddress()));
             Assert.assertEquals("0x1", tx.getStatus());
         });
 
