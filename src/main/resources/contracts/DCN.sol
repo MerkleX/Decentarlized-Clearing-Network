@@ -1,5 +1,19 @@
 pragma solidity ^0.5.0;
 
+/*
+  System Constants
+   #define 1_WORD 32
+   #define 2_WORD 64
+   #define 3_WORD 96
+   #define 4_WORD 128
+   #define 5_WORD 160
+   #define 6_WORD 192
+   #define 7_WORD 224
+   #define 8_WORD 256
+   #define 9_WORD 288
+   #define 10_WORD 320
+*/
+
 contract DCN {
   event SessionUpdated(address user, uint64 exchange_id);
   event PositionUpdated(address user, uint64 exchange_id, uint32 asset_id); 
@@ -32,7 +46,7 @@ contract DCN {
       0: EXCHANGE_DEF
       1: fee balance
   */
-  uint256[EXCHANGE_SIZE * EXCHANGE_COUNT]  exchanges;
+  uint256[EXCHANGE_SIZE * EXCHANGE_COUNT] exchanges;
 
 
   /*
@@ -45,13 +59,13 @@ contract DCN {
       address           : 160,
      }
   */
-  uint256[ASSET_COUNT]  assets;
+  uint256[ASSET_COUNT] assets;
 
   /*
      #define USER_COUNT 1461501637330902918203684832716283019655932542976
      #define USER_SIZE  4294967296
      USER {
-                  0: ether_balance
+                  0: quote_balance
                   1: asset_1_balance
                   n: asset_n_balance
          4294967295: asset_4294967295_balance
@@ -71,39 +85,43 @@ contract DCN {
      sessions[address][exchange_id] = session
      session_ptr = (address * exchange_count + exchange_id) * session_size
   */
-  uint256[SESSION_SIZE * SESSION_COUNT]  sessions;
+  uint256[SESSION_SIZE * SESSION_COUNT] sessions;
 
   /*
     SESSION {
-               0: ether_position
-               1: version + expire_time
-               2: padding
-             
-               3: ASSET_1_POSITION_DEF
-               4: ASSET_1_POS_LIMIT_DEF
-               5: ASSET_1_PRICE_LIMIT_DEF
-             
-               6: ASSET_2_POSITION_DEF
-               7: ASSET_2_POS_LIMIT_DEF
-               8: ASSET_2_PRICE_LIMIT_DEF
-
-             n*3: ASSET_N_POSITION_DEF
-           n*3+1: ASSET_N_POS_LIMIT_DEF
-           n*3+2: ASSET_N_PRICE_LIMIT_DEF
+                0 : ASSET_0_POSITION_DEF
+                1 : ASSET_0_POS_LIMIT_DEF
+                2 : ASSET_0_PRICE_LIMIT_DEF
+              
+                3 : ASSET_1_POSITION_DEF
+                4 : ASSET_1_POS_LIMIT_DEF
+                5 : ASSET_1_PRICE_LIMIT_DEF
+              
+                6 : ASSET_2_POSITION_DEF
+                7 : ASSET_2_POS_LIMIT_DEF
+                8 : ASSET_2_PRICE_LIMIT_DEF
+ 
+        (n+1)*3   : ASSET_N_POSITION_DEF
+        (n+1)*3+1 : ASSET_N_POS_LIMIT_DEF
+        (n+1)*3+2 : ASSET_N_PRICE_LIMIT_DEF
+ 
+      (qid+1)*3   : QUOTE_POSITION_DEF
+      (qid+1)*3+1 : SESSION_TIME_DEF
+      (qid+1)*3+2 : padding
     
-      12884901885: ASSET_4294967295_POSITION_DEF
-      12884901886: ASSET_4294967295_PRICE_LIMIT_DEF
-      12884901887: ASSET_4294967295_POS_LIMIT_DEF
+      12884901885 : ASSET_4294967295_POSITION_DEF
+      12884901886 : ASSET_4294967295_PRICE_LIMIT_DEF
+      12884901887 : ASSET_4294967295_POS_LIMIT_DEF
     }
 
-    ETHER_POSITION_DEF {
+    QUOTE_POSITION_DEF {
       fee_limit         :  64,
       fee_used          :  64,
       total_deposit     :  64,
-      ether_balance     :  64,
+      quote_balance     :  64,
     }
 
-    TIME_DEF {
+    SESSION_TIME_DEF {
       padding           : 128,
       version           :  64,
       expire_time       :  64,
@@ -113,7 +131,7 @@ contract DCN {
       quote_qty         :  64,
       base_qty          :  64,
       total_deposit     :  64,
-      asset_balance     :  64,
+      base_balance      :  64,
     }
 
     POS_LIMIT_DEF {
@@ -142,7 +160,6 @@ contract DCN {
   constructor() public {
       assembly {
           sstore(creator_slot, caller)
-          sstore(assets_slot, BUILD_ASSET{ /* "ETH " */ 0x45544820, 10000000000, 0 })
       }
   }
 
@@ -223,8 +240,8 @@ contract DCN {
     assembly {
       let user_ptr := add(users_slot, mul(user, USER_SIZE))
 
-      let asset_balance := sload(add(user_ptr, asset_id))
-      mstore(return_value, asset_balance)
+      let base_balance := sload(add(user_ptr, asset_id))
+      mstore(return_value, base_balance)
       return(return_value, 1_WORD)
     }
   }
@@ -242,17 +259,17 @@ contract DCN {
       let session_data := sload(session_ptr)
       let time_data := sload(add(session_ptr, 1))
 
-      mstore(return_values, TIME(time_data).version)
-      mstore(add(return_values, 1_WORD), TIME(time_data).expire_time)
-      mstore(add(return_values, 2_WORD), ETHER_POSITION(session_data).fee_limit)
-      mstore(add(return_values, 3_WORD), ETHER_POSITION(session_data).fee_used)
+      mstore(return_values, SESSION_TIME(time_data).version)
+      mstore(add(return_values, 1_WORD), SESSION_TIME(time_data).expire_time)
+      mstore(add(return_values, 2_WORD), QUOTE_POSITION(session_data).fee_limit)
+      mstore(add(return_values, 3_WORD), QUOTE_POSITION(session_data).fee_used)
 
       return(return_values, 4_WORD)
     }
   }
 
   function get_session_balance(address user, uint32 exchange_id, uint32 asset_id) public view
-  returns (uint64 total_deposit, uint64 asset_balance) {
+  returns (uint64 total_deposit, uint64 base_balance) {
     uint256[2] memory return_values;
 
     assembly {
@@ -264,7 +281,7 @@ contract DCN {
       let data := sload(add(session_ptr, mul(3, asset_id)))
 
       mstore(return_values, POSITION(data).total_deposit)
-      mstore(add(return_values, 1_WORD), POSITION(data).asset_balance)
+      mstore(add(return_values, 1_WORD), POSITION(data).base_balance)
 
       return(return_values, 2_WORD)
     }
@@ -303,7 +320,7 @@ contract DCN {
         SESSION_SIZE
       ))
 
-      let ptr := add(session_ptr, mul(asset_id, 3))
+      let ptr := add(session_ptr, mul(asset_id, SESSION_ASSET_SIZE))
       let limit_data := sload(add(ptr, 1))
       let price_data := sload(add(ptr, 2))
 
@@ -369,7 +386,7 @@ contract DCN {
 
       /* Quote asset must exist */
       let asset_count := sload(asset_count_slot)
-      if gt(quote_asset_id, asset_count) {
+      if iszero(lt(quote_asset_id, asset_count)) {
         mstore(revert_reason, 3) revert(add(revert_reason, 31), 1)
       }
 
@@ -418,7 +435,7 @@ contract DCN {
       }
 
       let asset_count := add(sload(asset_count_slot), 1)
-      if gt(asset_count, MAX_ASSET_ID) {
+      if iszero(lt(asset_count, MAX_ASSET_ID)) {
         mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
       }
 
@@ -437,68 +454,6 @@ contract DCN {
       let data := or(asset_symbol, BUILD_ASSET{ 0, unit_scale, contract_address })
       sstore(add(assets_slot, asset_count), data)
       sstore(asset_count_slot, asset_count)
-    }
-  }
-
-
-  /*
-   * Tests:
-   *
-   * BalanceTests
-   * - manage ether
-   * -- should be able to deposit
-   */
-  function deposit_eth() public payable {
-    assembly {
-      /* First item is asset 0 (ether) */
-      let user_ptr := add(users_slot, mul(caller, USER_SIZE))
-      let current_balance := sload(user_ptr)
-
-      /* Note, total ether supply should never overflow 2^256 */
-      sstore(user_ptr, add(current_balance, callvalue))
-    }
-  }
-
-  /*
-   * Tests:
-   *
-   * BalanceTests
-   * - manage ether
-   * -- should be able to partially withdraw
-   * -- should fail to over withdraw
-   * -- should be able to withdraw to zero
-   * -- should not be able to withdraw at zero
-   */
-  function withdraw_eth(address destination, uint256 amount) public {
-    uint256[1] memory empty_return;
-
-    assembly {
-      let ether_ptr := add(users_slot, mul(caller, USER_SIZE))
-
-      /* Check balance */
-      let ether_balance := sload(ether_ptr)
-      if gt(amount, ether_balance) {
-        revert(0, 0)
-      }
-
-      /* Update balance */
-      sstore(ether_ptr, sub(ether_balance, amount))
-
-      /* Send funds */
-      let result := call(
-        /* do not forward any gas, use min for transfer */
-        0,
-        destination,
-        amount,
-        empty_return,
-        0,
-        empty_return,
-        0
-      )
-
-      if iszero(result) {
-        revert(0, 0)
-      }
     }
   }
 
@@ -524,7 +479,7 @@ contract DCN {
       /* Validate asset_id */
       {
         let asset_count := sload(asset_count_slot)
-        if or(iszero(asset_id), gt(asset_id, asset_count)) {
+        if or(iszero(asset_id), iszero(lt(asset_id, asset_count))) {
           mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
         }
       }
@@ -639,7 +594,7 @@ contract DCN {
    * - should be able to update, send log, update version/state
    * - should be able to deposit with update_session, check remainder
    */
-  function update_session(uint32 exchange_id, uint64 expire_time) public payable {
+  function update_session(uint32 exchange_id, uint64 expire_time) public {
     uint256[1] memory revert_reason;
     uint256[3] memory log_data_ptr;
 
@@ -666,9 +621,9 @@ contract DCN {
       {
         let time_ptr := add(session_ptr, 1)
         let time_data := sload(time_ptr)
-        sstore(time_ptr, BUILD_TIME {
+        sstore(time_ptr, BUILD_SESSION_TIME {
           /* padding */ 0,
-          add(TIME(time_data).version, 1),
+          add(SESSION_TIME(time_data).version, 1),
           expire_time
         })
       }
@@ -679,72 +634,6 @@ contract DCN {
       log1(
         log_data_ptr, 64,
         /* SessionUpdated */ 0x1fceb0227bbc8d151c84f6f90cac5b115842ef0ed5dd5b6ee6bf6eca2dae91f7
-      )
-    }
-
-    deposit_eth_to_session(exchange_id);
-  }
-
-  /*
-   * Tests
-   *
-   * DepositEthToSessionTests
-   * - should not rever, update, nor log with no value
-   * - should move remainder to balance
-   * - should fail on session balance overflow
-   * - should just move to balance if under unit scale
-   * - should move overflow to balance
-   */
-  function deposit_eth_to_session(uint32 exchange_id) public payable {
-    uint256[3] memory log_data_ptr;
-    uint256[1] memory revert_reason;
-
-    assembly {
-      let ether_deposit := callvalue
-
-      /* ignore zero value deposits */
-      if iszero(ether_deposit) {
-        stop()
-      }
-
-      /* calculate ether amount to send to session (session_deposit) */
-      let session_deposit := and(div(ether_deposit, 10000000000), 0xFFFFFFFFFFFFFFFF)
-      ether_deposit := sub(ether_deposit, mul(session_deposit, 10000000000))
-
-      let session_ptr := add(sessions_slot, mul(
-        add(mul(caller, EXCHANGE_COUNT), exchange_id),
-        SESSION_SIZE
-      ))
-
-      let ether_position := sload(session_ptr)
-      let total_deposit := and(add(ETHER_POSITION(ether_position).total_deposit, session_deposit), 0xFFFFFFFFFFFFFFFF)
-      let ether_balance := add(ETHER_POSITION(ether_position).ether_balance, session_deposit)
-
-      /* check for ether_balance overflow */
-      if gt(ether_balance, 0xFFFFFFFFFFFFFFFF) {
-        mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
-      }
-
-      sstore(
-        session_ptr,
-        or(
-          and(ether_position, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000),
-          or(lshift(total_deposit, 64), ether_balance)
-        )
-      )
-
-      /* Store the leftover funds in the user's wallet */
-      if ether_deposit {
-        let user_ptr := add(users_slot, mul(caller, USER_SIZE))
-        sstore(user_ptr, add(sload(user_ptr), ether_deposit))
-      }
-
-      mstore(log_data_ptr, caller)
-      mstore(add(log_data_ptr, 32), exchange_id)
-      mstore(add(log_data_ptr, 64), 0)
-      log1(
-        log_data_ptr, 96,
-        /* PositionUpdated */ 0x80e69f6146713abffddddec8ef3901e1cd3fd9e079375d62e04e2719f1adf500
       )
     }
   }
@@ -762,7 +651,7 @@ contract DCN {
       /* validate asset_id */
       {
         let asset_count := sload(asset_count_slot)
-        if or(iszero(asset_id), gt(asset_id, asset_count)) {
+        if or(iszero(asset_id), iszero(lt(asset_id, asset_count))) {
           mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
         }
       }
@@ -808,10 +697,10 @@ contract DCN {
 
       let position_data := sload(position_ptr)
       let total_deposit := and(add(POSITION(position_data).total_deposit, quantity), 0xFFFFFFFFFFFFFFFF)
-      let asset_balance := add(POSITION(position_data).asset_balance, quantity)
+      let base_balance := add(POSITION(position_data).base_balance, quantity)
 
-      /* check for asset_balance overflow */
-      if gt(asset_balance, 0xFFFFFFFFFFFFFFFF) {
+      /* check for base_balance overflow */
+      if gt(base_balance, 0xFFFFFFFFFFFFFFFF) {
         mstore(revert_reason, 4) revert(add(revert_reason, 31), 1)
       }
 
@@ -819,7 +708,7 @@ contract DCN {
         position_ptr,
         or(
           and(position_data, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000),
-          or(lshift(total_deposit, 64), asset_balance)
+          or(lshift(total_deposit, 64), base_balance)
         )
       )
 
@@ -859,9 +748,9 @@ contract DCN {
 
       let user_ptr := add(users_slot, mul(caller, USER_SIZE))
       let asset_ptr := add(user_ptr, asset_id)
-      let asset_balance := sload(asset_ptr)
+      let base_balance := sload(asset_ptr)
 
-      /* Update asset_balance variable */
+      /* Update base_balance variable */
       {
         /* Convert quantity to amount using unit_scale */
         let asset_data := sload(add(assets_slot, asset_id))
@@ -870,20 +759,20 @@ contract DCN {
         /* Note mul cannot overflow as both numbers are 64 bit and result is 256 bits */
         let amount := mul(quantity, unit_scale)
 
-        /* Ensure user has enough asset_balance for deposit */
-        if gt(amount, asset_balance) {
+        /* Ensure user has enough base_balance for deposit */
+        if gt(amount, base_balance) {
           mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
         }
 
-        asset_balance := sub(asset_balance, amount)
+        base_balance := sub(base_balance, amount)
       }
 
-      /* Update session asset_balance */
+      /* Update session base_balance */
       let position_ptr := add(session_ptr, mul(3, asset_id))
       let position_data := sload(position_ptr)
 
       let total_deposit := and(add(POSITION(position_data).total_deposit, quantity), 0xFFFFFFFFFFFFFFFF)
-      let position_balance := add(POSITION(position_data).asset_balance, quantity)
+      let position_balance := add(POSITION(position_data).base_balance, quantity)
 
       /* ensure position_balance doesn't overflow */
       if gt(position_balance, 0xFFFFFFFFFFFFFFFF) {
@@ -891,7 +780,7 @@ contract DCN {
       }
 
       /* Update balances */
-      sstore(asset_ptr, asset_balance)
+      sstore(asset_ptr, base_balance)
       sstore(position_ptr, or(
         and(position_data, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000),
         or(lshift(total_deposit, 64), position_balance)
@@ -945,17 +834,6 @@ contract DCN {
       sig_v : 8,
      }
 
-     #define 1_WORD 32
-     #define 2_WORD 64
-     #define 3_WORD 96
-     #define 4_WORD 128
-     #define 5_WORD 160
-     #define 6_WORD 192
-     #define 7_WORD 224
-     #define 8_WORD 256
-     #define 9_WORD 288
-     #define 10_WORD 320
-
      #define U128_MASK 0xffffffffffffffffffffffffffffffff
   */
 
@@ -970,58 +848,61 @@ contract DCN {
       let data_size := mload(data)
       let cursor := add(data, 32)
 
+      /* ensure data size is correct */
       if iszero(eq(data_size, LIMIT_UPDATE_SIZE)) {
         mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
       }
 
+      /* load user_address */
       let update_data := mload(cursor)
       cursor := add(cursor, UPDATE_LIMIT_ADDR_SIZE)
-
       user_addr := UPDATE_LIMIT_ADDR(update_data).user_address
 
-      /* fill data_hash_buffer */
-
+      /* start hash buffer */
       mstore(data_hash_buffer, UPDATE_LIMIT_TYPE_HASH)
 
+      /* load update_limit_1 */
       update_data := mload(cursor)
       cursor := add(cursor, UPDATE_LIMIT_1_SIZE)
 
       let position_ptr := 0
+
       {
         let exchange_id := UPDATE_LIMIT_1(update_data).exchange_id
         mstore(add(data_hash_buffer, 1_WORD), exchange_id)
 
         let asset_id := UPDATE_LIMIT_1(update_data).asset_id
-        mstore(add(data_hash_buffer, 3_WORD), asset_id)
+        mstore(add(data_hash_buffer, 2_WORD), asset_id)
+
+        let exchange_data := sload(add(
+          exchanges_slot,
+          mul(exchange_id, EXCHANGE_SIZE)
+        ))
 
         /* exchange address must be caller */
-        {
-          let exchange_data := sload(add(
-            exchanges_slot,
-            mul(exchange_id, EXCHANGE_SIZE)
-          ))
-
-          let exchange_address := EXCHANGE(exchange_data).address
-
-          if iszero(eq(caller, exchange_address)) {
-            mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
-          }
+        let exchange_address := EXCHANGE(exchange_data).address
+        if iszero(eq(caller, exchange_address)) {
+          mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
         }
 
+        let quote_asset_id := EXCHANGE(exchange_data).quote_asset_id
+
         position_ptr := add(
-          add(sessions_slot, mul(
-            add(mul(user_addr, EXCHANGE_COUNT), exchange_id),
-            SESSION_SIZE
-          )),
-          mul(asset_id, SESSION_ASSET_SIZE)
+          add(
+            add(sessions_slot, mul(
+              add(mul(user_addr, EXCHANGE_COUNT), exchange_id),
+              SESSION_SIZE
+            )),
+            mul(asset_id, SESSION_ASSET_SIZE)
+          ),
+          mul(quote_asset_id, SESSION_ASSET_SIZE)
         )
       }
 
       {
         let version := UPDATE_LIMIT_1(update_data).version
-        // mstore(revert_reason, update_data) revert(revert_reason, 32)
 
-        mstore(add(data_hash_buffer, 2_WORD), version)
+        mstore(add(data_hash_buffer, 3_WORD), version)
 
         /* version must increase */
         {
@@ -1090,7 +971,7 @@ contract DCN {
         }
         mstore(add(data_hash_buffer, 9_WORD), base_shift)
 
-        /* Normalize ether shift against existing */
+        /* Normalize shift against existing */
         {
           let current_pos_limit_data := sload(add(position_ptr, 1))
 
@@ -1182,8 +1063,8 @@ contract DCN {
     }
 
     SETTLEMENT_DATA_DEF {
-      ether_delta : 64,
-      asset_delta : 64,
+      quote_delta : 64,
+      base_delta : 64,
       fees        : 64,
     }
 
@@ -1198,13 +1079,28 @@ contract DCN {
    */
 
   function apply_settlement_groups(bytes memory data) public {
+    uint256[1] memory revert_reason;
+
     assembly {
       let cursor := add(data, 1)
       let data_end := add(cursor, mload(data))
 
       let header_data := mload(cursor)
-      let exchange_id := GROUPS_HEADER(header_data).exchange_id
       cursor := add(cursor, GROUPS_HEADER_SIZE)
+
+      let exchange_id := GROUPS_HEADER(header_data).exchange_id
+      let quote_asset_id := 0
+      {
+        let exchange_count := sload(exchange_count)
+
+        /* exchange id must be valid */
+        if iszero(lt(exchange_id, exchange_count)) {
+          mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
+        }
+
+        let exchange_data := sload(add(exchanges_slot, mul(exchange_id, EXCHANGE_SIZE)))
+        quote_asset_id := EXCHANGE(exchange_data).quote_asset_id
+      }
 
       /* keep looping while there is space for a header */
       for {} iszero(lt(sub(data_end, cursor), GROUP_HEADER_SIZE)) {} {
@@ -1221,8 +1117,8 @@ contract DCN {
           revert(0, 0)
         }
 
-        let ether_net := 0
-        let asset_net := 0
+        let quote_net := 0
+        let base_net := 0
 
         for {} lt(cursor, cursor_end) {} {
           header_data := mload(cursor)
@@ -1244,42 +1140,54 @@ contract DCN {
           cursor := add(cursor, 20)
           let settlement_data := mload(cursor)
 
-          let ether_delta := SETTLEMENT_DATA(settlement_data).ether_delta
-          let asset_delta := SETTLEMENT_DATA(settlement_data).asset_delta
+          let quote_delta := SETTLEMENT_DATA(settlement_data).quote_delta
+          let base_delta := SETTLEMENT_DATA(settlement_data).base_delta
           let fees := SETTLEMENT_DATA(settlement_data).fees
 
           /* convert i64 to i256 */
-          if and(ether_delta, NEG_64_FLAG) {
-            ether_delta := or(ether_delta, I64_TO_NEG)
+          if and(quote_delta, NEG_64_FLAG) {
+            quote_delta := or(quote_delta, I64_TO_NEG)
           }
-          if and(asset_delta, NEG_64_FLAG) {
-            asset_delta := or(asset_delta, I64_TO_NEG)
+          if and(base_delta, NEG_64_FLAG) {
+            base_delta := or(base_delta, I64_TO_NEG)
           }
 
           /* update net totals */
-          ether_net := add(ether_net, ether_delta)
-          asset_net := add(asset_net, asset_delta)
+          quote_net := add(quote_net, quote_delta)
+          base_net := add(base_net, base_delta)
 
-          /* update ether balance */
+          /* update quote balance */
           {
-            let ether_data := sload(session_ptr)
-            let ether_balance := ETHER_POSITION(ether_data).ether_balance
-            ether_balance := add(ether_balance, ether_delta)
-            ether_balance := sub(ether_balance, SETTLEMENT_DATA(settlement_data).fees)
+            let quote_ptr := add(session_ptr, mul(quote_asset_id, SESSION_ASSET_SIZE))
 
-            /* make sure ether balance is positive and doesn't overflow */
-            if gt(ether_balance, U64_MASK) {
+            /* ensure we're withing expire time */
+            {
+              let expire_time_data = sload(add(quote_ptr, 1))
+              let expire_time := SESSION_TIME(expire_time_data).expire_time
+              if gt(expire_time, timestamp) {
+                mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
+              }
+            }
+
+            let quote_position_data := sload(quote_ptr)
+
+            let quote_balance := QUOTE_POSITION(quote_position_data).quote_balance
+            quote_balance := add(quote_balance, quote_delta)
+            quote_balance := sub(quote_balance, SETTLEMENT_DATA(settlement_data).fees)
+
+            /* make sure quote balance is positive and doesn't overflow */
+            if gt(quote_balance, U64_MASK) {
               revert(0, 0)
             }
-            sstore(session_ptr, or(and(ether_data, U64_INV_MASK), ether_balance))
+            sstore(quote_ptr, or(and(quote_position_data, U64_INV_MASK), quote_balance))
           }
 
           let position_ptr := add(session_ptr, mul(asset_id, SESSION_ASSET_SIZE))
           let position_data := sload(position_ptr)
-          let asset_balance := POSITION(position_data).asset_balance
+          let base_balance := POSITION(position_data).base_balance
 
-          asset_balance := add(asset_balance, asset_delta)
-          if gt(asset_balance, U64_MASK) {
+          base_balance := add(base_balance, base_delta)
+          if gt(base_balance, U64_MASK) {
             revert(0, 0)
           }
 
@@ -1295,14 +1203,14 @@ contract DCN {
 
           /* Note, shift is applied in limit update and is factored into _qty */
 
-          quote_qty := add(quote_qty, ether_delta)
-          base_qty := add(base_qty, asset_delta)
+          quote_qty := add(quote_qty, quote_delta)
+          base_qty := add(base_qty, base_delta)
 
           position_data := BUILD_POSITION{
             quote_qty,
             base_qty,
             POSITION(position_data).total_deposit,
-            asset_balance
+            base_balance
           }
           sstore(position_ptr, position_data)
 
@@ -1368,7 +1276,7 @@ contract DCN {
         }
 
         /* ensure net balance is 0 for settlement group */
-        if or(ether_net, asset_net) {
+        if or(quote_net, base_net) {
           revert(0, 0)
         }
       }
