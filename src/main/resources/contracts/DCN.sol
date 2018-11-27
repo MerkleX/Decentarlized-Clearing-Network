@@ -110,17 +110,17 @@ contract DCN {
     }
 
     POSITION_DEF {
-      ether_qty         :  64,
-      asset_qty         :  64,
+      quote_qty         :  64,
+      base_qty          :  64,
       total_deposit     :  64,
       asset_balance     :  64,
     }
 
     POS_LIMIT_DEF {
-      min_ether         :  64,
-      min_asset         :  64,
-      ether_shift       :  64,
-      asset_shift       :  64,
+      min_quote         :  64,
+      min_base          :  64,
+      quote_shift       :  64,
+      base_shift        :  64,
     }
 
     PRICE_LIMIT_DEF {
@@ -271,7 +271,7 @@ contract DCN {
   }
 
   function get_session_position(address user, uint32 exchange_id, uint32 asset_id) public view
-  returns (int64 ether_qty, int64 asset_qty, int64 ether_shift, int64 asset_shift) {
+  returns (int64 quote_qty, int64 base_qty, int64 quote_shift, int64 base_shift) {
     uint256[4] memory return_values;
 
     assembly {
@@ -284,17 +284,17 @@ contract DCN {
       let pos_data := sload(ptr)
       let limit_data := sload(add(ptr, 1))
 
-      mstore(return_values, POSITION(pos_data).ether_qty)
-      mstore(add(return_values, 1_WORD), POSITION(pos_data).asset_qty)
-      mstore(add(return_values, 2_WORD), POS_LIMIT(limit_data).ether_shift)
-      mstore(add(return_values, 3_WORD), POS_LIMIT(limit_data).asset_shift)
+      mstore(return_values, POSITION(pos_data).quote_qty)
+      mstore(add(return_values, 1_WORD), POSITION(pos_data).base_qty)
+      mstore(add(return_values, 2_WORD), POS_LIMIT(limit_data).quote_shift)
+      mstore(add(return_values, 3_WORD), POS_LIMIT(limit_data).base_shift)
 
       return(return_values, 4_WORD)
     }
   }
 
   function get_session_limit(address user, uint32 exchange_id, uint32 asset_id) public view
-  returns (uint64 version, int64 min_ether, int64 min_asset, uint64 long_max_price, uint64 short_min_price) {
+  returns (uint64 version, int64 min_quote, int64 min_base, uint64 long_max_price, uint64 short_min_price) {
     uint256[4] memory return_values;
 
     assembly {
@@ -308,8 +308,8 @@ contract DCN {
       let price_data := sload(add(ptr, 2))
 
       mstore(return_values, PRICE_LIMIT(price_data).limit_version)
-      mstore(add(return_values, 1_WORD), POS_LIMIT(limit_data).min_ether)
-      mstore(add(return_values, 2_WORD), POS_LIMIT(limit_data).min_asset)
+      mstore(add(return_values, 1_WORD), POS_LIMIT(limit_data).min_quote)
+      mstore(add(return_values, 2_WORD), POS_LIMIT(limit_data).min_base)
       mstore(add(return_values, 3_WORD), PRICE_LIMIT(price_data).long_max_price)
       mstore(add(return_values, 4_WORD), PRICE_LIMIT(price_data).short_min_price)
 
@@ -935,10 +935,10 @@ contract DCN {
      }
 
      UPDATE_LIMIT_2_DEF {
-      min_ether_qty : 64,
-      min_asset_qty : 64,
-      ether_shift   : 64,
-      asset_shift   : 64,
+      min_quote_qty : 64,
+      min_base_qty : 64,
+      quote_shift   : 64,
+      base_shift   : 64,
      }
 
      SIG_V_DEF {
@@ -1055,69 +1055,69 @@ contract DCN {
 
         /* Note, set pos_limit before handling neg so we don't need to mask */
         {
-          let min_ether_qty := UPDATE_LIMIT_2(update_data).min_ether_qty
-          pos_limit := BUILD_POS_LIMIT{ min_ether_qty, 0, 0, 0 }
+          let min_quote_qty := UPDATE_LIMIT_2(update_data).min_quote_qty
+          pos_limit := BUILD_POS_LIMIT{ min_quote_qty, 0, 0, 0 }
 
-          if and(min_ether_qty, NEG_64_FLAG) {
-            min_ether_qty := or(min_ether_qty, I64_TO_NEG)
+          if and(min_quote_qty, NEG_64_FLAG) {
+            min_quote_qty := or(min_quote_qty, I64_TO_NEG)
           }
-          mstore(add(data_hash_buffer, 6_WORD), min_ether_qty)
+          mstore(add(data_hash_buffer, 6_WORD), min_quote_qty)
         }
 
         {
-          let min_asset_qty := UPDATE_LIMIT_2(update_data).min_asset_qty
-          pos_limit := or(pos_limit, BUILD_POS_LIMIT{ 0, min_asset_qty, 0, 0 })
+          let min_base_qty := UPDATE_LIMIT_2(update_data).min_base_qty
+          pos_limit := or(pos_limit, BUILD_POS_LIMIT{ 0, min_base_qty, 0, 0 })
 
-          if and(min_asset_qty, NEG_64_FLAG) {
-            min_asset_qty := or(min_asset_qty, I64_TO_NEG)
+          if and(min_base_qty, NEG_64_FLAG) {
+            min_base_qty := or(min_base_qty, I64_TO_NEG)
           }
-          mstore(add(data_hash_buffer, 7_WORD), min_asset_qty)
+          mstore(add(data_hash_buffer, 7_WORD), min_base_qty)
         }
 
-        let ether_shift := UPDATE_LIMIT_2(update_data).ether_shift
-        pos_limit := or(pos_limit, BUILD_POS_LIMIT{ 0, 0, ether_shift, 0 })
+        let quote_shift := UPDATE_LIMIT_2(update_data).quote_shift
+        pos_limit := or(pos_limit, BUILD_POS_LIMIT{ 0, 0, quote_shift, 0 })
 
-        if and(ether_shift, NEG_64_FLAG) {
-          ether_shift := or(ether_shift, I64_TO_NEG)
+        if and(quote_shift, NEG_64_FLAG) {
+          quote_shift := or(quote_shift, I64_TO_NEG)
         }
-        mstore(add(data_hash_buffer, 8_WORD), ether_shift)
+        mstore(add(data_hash_buffer, 8_WORD), quote_shift)
 
-        let asset_shift := UPDATE_LIMIT_2(update_data).asset_shift
-        pos_limit := or(pos_limit, BUILD_POS_LIMIT{ 0, 0, 0, asset_shift })
+        let base_shift := UPDATE_LIMIT_2(update_data).base_shift
+        pos_limit := or(pos_limit, BUILD_POS_LIMIT{ 0, 0, 0, base_shift })
 
-        if and(asset_shift, NEG_64_FLAG) {
-          asset_shift := or(asset_shift, I64_TO_NEG)
+        if and(base_shift, NEG_64_FLAG) {
+          base_shift := or(base_shift, I64_TO_NEG)
         }
-        mstore(add(data_hash_buffer, 9_WORD), asset_shift)
+        mstore(add(data_hash_buffer, 9_WORD), base_shift)
 
         /* Normalize ether shift against existing */
         {
           let current_pos_limit_data := sload(add(position_ptr, 1))
 
           {
-            let current_ether_shift := POS_LIMIT(current_pos_limit_data).ether_shift
-            if and(current_ether_shift, NEG_64_FLAG) {
-              current_ether_shift := or(current_ether_shift, I64_TO_NEG)
+            let current_quote_shift := POS_LIMIT(current_pos_limit_data).quote_shift
+            if and(current_quote_shift, NEG_64_FLAG) {
+              current_quote_shift := or(current_quote_shift, I64_TO_NEG)
             }
-            ether_shift := sub(ether_shift, current_ether_shift)
+            quote_shift := sub(quote_shift, current_quote_shift)
           }
 
           {
-            let current_asset_shift := POS_LIMIT(current_pos_limit_data).asset_shift
-            if and(current_asset_shift, NEG_64_FLAG) {
-              current_asset_shift := or(current_asset_shift, I64_TO_NEG)
+            let current_base_shift := POS_LIMIT(current_pos_limit_data).base_shift
+            if and(current_base_shift, NEG_64_FLAG) {
+              current_base_shift := or(current_base_shift, I64_TO_NEG)
             }
-            asset_shift := sub(asset_shift, current_asset_shift)
+            base_shift := sub(base_shift, current_base_shift)
           }
         }
 
         let position_data := sload(position_ptr)
-        let ether_qty := add(ether_shift, POSITION(position_data).ether_qty)
-        let asset_qty := add(asset_shift, POSITION(position_data).asset_qty)
+        let quote_qty := add(quote_shift, POSITION(position_data).quote_qty)
+        let base_qty := add(base_shift, POSITION(position_data).base_qty)
 
         sstore(position_ptr, or(
           and(position_data, U128_MASK),
-          BUILD_POSITION{ether_qty, asset_qty, 0, 0}
+          BUILD_POSITION{quote_qty, base_qty, 0, 0}
         ))
         sstore(add(position_ptr, 1), pos_limit)
       }
@@ -1284,29 +1284,29 @@ contract DCN {
           }
 
           /* load position and convert i64 to i256 */
-          let ether_qty := POSITION(position_data).ether_qty
-          if and(ether_qty, NEG_64_FLAG) {
-            ether_qty := or(ether_qty, I64_TO_NEG)
+          let quote_qty := POSITION(position_data).quote_qty
+          if and(quote_qty, NEG_64_FLAG) {
+            quote_qty := or(quote_qty, I64_TO_NEG)
           }
-          let asset_qty := POSITION(position_data).asset_qty
-          if and(asset_qty, NEG_64_FLAG) {
-            asset_qty := or(asset_qty, I64_TO_NEG)
+          let base_qty := POSITION(position_data).base_qty
+          if and(base_qty, NEG_64_FLAG) {
+            base_qty := or(base_qty, I64_TO_NEG)
           }
 
           /* Note, shift is applied in limit update and is factored into _qty */
 
-          ether_qty := add(ether_qty, ether_delta)
-          asset_qty := add(asset_qty, asset_delta)
+          quote_qty := add(quote_qty, ether_delta)
+          base_qty := add(base_qty, asset_delta)
 
           position_data := BUILD_POSITION{
-            ether_qty,
-            asset_qty,
+            quote_qty,
+            base_qty,
             POSITION(position_data).total_deposit,
             asset_balance
           }
           sstore(position_ptr, position_data)
 
-          if or(sgt(ether_qty, I64_MAX), sgt(asset_qty, I64_MAX)) {
+          if or(sgt(quote_qty, I64_MAX), sgt(base_qty, I64_MAX)) {
             revert(0, 0)
           }
 
@@ -1314,53 +1314,53 @@ contract DCN {
           {
             let limit_data := sload(add(position_ptr, 1))
 
-            let min_ether := POS_LIMIT(limit_data).min_ether
-            if and(min_ether, NEG_64_FLAG) {
-              min_ether := or(min_ether, I64_TO_NEG)
+            let min_quote := POS_LIMIT(limit_data).min_quote
+            if and(min_quote, NEG_64_FLAG) {
+              min_quote := or(min_quote, I64_TO_NEG)
             }
 
-            let min_asset := POS_LIMIT(limit_data).min_asset
-            if and(min_asset, NEG_64_FLAG) {
-              min_asset := or(min_asset, I64_TO_NEG)
+            let min_base := POS_LIMIT(limit_data).min_base
+            if and(min_base, NEG_64_FLAG) {
+              min_base := or(min_base, I64_TO_NEG)
             }
 
-            if or(slt(ether_qty, min_ether), slt(asset_qty, min_asset)) {
+            if or(slt(quote_qty, min_quote), slt(base_qty, min_base)) {
               revert(0, 0)
             }
           }
 
           /* Ensure there is no overflow */
-          if or(slt(ether_qty, I64_MIN), slt(asset_qty, I64_MIN)) {
+          if or(slt(quote_qty, I64_MIN), slt(base_qty, I64_MIN)) {
             revert(0, 0)
           }
 
           let price_limit_data := sload(add(position_ptr, 2))
 
           /* Check if price fits limit */
-          let negatives := add(slt(ether_qty, 0), mul(slt(asset_qty, 0), 2))
+          let negatives := add(slt(quote_qty, 0), mul(slt(base_qty, 0), 2))
           switch negatives
           /* Both negative */
           case 3 {
             revert(0, 0)
           }
-          /* long: ether_qty negative */
+          /* long: quote_qty negative */
           case 1 {
-            if iszero(asset_qty) {
+            if iszero(base_qty) {
               revert(0, 0)
             }
 
-            let current_price := div(mul(sub(0, ether_qty), PRICE_UNITS), asset_qty)
+            let current_price := div(mul(sub(0, quote_qty), PRICE_UNITS), base_qty)
             if gt(current_price, PRICE_LIMIT(price_limit_data).long_max_price) {
               revert(0, 0)
             }
           }
-          /* short: asset_qty negative */
+          /* short: base_qty negative */
           case 2 {
-            if iszero(ether_qty) {
+            if iszero(quote_qty) {
               revert(0, 0)
             }
 
-            let current_price := div(mul(ether_qty, PRICE_UNITS), sub(0, asset_qty))
+            let current_price := div(mul(quote_qty, PRICE_UNITS), sub(0, base_qty))
             if lt(current_price, PRICE_LIMIT(price_limit_data).short_min_price) {
               revert(0, 0)
             }
