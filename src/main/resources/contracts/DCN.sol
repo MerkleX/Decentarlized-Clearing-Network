@@ -1091,7 +1091,7 @@ contract DCN {
       let exchange_id := GROUPS_HEADER(header_data).exchange_id
       let quote_asset_id := 0
       {
-        let exchange_count := sload(exchange_count)
+        let exchange_count := sload(exchange_count_slot)
 
         /* exchange id must be valid */
         if iszero(lt(exchange_id, exchange_count)) {
@@ -1162,7 +1162,7 @@ contract DCN {
 
             /* ensure we're withing expire time */
             {
-              let expire_time_data = sload(add(quote_ptr, 1))
+              let expire_time_data := sload(add(quote_ptr, 1))
               let expire_time := SESSION_TIME(expire_time_data).expire_time
               if gt(expire_time, timestamp) {
                 mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
