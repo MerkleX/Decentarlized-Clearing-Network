@@ -1,8 +1,11 @@
 const ParseDefs = require('./def');
 const SourceProcessor = require('./source_processor');
 const CommaParser = require('./comma_parser');
+const GCCProcessor = require('./gcc_processor');
 
 module.exports = function(source) {
+
+
   const defs = ParseDefs(source);
 
   // Process attribute selection
