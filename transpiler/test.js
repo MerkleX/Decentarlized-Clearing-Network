@@ -164,6 +164,12 @@ GCCProcessor(raw).then(source => {
     if (node.type === 'Block' || node.type === 'AssemblyBlock') {
       const pre = '\n' + tab + TAB;
       const items = node.statements || node.operations;
+      if (items.length === 0) {
+        return '{}';
+      }
+      if (items.length === 1) {
+        return '{ ' + print(items[0]) + ' }';
+      }
       return `{${pre}${items.map(node => print(node, tab + TAB)).join(pre)}\n${tab}}`;
     }
 
@@ -289,6 +295,7 @@ GCCProcessor(raw).then(source => {
           throw new Error('struct members to do lie on a word boundary');
         }
 
+
         let bits_remaining = 256n;
         for (; i < struct.members.length; ++i) {
           const member = struct.members[i]
@@ -303,19 +310,19 @@ GCCProcessor(raw).then(source => {
             const length = typeSize(member.type);
 
             if (length === 32n) {
-              if (bits === 0) {
-                throw new Error('something went wrong');
+              if (bits_remaining !== 0n) {
+                throw new Error('full width member should span word');
               }
 
               return data;
             }
 
             const mask = '0x' + ((1n << (length * 8n)) - 1n).toString(16);
-            if (bits === 0) {
+            if (bits_remaining === 0n) {
               return `and(${data}, ${mask})`;
             }
             else {
-              return `and(div(${data}, 0x${(1n << bits).toString(16)}), ${mask})`;
+              return `and(div(${data}, 0x${(1n << bits_remaining).toString(16)}), ${mask})`;
             }
           }
         }
@@ -458,6 +465,11 @@ GCCProcessor(raw).then(source => {
       return `if ${print(node.condition)} ${print(node.body, tab)}`;
     }
 
+    if (node.type === 'AssemblyFor') {
+      return `for ${print(node.pre, tab)} ${print(node.condition)} ${print(node.post, tab)} ${print(node.body, tab)}`;
+    }
+
+    console.error(node);
     return '<error '+node.type+'>';
   }
 

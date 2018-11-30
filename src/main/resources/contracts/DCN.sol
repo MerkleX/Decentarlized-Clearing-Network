@@ -9,7 +9,7 @@ pragma solidity ^0.5.0;
 #define WORD_7 224
 #define WORD_8 256
 #define WORD_9 288
-#define 1WORD_0 320
+#define WORD_10 320
 
 #define U64_MASK 0xFFFFFFFFFFFFFFFF
 
@@ -789,7 +789,7 @@ contract DCN {
 
     assembly {
       let data_size := mload(data)
-      let cursor := add(data, 32)
+      let cursor := add(data, WORD_1)
 
       /* ensure data size is correct */
       if iszero(eq(data_size, UPDATE_LIMIT_BYTES)) {
@@ -866,7 +866,7 @@ contract DCN {
       }
 
       update_data := mload(cursor)
-      cursor := add(cursor, 32)
+      cursor := add(cursor, WORD_1)
 
       /* Note, set asset_state_data before CAST_64_NEG so we don't need to mask */
       let state_data_1 := 0
@@ -895,6 +895,7 @@ contract DCN {
       CAST_64_NEG(base_shift)
       mstore(add(hash_buffer_mem, WORD_9), base_shift)
 
+      sstore(add(asset_state_ptr, 1), state_data_1)
 
       /* Normalize shift against existing */
       {
@@ -916,288 +917,306 @@ contract DCN {
       let state_data_0 := sload(asset_state_ptr)
       let quote_qty := add(quote_shift, attr(AssetState, 0, state_data_0, quote_qty))
       let base_qty := add(base_shift, attr(AssetState, 0, state_data_0, base_qty))
-//
-//        sstore(position_ptr, or(
-//          and(position_data, U128_MASK),
-//          BUILD_POSITION{quote_qty, base_qty, 0, 0}
-//        ))
-//        sstore(add(position_ptr, 1), pos_limit)
-//      }
-//
-//      let hash := keccak256(hash_buffer_mem, 1WORD_0)
-//
-//      {
-//        let final_ptr := hash_buffer_mem
-//        mstore(final_ptr, SIG_HASH_HEADER)
-//        final_ptr := add(final_ptr, 2)
-//        mstore(final_ptr, DCN_HEADER_HASH)
-//        final_ptr := add(final_ptr, WORD_1)
-//        mstore(final_ptr, hash)
-//      }
-//
-//      hash := keccak256(hash_buffer_mem, 66)
-//      mstore(hash_buffer_mem, hash)
-//
-//      update_data := mload(cursor)
-//      cursor := add(cursor, WORD_1)
-//      mstore(add(hash_buffer_mem, WORD_1), update_data)
-//
-//      update_data := mload(cursor)
-//      cursor := add(cursor, WORD_1)
-//      mstore(add(hash_buffer_mem, WORD_2), update_data)
-//
-//      update_data := mload(cursor)
-//      mstore(add(hash_buffer_mem, WORD_3), SIG_V(update_data).sig_v)
-//    }
-//
-//    uint256 recover_address = uint256(ecrecover(
-//      bytes32(hash_buffer_mem[0]),
-//      uint8(hash_buffer_mem[3]),
-//      bytes32(hash_buffer_mem[1]),
-//      bytes32(hash_buffer_mem[2])
-//    ));
-//
-//    assembly {
-//      if iszero(eq(recover_address, user_addr)) {
-//        mstore(revert_reason, 4) revert(add(revert_reason, 31), 1)
-//      }
+
+      #define INVALID_I64(variable) \
+        or(slt(variable, 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000), sgt(variable, 0x7fffffffffffffff))
+
+      if or(INVALID_I64(quote_qty), INVALID_I64(base_qty)) {
+        REVERT(4)
+      }
+
+      sstore(asset_state_ptr, or(
+        and(state_data_0, mask_out(AssetState, 0, quote_qty, base_qty)),
+        build(AssetState, 1, and(quote_qty, U64_MASK), and(base_qty, U64_MASK))
+      ))
+
+      let hash := keccak256(hash_buffer_mem, WORD_10)
+
+      {
+        let final_ptr := hash_buffer_mem
+        mstore(final_ptr, SIG_HASH_HEADER)
+        final_ptr := add(final_ptr, 2)
+        mstore(final_ptr, DCN_HEADER_HASH)
+        final_ptr := add(final_ptr, WORD_1)
+        mstore(final_ptr, hash)
+      }
+
+      hash := keccak256(hash_buffer_mem, 66)
+      mstore(hash_buffer_mem, hash)
+
+      update_data := mload(cursor)
+      cursor := add(cursor, WORD_1)
+      mstore(add(hash_buffer_mem, WORD_1), attr(Signature, 0, update_data, sig_r))
+
+      update_data := mload(cursor)
+      cursor := add(cursor, WORD_1)
+      mstore(add(hash_buffer_mem, WORD_2), attr(Signature, 1, update_data, sig_s))
+
+      update_data := mload(cursor)
+      mstore(add(hash_buffer_mem, WORD_3), attr(Signature, 2, update_data, sig_v))
+    }
+
+    uint256 recover_address = uint256(ecrecover(
+      bytes32(hash_buffer_mem[0]),
+      uint8(hash_buffer_mem[3]),
+      bytes32(hash_buffer_mem[1]),
+      bytes32(hash_buffer_mem[2])
+    ));
+
+    assembly {
+      if iszero(eq(recover_address, user_addr)) {
+        REVERT(5)
+      }
     }
   }
+
+  struct GroupsHeader {
+    uint32 exchange_id;
+  }
+
+  struct GroupHeader {
+    uint32 base_asset_id;
+    uint8 user_count;
+  }
+
+  struct UserAddress {
+    address user_address;
+  }
+
+  struct Settlement {
+    int64 quote_delta;
+    int64 base_delta;
+    uint64 fees;
+  }
+
+  /*
+
+    #define GROUPS_HEADER_SIZE 4
+    #define GROUP_HEADER_SIZE 40
+    #define SETTLEMENT_SIZE 352
+
+    #define I64_MIN 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000
+    #define U64_INV_MASK 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000
+    #define I64_MAX 0x7fffffffffffffff
+    #define PRICE_UNITS 100000000
+    #define POSITION_BALANCES_MASK 0xffffffffffffffffffffffffffffffff
+   */
+
+  function apply_settlement_groups(bytes memory data) public {
+    uint256[1] memory revert_reason;
+
+    assembly {
+      let cursor := add(data, 1)
+      let data_end := add(cursor, mload(data))
+
+      let tmp_data /* GroupsHeader */ := mload(cursor)
+      cursor := add(cursor, sizeof(GroupsHeader))
+
+      let exchange_id := attr(GroupsHeader, 0, tmp_data /* GroupsHeader */, exchange_id)
+      let quote_asset_id := 0
+      let exchange_fees := 0
+
+      {
+        let exchange_count := sload(exchange_count_slot)
+
+        /* exchange id must be valid */
+        if iszero(lt(exchange_id, exchange_count)) {
+          REVERT(1)
+        }
+
+        let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
+        let exchange_data_0 := sload(exchange_ptr)
+
+        /* caller must be exchange owner */
+        if iszero(eq(caller, attr(Exchange, 0, exchange_data_0, owner))) {
+          REVERT(2)
+        }
+
+        quote_asset_id := attr(Exchange, 0, exchange_data_0, quote_asset_id)
+        exchange_fees := attr(Exchange, 1, sload(add(exchange_ptr, 1)), fee_balance)
+      }
+
+      /* keep looping while there is space for a header */
+      for {} iszero(lt(sub(data_end, cursor), sizeof(GroupHeader))) {} {
+        let cursor_end := 0
+        {
+          tmp_data /* GroupHeader */ := mload(cursor)
+          let user_count := attr(GroupHeader, 0, tmp_data /* GroupHeader */, user_count)
+          cursor_end := add(cursor, add(sizeof(GroupsHeader), mul(user_count, const_add(sizeof(UserAddress), sizeof(Settlement)))))
+
+          /* make sure there is enough size for the group */
+          if gt(cursor_end, data_end) {
+            REVERT(3)
+          }
+
+          cursor := add(cursor, sizeof(GroupsHeader))
+        }
+
+        let base_asset_id := attr(GroupHeader, 0, tmp_data /* GroupHeader */, base_asset_id)
+
+        let quote_net := 0
+        let base_net := 0
+
+        for {} lt(cursor, cursor_end) {} {
+          tmp_data /* UserAddress */ := mload(cursor)
+          cursor := add(cursor, sizeof(UserAddress))
+
+          let session_ptr := SESSION_PTR(attr(UserAddress, 0, tmp_data, user_address), exchange_id)
+
+          tmp_data /* Settlement */ := mload(cursor)
+          cursor := add(cursor, sizeof(Settlement))
+
+          let quote_delta := attr(Settlement, 0, tmp_data, quote_delta)
+          let base_delta := attr(Settlement, 0, tmp_data, base_delta)
+          let fees := attr(Settlement, 0, tmp_data, fees)
+
+          CAST_64_NEG(quote_delta)
+          CAST_64_NEG(base_delta)
+
+          quote_net := add(quote_net, quote_delta)
+          base_net := add(base_net, base_delta)
+
+          /* update quote balance */
+          {
+            let quote_ptr := pointer(AssetState, session_ptr, quote_asset_id)
+
+            /* ensure we're within expire time */
+            {
+              let state_data_1 := sload(add(quote_ptr, 1))
+              let expire_time := attr(QuoteAssetState, 1, state_data_1, expire_time)
+              if gt(expire_time, timestamp) {
+                REVERT(3)
+              }
+            }
+
+//            let state_data_0 := sload(quote_ptr)
 //
-//  /*
-//
-//    #define GROUPS_HEADER_SIZE 4
-//    #define GROUP_HEADER_SIZE 40
-//    #define SETTLEMENT_SIZE 352
-//
-//    GROUPS_HEADER_DEF {
-//      exchange_id: 32,
-//    }
-//
-//    GROUP_HEADER_DEF {
-//      asset_id : 32,
-//      user_count : 8,
-//    }
-//
-//    SETTLEMENT_ADDR_DEF {
-//      user_address : 160,
-//    }
-//
-//    SETTLEMENT_DATA_DEF {
-//      quote_delta : 64,
-//      base_delta : 64,
-//      fees        : 64,
-//    }
-//
-//    #define I64_MIN 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000
-//    #define U64_INV_MASK 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000
-//    #define I64_MAX 0x7fffffffffffffff
-//    #define PRICE_UNITS 100000000
-//    #define POSITION_BALANCES_MASK 0xffffffffffffffffffffffffffffffff
-//   */
-//
-//  function apply_settlement_groups(bytes memory data) public {
-//    uint256[1] memory revert_reason;
-//
-//    assembly {
-//      let cursor := add(data, 1)
-//      let data_end := add(cursor, mload(data))
-//
-//      let header_data := mload(cursor)
-//      cursor := add(cursor, GROUPS_HEADER_SIZE)
-//
-//      let exchange_id := GROUPS_HEADER(header_data).exchange_id
-//      let quote_asset_id := 0
-//      {
-//        let exchange_count := sload(exchange_count_slot)
-//
-//        /* exchange id must be valid */
-//        if iszero(lt(exchange_id, exchange_count)) {
-//          mstore(revert_reason, 1) revert(add(revert_reason, 31), 1)
-//        }
-//
-//        let exchange_data := sload(add(exchanges_slot, mul(exchange_id, EXCHANGE_SIZE)))
-//        quote_asset_id := EXCHANGE(exchange_data).quote_asset_id
-//      }
-//
-//      /* keep looping while there is space for a header */
-//      for {} iszero(lt(sub(data_end, cursor), GROUP_HEADER_SIZE)) {} {
-//        header_data := mload(cursor)
-//        let user_count := GROUP_HEADER(header_data).user_count
-//
-//        // TODO: validate asset_id?
-//
-//        let asset_id := GROUP_HEADER(header_data).asset_id
-//        let cursor_end := add(cursor, add(mul(user_count, SETTLEMENT_SIZE), GROUP_HEADER_SIZE))
-//
-//        /* make sure there is enough size for the group */
-//        if gt(cursor_end, data_end) {
-//          revert(0, 0)
-//        }
-//
-//        let quote_net := 0
-//        let base_net := 0
-//
-//        for {} lt(cursor, cursor_end) {} {
-//          header_data := mload(cursor)
-//
-//          let session_ptr := add(
-//            sessions_slot,
-//            mul(
-//              add(
-//                mul(
-//                  SETTLEMENT_ADDR(header_data).user_address,
-//                  EXCHANGE_COUNT
-//                ),
-//                exchange_id
-//              ),
-//              SESSION_SIZE
-//            )
-//          )
-//
-//          cursor := add(cursor, 20)
-//          let settlement_data := mload(cursor)
-//
-//          let quote_delta := SETTLEMENT_DATA(settlement_data).quote_delta
-//          let base_delta := SETTLEMENT_DATA(settlement_data).base_delta
-//          let fees := SETTLEMENT_DATA(settlement_data).fees
-//
-//          /* convert i64 to i256 */
-//          if and(quote_delta, NEG_64_FLAG) {
-//            quote_delta := or(quote_delta, I64_TO_NEG)
-//          }
-//          if and(base_delta, NEG_64_FLAG) {
-//            base_delta := or(base_delta, I64_TO_NEG)
-//          }
-//
-//          /* update net totals */
-//          quote_net := add(quote_net, quote_delta)
-//          base_net := add(base_net, base_delta)
-//
-//          /* update quote balance */
-//          {
-//            let quote_ptr := add(session_ptr, mul(quote_asset_id, SESSION_ASSET_SIZE))
-//
-//            /* ensure we're withing expire time */
-//            {
-//              let expire_time_data := sload(add(quote_ptr, 1))
-//              let expire_time := SESSION_TIME(expire_time_data).expire_time
-//              if gt(expire_time, timestamp) {
-//                mstore(revert_reason, 2) revert(add(revert_reason, 31), 1)
-//              }
-//            }
-//
-//            let quote_position_data := sload(quote_ptr)
-//
-//            let quote_balance := QUOTE_POSITION(quote_position_data).quote_balance
-//            quote_balance := add(quote_balance, quote_delta)
-//            quote_balance := sub(quote_balance, SETTLEMENT_DATA(settlement_data).fees)
+//            let asset_balance := attr(QuoteAssetState, 0, state_data_0, asset_balance)
+//            asset_balance := add(asset_balance, quote_delta)
+//            asset_balance := sub(asset_balance, fees)
 //
 //            /* make sure quote balance is positive and doesn't overflow */
-//            if gt(quote_balance, U64_MASK) {
-//              revert(0, 0)
-//            }
-//            sstore(quote_ptr, or(and(quote_position_data, U64_INV_MASK), quote_balance))
-//          }
-//
-//          let position_ptr := add(session_ptr, mul(asset_id, SESSION_ASSET_SIZE))
-//          let position_data := sload(position_ptr)
-//          let base_balance := POSITION(position_data).base_balance
-//
-//          base_balance := add(base_balance, base_delta)
-//          if gt(base_balance, U64_MASK) {
-//            revert(0, 0)
-//          }
-//
-//          /* load position and convert i64 to i256 */
-//          let quote_qty := POSITION(position_data).quote_qty
-//          if and(quote_qty, NEG_64_FLAG) {
-//            quote_qty := or(quote_qty, I64_TO_NEG)
-//          }
-//          let base_qty := POSITION(position_data).base_qty
-//          if and(base_qty, NEG_64_FLAG) {
-//            base_qty := or(base_qty, I64_TO_NEG)
-//          }
-//
-//          /* Note, shift is applied in limit update and is factored into _qty */
-//
-//          quote_qty := add(quote_qty, quote_delta)
-//          base_qty := add(base_qty, base_delta)
-//
-//          position_data := BUILD_POSITION{
-//            quote_qty,
-//            base_qty,
-//            POSITION(position_data).total_deposit,
-//            base_balance
-//          }
-//          sstore(position_ptr, position_data)
-//
-//          if or(sgt(quote_qty, I64_MAX), sgt(base_qty, I64_MAX)) {
-//            revert(0, 0)
-//          }
-//
-//          /* Ensure position fits min limits */
-//          {
-//            let limit_data := sload(add(position_ptr, 1))
-//
-//            let min_quote := POS_LIMIT(limit_data).min_quote
-//            if and(min_quote, NEG_64_FLAG) {
-//              min_quote := or(min_quote, I64_TO_NEG)
+//            if gt(asset_balance, U64_MASK) {
+//              REVERT(4)
 //            }
 //
-//            let min_base := POS_LIMIT(limit_data).min_base
-//            if and(min_base, NEG_64_FLAG) {
-//              min_base := or(min_base, I64_TO_NEG)
+//            let fee_used := attr(QuoteAssetState, 0, state_data_0, fee_used)
+//            fee_used := add(fee_used, fees)
+//
+//            let fee_limit := attr(QuoteAssetState, 0, state_data_0, fee_limit)
+//
+//            /* ensure don't over spend fee */
+//            /* note, also provides overflow check */
+//            if gt(fee_used, fee_limit) {
+//              REVERT(5)
 //            }
 //
-//            if or(slt(quote_qty, min_quote), slt(base_qty, min_base)) {
-//              revert(0, 0)
-//            }
+//            sstore(quote_ptr, or(
+//              and(state_data_0, mask_out(QuoteAssetState, 0, fee_used, asset_balance)),
+//              build(QuoteAssetState, 0, 0, fee_used, 0, asset_balance)
+//            ))
+          }
+
+//          let state_ptr := pointer(AssetState, session_ptr, base_asset_id)
+//          let state_data_0 := sload(state_ptr)
+//          let asset_balance := attr(AssetState, 0, state_data_0, asset_balance)
+//
+//          asset_balance := add(asset_balance, base_delta)
+//          if gt(asset_balance, U64_MASK) {
+//            REVERT(6)
 //          }
-//
-//          /* Ensure there is no overflow */
-//          if or(slt(quote_qty, I64_MIN), slt(base_qty, I64_MIN)) {
-//            revert(0, 0)
-//          }
-//
-//          let price_limit_data := sload(add(position_ptr, 2))
-//
-//          /* Check if price fits limit */
-//          let negatives := add(slt(quote_qty, 0), mul(slt(base_qty, 0), 2))
-//          switch negatives
-//          /* Both negative */
-//          case 3 {
-//            revert(0, 0)
-//          }
-//          /* long: quote_qty negative */
-//          case 1 {
-//            if iszero(base_qty) {
-//              revert(0, 0)
-//            }
-//
-//            let current_price := div(mul(sub(0, quote_qty), PRICE_UNITS), base_qty)
-//            if gt(current_price, PRICE_LIMIT(price_limit_data).long_max_price) {
-//              revert(0, 0)
-//            }
-//          }
-//          /* short: base_qty negative */
-//          case 2 {
-//            if iszero(quote_qty) {
-//              revert(0, 0)
-//            }
-//
-//            let current_price := div(mul(quote_qty, PRICE_UNITS), sub(0, base_qty))
-//            if lt(current_price, PRICE_LIMIT(price_limit_data).short_min_price) {
-//              revert(0, 0)
-//            }
-//          }
-//        }
-//
-//        /* ensure net balance is 0 for settlement group */
-//        if or(quote_net, base_net) {
-//          revert(0, 0)
-//        }
-//      }
-//    }
-//  }
+        }
+
+
+        //  /* load position and convert i64 to i256 */
+        //  let quote_qty := POSITION(position_data).quote_qty
+        //  if and(quote_qty, NEG_64_FLAG) {
+        //    quote_qty := or(quote_qty, I64_TO_NEG)
+        //  }
+        //  let base_qty := POSITION(position_data).base_qty
+        //  if and(base_qty, NEG_64_FLAG) {
+        //    base_qty := or(base_qty, I64_TO_NEG)
+        //  }
+
+        //  /* Note, shift is applied in limit update and is factored into _qty */
+
+        //  quote_qty := add(quote_qty, quote_delta)
+        //  base_qty := add(base_qty, base_delta)
+
+        //  position_data := BUILD_POSITION{
+        //    quote_qty,
+        //    base_qty,
+        //    POSITION(position_data).total_deposit,
+        //    base_balance
+        //  }
+        //  sstore(position_ptr, position_data)
+
+        //  if or(sgt(quote_qty, I64_MAX), sgt(base_qty, I64_MAX)) {
+        //    revert(0, 0)
+        //  }
+
+        //  /* Ensure position fits min limits */
+        //  {
+        //    let limit_data := sload(add(position_ptr, 1))
+
+        //    let min_quote := POS_LIMIT(limit_data).min_quote
+        //    if and(min_quote, NEG_64_FLAG) {
+        //      min_quote := or(min_quote, I64_TO_NEG)
+        //    }
+
+        //    let min_base := POS_LIMIT(limit_data).min_base
+        //    if and(min_base, NEG_64_FLAG) {
+        //      min_base := or(min_base, I64_TO_NEG)
+        //    }
+
+        //    if or(slt(quote_qty, min_quote), slt(base_qty, min_base)) {
+        //      revert(0, 0)
+        //    }
+        //  }
+
+        //  /* Ensure there is no overflow */
+        //  if or(slt(quote_qty, I64_MIN), slt(base_qty, I64_MIN)) {
+        //    revert(0, 0)
+        //  }
+
+        //  let price_limit_data := sload(add(position_ptr, 2))
+
+        //  /* Check if price fits limit */
+        //  let negatives := add(slt(quote_qty, 0), mul(slt(base_qty, 0), 2))
+        //  switch negatives
+        //  /* Both negative */
+        //  case 3 {
+        //    revert(0, 0)
+        //  }
+        //  /* long: quote_qty negative */
+        //  case 1 {
+        //    if iszero(base_qty) {
+        //      revert(0, 0)
+        //    }
+
+        //    let current_price := div(mul(sub(0, quote_qty), PRICE_UNITS), base_qty)
+        //    if gt(current_price, PRICE_LIMIT(price_limit_data).long_max_price) {
+        //      revert(0, 0)
+        //    }
+        //  }
+        //  /* short: base_qty negative */
+        //  case 2 {
+        //    if iszero(quote_qty) {
+        //      revert(0, 0)
+        //    }
+
+        //    let current_price := div(mul(quote_qty, PRICE_UNITS), sub(0, base_qty))
+        //    if lt(current_price, PRICE_LIMIT(price_limit_data).short_min_price) {
+        //      revert(0, 0)
+        //    }
+        //  }
+        // }
+
+        /* ensure net balance is 0 for settlement group */
+        if or(quote_net, base_net) {
+          revert(0, 0)
+        }
+      }
+    }
+  }
 }
