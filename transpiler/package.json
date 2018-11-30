@@ -9,6 +9,7 @@
   "author": "MerkleX",
   "private": true,
   "dependencies": {
+    "js-sha3": "^0.8.0",
     "solidity-parser-antlr": "^0.3.2"
   }
 }

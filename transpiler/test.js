@@ -1,8 +1,9 @@
 const fs = require('fs');
 const GCCProcessor = require('./gcc_processor');
 const Parser = require('solidity-parser-antlr');
+const keccak256 = require('js-sha3').keccak256;
 
-let raw = fs.readFileSync('/home/plorio/merklex/trading/dcn/src/main/resources/contracts/DCN-2.sol', 'utf-8');
+let raw = fs.readFileSync('/home/plorio/merklex/trading/dcn/src/main/resources/contracts/DCN.sol', 'utf-8');
 GCCProcessor(raw).then(source => {
   const source_first_line = raw.substr(0, raw.indexOf('\n') + 1);
   source = source.substr(source.indexOf(source_first_line));
@@ -23,6 +24,7 @@ GCCProcessor(raw).then(source => {
   }
 
   const structs = {};
+  const events = {};
   const TAB = '  ';
 
   function evaluate(node) {
@@ -120,8 +122,26 @@ GCCProcessor(raw).then(source => {
       return data;
     }
 
-    if (node.type === 'EventDefinition'
-      || node.type === 'StateVariableDeclaration'
+    if (node.type === 'EventDefinition') {
+      const name = node.name;
+      const params = node.parameters.parameters.map(param => {
+        const type = param.typeName.name;
+        const name = param.name;
+        return { type, name };
+      });
+
+      const hash_hex = '0x' + keccak256(`${name}(${params.map(p => p.type).join(',')})`);
+
+      events[name] = {
+        name,
+        hash_hex,
+        parameters: params,
+      };
+
+      return source.substr(node.range[0], node.range[1] - node.range[0] + 1);
+    }
+
+    if (node.type === 'StateVariableDeclaration'
       || node.type === 'ReturnStatement'
       || node.type === 'VariableDeclarationStatement'
       || node.type === 'StructDefinition') {
@@ -152,6 +172,10 @@ GCCProcessor(raw).then(source => {
     }
 
     if (node.type === 'AssemblyCall') {
+      if (node.functionName === 'stop') {
+        return 'stop()';
+      }
+
       if (!node.arguments || !node.arguments.length) {
         return node.functionName;
       }
@@ -159,7 +183,17 @@ GCCProcessor(raw).then(source => {
       if (node.functionName === 'pointer') {
         const [ struct_type, offset, index ] = node.arguments.map(print);
         const bytes = typeSize(struct_type);
-        return `add(${offset}, mul(${(bytes / 32n).toString()}, ${index}))`;
+        const words = bytes / 32n;
+
+        if (bytes % 32n !== 0n) {
+          throw new Error('Type must be word mulitple');
+        }
+
+        if (words === 1n) {
+          return `add(${offset}, ${index})`;
+        }
+
+        return `add(${offset}, mul(${words.toString()}, ${index}))`;
       }
 
       if (node.functionName === 'build') {
@@ -209,8 +243,8 @@ GCCProcessor(raw).then(source => {
             continue;
           }
 
-          if (bits === 0) {
-            parts.push(arg);
+          if (bits_remaining === 0n) {
+            parts.push(`/* ${member.name} */ ${arg}`);
           }
           else {
             parts.push(`/* ${member.name} */ mul(${arg}, 0x${(1n<<bits_remaining).toString(16)})`);
@@ -289,6 +323,122 @@ GCCProcessor(raw).then(source => {
         throw new Error('could not find ' + member_name + ' in word ' + word + ' of ' + struct_type);
       }
 
+      if (node.functionName === 'fn_hash') {
+        if (node.arguments.length !== 1 || node.arguments[0].type !== 'StringLiteral') {
+          throw new Error('hash4 expects 1 string arguments');
+        }
+        const str = node.arguments[0].value;
+        const end = '00000000000000000000000000000000000000000000000000000000';
+        return `/* fn_hash("${str}") */ 0x${keccak256(str).substr(0, 8)}${end}`;
+      }
+
+      if (node.functionName === 'log_event') {
+        const [ name, memory, ...args ] = node.arguments.map(print);
+
+        const event = events[name];
+        if (!event) {
+          throw new Error('fould not find event ' + name);
+        }
+
+        if (event.parameters.length !== args.length) {
+          throw new Error('event ' + name + ' expected ' + event.parameters.length + ' parameters but got ' + args.length);
+        }
+
+        const parts = ['', `/* Log event: ${name} */`];
+
+        for (let i = 0; i < args.length; ++i) {
+          const offset = BigInt(i) * 32n;
+          const ptr = offset === 0n ? memory : `add(${memory}, ${offset})`;
+          parts.push(`mstore(${ptr}, ${args[i]})`);
+        }
+
+        parts.push(`log1(${memory}, ${args.length * 32}, /* ${name} */ ${event.hash_hex})`);
+
+        return parts.join('\n' + tab);
+      }
+
+      if (node.functionName === 'mask_out') {
+        const [ struct_name, word, ...args ] = node.arguments.map(print);
+
+        const struct = structs[struct_name];
+        if (!struct) {
+          throw new Error('Could not find struct ' + struct_name);
+        }
+
+        const word_bytes = BigInt(word) * 32n;
+        let total_size = 0n;
+
+        let i;
+        for (i = 0; i < struct.members.length; ++i) {
+          const member = struct.members[i];
+
+          if (total_size >= word_bytes) {
+            break;
+          }
+
+          total_size += typeSize(member.type) * (member.length || 1n);
+        }
+
+        if (total_size !== word_bytes) {
+          throw new Error('struct members to do lie on a word boundary');
+        }
+
+        let mask = (1n << 256n) - 1n;
+
+        const visited = {};
+        let visited_count = 0;
+
+        let bits_remaining = 256n;
+        for (; i < struct.members.length; ++i) {
+          const member = struct.members[i];
+
+          const bits = typeSize(member.type) * (member.length || 1n) * 8n;
+          bits_remaining -= bits;
+
+          if (bits_remaining < 0) {
+            break;
+          }
+
+          const name = member.name;
+          if (args.indexOf(name) !== -1) {
+            if (visited[name]) {
+              continue;
+            }
+            visited[name] = true;
+            visited_count += 1;
+          }
+          else {
+            continue;
+          }
+
+          const member_mask = ((1n << bits) - 1n) << bits_remaining;
+          mask = mask ^ member_mask;
+        }
+
+        if (visited_count !== args.length) {
+          throw new Error('could not find all mask elements in struct');
+        }
+
+        return '0x' + mask.toString(16);
+      }
+
+      if (node.functionName === 'sizeof') {
+        if (node.arguments.length !== 1) {
+          throw new Error('sizeof expects one argument');
+        }
+
+        const arg = print(node.arguments[0], tab);
+        return typeSize(arg);
+      }
+
+      if (node.functionName === 'const_add') {
+        const args = node.arguments.map(print);
+
+        return args.reduce((total, item) => {
+          return total + item;
+        }, 0n);
+      }
+
       return node.functionName + '(' + node.arguments.map(arg => print(arg, tab)).join(', ') + ')';
     }
 
@@ -300,7 +450,7 @@ GCCProcessor(raw).then(source => {
       return `${node.names[0].name} := ${print(node.expression, tab)}`;
     }
 
-    if (node.type === 'DecimalNumber') {
+    if (node.type === 'DecimalNumber' || node.type === 'HexNumber') {
       return node.value;
     }
 
