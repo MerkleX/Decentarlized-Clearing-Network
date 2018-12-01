@@ -16,7 +16,7 @@ GCCProcessor(raw).then(source => {
 
     e.errors.forEach(error => {
       console.log(error);
-      console.log(lines[error.line + 1]);
+      console.log(lines[error.line - 1]);
     });
 
     process.exit(1);
@@ -442,7 +442,7 @@ GCCProcessor(raw).then(source => {
         const args = node.arguments.map(print);
 
         return args.reduce((total, item) => {
-          return total + item;
+          return total + BigInt(item);
         }, 0n);
       }
 

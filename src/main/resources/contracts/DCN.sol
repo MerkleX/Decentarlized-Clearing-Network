@@ -1003,25 +1003,40 @@ contract DCN {
    */
 
   function apply_settlement_groups(bytes memory data) public {
-    uint256[1] memory revert_reason;
+    uint256[7] memory variables;
+    
+    #define VARIABLES_START       0xC0 // = 0x80 + 32*2
+
+    #define QUOTE_ASSET_ID_MEM    VARIABLES_START
+    #define DATA_END_MEM          const_add(VARIABLES_START, WORD_1)
+    #define EXCHANGE_FEES_MEM     const_add(VARIABLES_START, WORD_2)
+    #define EXCHANGE_ID_MEM       const_add(VARIABLES_START, WORD_3)
+    #define GROUP_END_MEM         const_add(VARIABLES_START, WORD_4)
+    #define BASE_ASSET_ID_MEM     const_add(VARIABLES_START, WORD_5)
+
+    #define REVERT_REASON_MEM const_add(VARIABLES_START, WORD_6)
+    #define SMART_REVERT(code) mstore(REVERT_REASON_MEM, code) revert(add(REVERT_REASON_MEM, 31), 1)
 
     assembly {
+      /* ensure compiler mapped variables to where we expect */
+      if iszero(eq(VARIABLES_START, variables)) {
+        SMART_REVERT(0)
+      }
+
       let cursor := add(data, 1)
-      let data_end := add(cursor, mload(data))
+      mstore(DATA_END_MEM, add(cursor, mload(data)))
 
       let tmp_data /* GroupsHeader */ := mload(cursor)
       cursor := add(cursor, sizeof(GroupsHeader))
 
-      let exchange_id := attr(GroupsHeader, 0, tmp_data /* GroupsHeader */, exchange_id)
-      let quote_asset_id := 0
-      let exchange_fees := 0
-
+      /* Validate exchange_id and load exchange data (quote_asset_id, fee_balance, exchange_id) */
       {
+        let exchange_id := attr(GroupsHeader, 0, tmp_data /* GroupsHeader */, exchange_id)
         let exchange_count := sload(exchange_count_slot)
 
         /* exchange id must be valid */
         if iszero(lt(exchange_id, exchange_count)) {
-          REVERT(1)
+          SMART_REVERT(1)
         }
 
         let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
@@ -1029,39 +1044,43 @@ contract DCN {
 
         /* caller must be exchange owner */
         if iszero(eq(caller, attr(Exchange, 0, exchange_data_0, owner))) {
-          REVERT(2)
+          SMART_REVERT(2)
         }
 
-        quote_asset_id := attr(Exchange, 0, exchange_data_0, quote_asset_id)
-        exchange_fees := attr(Exchange, 1, sload(add(exchange_ptr, 1)), fee_balance)
+        mstore(QUOTE_ASSET_ID_MEM, attr(Exchange, 0, exchange_data_0, quote_asset_id))
+        mstore(EXCHANGE_FEES_MEM, attr(Exchange, 1, sload(add(exchange_ptr, 1)), fee_balance))
+        mstore(EXCHANGE_ID_MEM, exchange_id)
       }
 
-      /* keep looping while there is space for a header */
-      for {} iszero(lt(sub(data_end, cursor), sizeof(GroupHeader))) {} {
-        let cursor_end := 0
+      /* keep looping while there is space for a GroupHeader */
+      for {} iszero(lt(sub(mload(DATA_END_MEM), cursor), sizeof(GroupHeader))) {} {
+        tmp_data /* GroupHeader */ := mload(cursor)
+        cursor := add(cursor, sizeof(GroupsHeader))
+
         {
-          tmp_data /* GroupHeader */ := mload(cursor)
           let user_count := attr(GroupHeader, 0, tmp_data /* GroupHeader */, user_count)
-          cursor_end := add(cursor, add(sizeof(GroupsHeader), mul(user_count, const_add(sizeof(UserAddress), sizeof(Settlement)))))
+          let settlements_size := mul(user_count, const_add(sizeof(UserAddress), sizeof(Settlement)))
+          let group_end := add(cursor, settlements_size)
 
           /* make sure there is enough size for the group */
-          if gt(cursor_end, data_end) {
-            REVERT(3)
+          if gt(group_end, mload(DATA_END_MEM)) {
+            SMART_REVERT(3)
           }
 
-          cursor := add(cursor, sizeof(GroupsHeader))
+          mstore(GROUP_END_MEM, group_end)
         }
 
-        let base_asset_id := attr(GroupHeader, 0, tmp_data /* GroupHeader */, base_asset_id)
+        mstore(BASE_ASSET_ID_MEM, attr(GroupHeader, 0, tmp_data /* GroupHeader */, base_asset_id))
 
         let quote_net := 0
         let base_net := 0
 
-        for {} lt(cursor, cursor_end) {} {
+        /* loop through each settlement */
+        for {} lt(cursor, mload(GROUP_END_MEM)) {} {
           tmp_data /* UserAddress */ := mload(cursor)
           cursor := add(cursor, sizeof(UserAddress))
 
-          let session_ptr := SESSION_PTR(attr(UserAddress, 0, tmp_data, user_address), exchange_id)
+          let session_ptr := SESSION_PTR(attr(UserAddress, 0, tmp_data, user_address), mload(EXCHANGE_ID_MEM))
 
           tmp_data /* Settlement */ := mload(cursor)
           cursor := add(cursor, sizeof(Settlement))
@@ -1076,55 +1095,59 @@ contract DCN {
           quote_net := add(quote_net, quote_delta)
           base_net := add(base_net, base_delta)
 
-          /* update quote balance */
+          let quote_state_ptr := pointer(AssetState, session_ptr, mload(QUOTE_ASSET_ID_MEM))
+          let base_state_ptr := pointer(AssetState, session_ptr, mload(BASE_ASSET_ID_MEM))
+
+          /* ensure we're within expire time */
           {
-            let quote_ptr := pointer(AssetState, session_ptr, quote_asset_id)
+            let state_data_1 := sload(add(quote_state_ptr, 1))
+            let expire_time := attr(QuoteAssetState, 1, state_data_1, expire_time)
 
-            /* ensure we're within expire time */
-            {
-              let state_data_1 := sload(add(quote_ptr, 1))
-              let expire_time := attr(QuoteAssetState, 1, state_data_1, expire_time)
-              if gt(expire_time, timestamp) {
-                REVERT(3)
-              }
+            if gt(expire_time, timestamp) {
+              SMART_REVERT(5)
             }
-
-//            let state_data_0 := sload(quote_ptr)
-//
-//            let asset_balance := attr(QuoteAssetState, 0, state_data_0, asset_balance)
-//            asset_balance := add(asset_balance, quote_delta)
-//            asset_balance := sub(asset_balance, fees)
-//
-//            /* make sure quote balance is positive and doesn't overflow */
-//            if gt(asset_balance, U64_MASK) {
-//              REVERT(4)
-//            }
-//
-//            let fee_used := attr(QuoteAssetState, 0, state_data_0, fee_used)
-//            fee_used := add(fee_used, fees)
-//
-//            let fee_limit := attr(QuoteAssetState, 0, state_data_0, fee_limit)
-//
-//            /* ensure don't over spend fee */
-//            /* note, also provides overflow check */
-//            if gt(fee_used, fee_limit) {
-//              REVERT(5)
-//            }
-//
-//            sstore(quote_ptr, or(
-//              and(state_data_0, mask_out(QuoteAssetState, 0, fee_used, asset_balance)),
-//              build(QuoteAssetState, 0, 0, fee_used, 0, asset_balance)
-//            ))
           }
 
-//          let state_ptr := pointer(AssetState, session_ptr, base_asset_id)
-//          let state_data_0 := sload(state_ptr)
-//          let asset_balance := attr(AssetState, 0, state_data_0, asset_balance)
-//
-//          asset_balance := add(asset_balance, base_delta)
-//          if gt(asset_balance, U64_MASK) {
-//            REVERT(6)
-//          }
+          /* update quote balance */
+          {
+            let state_data_0 := sload(quote_state_ptr)
+
+            let asset_balance := attr(QuoteAssetState, 0, state_data_0, asset_balance)
+            asset_balance := add(asset_balance, quote_delta)
+            asset_balance := sub(asset_balance, fees)
+
+            /* make sure quote balance is positive and doesn't overflow */
+            if gt(asset_balance, U64_MASK) {
+              SMART_REVERT(4)
+            }
+
+            let fee_used := attr(QuoteAssetState, 0, state_data_0, fee_used)
+            fee_used := add(fee_used, fees)
+
+            let fee_limit := attr(QuoteAssetState, 0, state_data_0, fee_limit)
+
+            /* ensure don't over spend fee */
+            /* note, also provides overflow check */
+            if gt(fee_used, fee_limit) {
+              SMART_REVERT(5)
+            }
+
+            sstore(quote_state_ptr, or(
+              and(state_data_0, mask_out(QuoteAssetState, 0, fee_used, asset_balance)),
+              build(QuoteAssetState, 0, 0, fee_used, 0, asset_balance)
+            ))
+          }
+
+          {
+            let state_ptr := pointer(AssetState, session_ptr, base_asset_id)
+            let state_data_0 := sload(state_ptr)
+            let asset_balance := attr(AssetState, 0, state_data_0, asset_balance)
+
+            asset_balance := add(asset_balance, base_delta)
+            if gt(asset_balance, U64_MASK) {
+              SMART_REVERT(6)
+            }
+          }
         }
 
 
