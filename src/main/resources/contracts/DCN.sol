@@ -16,6 +16,11 @@ pragma solidity ^0.5.0;
 #define CHAIN_ID 1111
 #define VERSION  1
 
+#define PRICE_UNITS 100000000
+
+#define INVALID_I64(variable) \
+  or(slt(variable, 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000), sgt(variable, 0x7fffffffffffffff))
+
 contract DCN {
   event SessionUpdated(address user, uint64 exchange_id);
   event PositionUpdated(address user, uint64 exchange_id, uint32 asset_id); 
@@ -918,9 +923,6 @@ contract DCN {
       let quote_qty := add(quote_shift, attr(AssetState, 0, state_data_0, quote_qty))
       let base_qty := add(base_shift, attr(AssetState, 0, state_data_0, base_qty))
 
-      #define INVALID_I64(variable) \
-        or(slt(variable, 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000), sgt(variable, 0x7fffffffffffffff))
-
       if or(INVALID_I64(quote_qty), INVALID_I64(base_qty)) {
         REVERT(4)
       }
@@ -998,12 +1000,11 @@ contract DCN {
     #define I64_MIN 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000
     #define U64_INV_MASK 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000
     #define I64_MAX 0x7fffffffffffffff
-    #define PRICE_UNITS 100000000
     #define POSITION_BALANCES_MASK 0xffffffffffffffffffffffffffffffff
    */
 
   function apply_settlement_groups(bytes memory data) public {
-    uint256[7] memory variables;
+    uint256[5] memory variables;
     
     #define VARIABLES_START       0xC0 // = 0x80 + 32*2
 
@@ -1012,9 +1013,8 @@ contract DCN {
     #define EXCHANGE_FEES_MEM     const_add(VARIABLES_START, WORD_2)
     #define EXCHANGE_ID_MEM       const_add(VARIABLES_START, WORD_3)
     #define GROUP_END_MEM         const_add(VARIABLES_START, WORD_4)
-    #define BASE_ASSET_ID_MEM     const_add(VARIABLES_START, WORD_5)
 
-    #define REVERT_REASON_MEM const_add(VARIABLES_START, WORD_6)
+    #define REVERT_REASON_MEM const_add(VARIABLES_START, WORD_5)
     #define SMART_REVERT(code) mstore(REVERT_REASON_MEM, code) revert(add(REVERT_REASON_MEM, 31), 1)
 
     assembly {
@@ -1070,7 +1070,7 @@ contract DCN {
           mstore(GROUP_END_MEM, group_end)
         }
 
-        mstore(BASE_ASSET_ID_MEM, attr(GroupHeader, 0, tmp_data /* GroupHeader */, base_asset_id))
+        let base_asset_id := attr(GroupHeader, 0, tmp_data /* GroupHeader */, base_asset_id)
 
         let quote_net := 0
         let base_net := 0
@@ -1096,7 +1096,7 @@ contract DCN {
           base_net := add(base_net, base_delta)
 
           let quote_state_ptr := pointer(AssetState, session_ptr, mload(QUOTE_ASSET_ID_MEM))
-          let base_state_ptr := pointer(AssetState, session_ptr, mload(BASE_ASSET_ID_MEM))
+          let base_state_ptr := pointer(AssetState, session_ptr, base_asset_id)
 
           /* ensure we're within expire time */
           {
@@ -1138,6 +1138,8 @@ contract DCN {
             ))
           }
 
+          let quote_qty := 0
+          let base_qty := 0
           {
             let state_ptr := pointer(AssetState, session_ptr, base_asset_id)
             let state_data_0 := sload(state_ptr)
@@ -1147,93 +1149,77 @@ contract DCN {
             if gt(asset_balance, U64_MASK) {
               SMART_REVERT(6)
             }
+
+            quote_qty := attr(AssetState, 0, state_data_0, quote_qty)
+            base_qty := attr(AssetState, 0, state_data_0, base_qty)
+
+            CAST_64_NEG(quote_qty)
+            CAST_64_NEG(base_qty)
+
+            quote_qty := add(quote_qty, quote_delta)
+            base_qty := add(base_qty, base_delta)
+
+            if or(INVALID_I64(quote_qty), INVALID_I64(base_qty)) {
+              SMART_REVERT(7)
+            }
+
+            sstore(state_ptr, or(
+              and(state_data_0, mask_out(AssetState, 0, quote_qty, base_qty, asset_balance)),
+              build(AssetState, 0, quote_qty, base_qty, 0, asset_balance)
+            ))
+          }
+
+          /* Ensure position fits min limits */
+          {
+            let state_data_1 := sload(add(base_state_ptr, 1))
+
+            let min_quote := attr(AssetState, 1, state_data_1, min_quote)
+            let min_base := attr(AssetState, 1, state_data_1, min_base)
+
+            CAST_64_NEG(min_quote)
+            CAST_64_NEG(min_base)
+
+            if or(slt(quote_qty, min_quote), slt(base_qty, min_base)) {
+              SMART_REVERT(8)
+            }
+          }
+
+          /* Check against limit */
+          {
+            let state_data_2 := sload(add(base_state_ptr, 2))
+
+            /* Check if price fits limit */
+            let negatives := add(slt(quote_qty, 0), mul(slt(base_qty, 0), 2))
+
+            switch negatives
+            /* Both negative */
+            case 3 {
+              SMART_REVERT(9)
+            }
+            /* long: quote_qty negative */
+            case 1 {
+              if iszero(base_qty) {
+                SMART_REVERT(10)
+              }
+
+              let current_price := div(mul(sub(0, quote_qty), PRICE_UNITS), base_qty)
+              if gt(current_price, attr(AssetState, 2, state_data_2, long_max_price)) {
+                SMART_REVERT(11)
+              }
+            }
+            /* short: base_qty negative */
+            case 2 {
+              if iszero(quote_qty) {
+                SMART_REVERT(12)
+              }
+
+              let current_price := div(mul(quote_qty, PRICE_UNITS), sub(0, base_qty))
+              if lt(current_price, attr(AssetState, 2, state_data_2, short_min_price)) {
+                SMART_REVERT(13)
+              }
+            }
           }
         }
-
-
-        //  /* load position and convert i64 to i256 */
-        //  let quote_qty := POSITION(position_data).quote_qty
-        //  if and(quote_qty, NEG_64_FLAG) {
-        //    quote_qty := or(quote_qty, I64_TO_NEG)
-        //  }
-        //  let base_qty := POSITION(position_data).base_qty
-        //  if and(base_qty, NEG_64_FLAG) {
-        //    base_qty := or(base_qty, I64_TO_NEG)
-        //  }
-
-        //  /* Note, shift is applied in limit update and is factored into _qty */
-
-        //  quote_qty := add(quote_qty, quote_delta)
-        //  base_qty := add(base_qty, base_delta)
-
-        //  position_data := BUILD_POSITION{
-        //    quote_qty,
-        //    base_qty,
-        //    POSITION(position_data).total_deposit,
-        //    base_balance
-        //  }
-        //  sstore(position_ptr, position_data)
-
-        //  if or(sgt(quote_qty, I64_MAX), sgt(base_qty, I64_MAX)) {
-        //    revert(0, 0)
-        //  }
-
-        //  /* Ensure position fits min limits */
-        //  {
-        //    let limit_data := sload(add(position_ptr, 1))
-
-        //    let min_quote := POS_LIMIT(limit_data).min_quote
-        //    if and(min_quote, NEG_64_FLAG) {
-        //      min_quote := or(min_quote, I64_TO_NEG)
-        //    }
-
-        //    let min_base := POS_LIMIT(limit_data).min_base
-        //    if and(min_base, NEG_64_FLAG) {
-        //      min_base := or(min_base, I64_TO_NEG)
-        //    }
-
-        //    if or(slt(quote_qty, min_quote), slt(base_qty, min_base)) {
-        //      revert(0, 0)
-        //    }
-        //  }
-
-        //  /* Ensure there is no overflow */
-        //  if or(slt(quote_qty, I64_MIN), slt(base_qty, I64_MIN)) {
-        //    revert(0, 0)
-        //  }
-
-        //  let price_limit_data := sload(add(position_ptr, 2))
-
-        //  /* Check if price fits limit */
-        //  let negatives := add(slt(quote_qty, 0), mul(slt(base_qty, 0), 2))
-        //  switch negatives
-        //  /* Both negative */
-        //  case 3 {
-        //    revert(0, 0)
-        //  }
-        //  /* long: quote_qty negative */
-        //  case 1 {
-        //    if iszero(base_qty) {
-        //      revert(0, 0)
-        //    }
-
-        //    let current_price := div(mul(sub(0, quote_qty), PRICE_UNITS), base_qty)
-        //    if gt(current_price, PRICE_LIMIT(price_limit_data).long_max_price) {
-        //      revert(0, 0)
-        //    }
-        //  }
-        //  /* short: base_qty negative */
-        //  case 2 {
-        //    if iszero(quote_qty) {
-        //      revert(0, 0)
-        //    }
-
-        //    let current_price := div(mul(quote_qty, PRICE_UNITS), sub(0, base_qty))
-        //    if lt(current_price, PRICE_LIMIT(price_limit_data).short_min_price) {
-        //      revert(0, 0)
-        //    }
-        //  }
-        // }
 
         /* ensure net balance is 0 for settlement group */
         if or(quote_net, base_net) {

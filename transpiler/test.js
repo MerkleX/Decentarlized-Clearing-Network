@@ -469,6 +469,12 @@ GCCProcessor(raw).then(source => {
       return `for ${print(node.pre, tab)} ${print(node.condition)} ${print(node.post, tab)} ${print(node.body, tab)}`;
     }
 
+    if (node.type === 'AssemblySwitch') {
+      return `switch ${print(node.expression)}\n${tab}${TAB}${node.cases.map(c => {
+        return `case ${print(c.value)} ${print(c.block, tab + TAB)}`;
+      }).join(`\n${tab}${TAB}`)}`;
+    }
+
     console.error(node);
     return '<error '+node.type+'>';
   }
