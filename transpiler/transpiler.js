@@ -4,6 +4,10 @@ const Parser = require('solidity-parser-antlr');
 const keccak256 = require('js-sha3').keccak256;
 
 module.exports = function(raw) {
+  if (raw.indexOf('#define TRANSPILE') === -1) {
+    return Promise.resolve(raw);
+  }
+
   return GCCProcessor(raw).then(source => {
     const source_first_line = raw.substr(0, raw.indexOf('\n') + 1);
     source = source.substr(source.indexOf(source_first_line));
