@@ -1,5 +1,6 @@
-#define TRANSPILE
 pragma solidity ^0.5.0;
+
+#define TRANSPILE
 
 #define WORD_1 32
 #define WORD_2 64

@@ -18,6 +18,8 @@ module.exports = function(raw) {
     } catch(e) {
       const lines = source.split('\n');
 
+      console.log(e)
+
       e.errors.forEach(error => {
         console.log(error);
         console.log(lines[error.line - 1]);

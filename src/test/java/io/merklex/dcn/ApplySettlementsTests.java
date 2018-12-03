@@ -57,9 +57,9 @@ public class ApplySettlementsTests {
 
             BigInteger etherValue = new BigInteger("1230000000000000000");
 
-            user1.call(StaticNetwork.DCN(), DCN.deposit_eth_to_session(1), etherValue);
-            user2.call(StaticNetwork.DCN(), DCN.deposit_eth_to_session(1), etherValue);
-            user3.call(StaticNetwork.DCN(), DCN.deposit_eth_to_session(1), etherValue);
+//            user1.call(StaticNetwork.DCN(), DCN.deposit_eth_to_session(1), etherValue);
+//            user2.call(StaticNetwork.DCN(), DCN.deposit_eth_to_session(1), etherValue);
+//            user3.call(StaticNetwork.DCN(), DCN.deposit_eth_to_session(1), etherValue);
 
             user1.call(StaticNetwork.DCN(), DCN.deposit_asset_to_session(1, 1, 10000000000000L));
             user2.call(StaticNetwork.DCN(), DCN.deposit_asset_to_session(1, 1, 10000000000000L));
