@@ -202,6 +202,10 @@ contract DCN {
         mstore(revert_reason, 4)
         revert(add(revert_reason, 31), 1)
       }
+      if iszero(contract_address) {
+        mstore(revert_reason, 5)
+        revert(add(revert_reason, 31), 1)
+      }
       let asset_symbol := mload(add(symbol, 32))
       let asset_data := or(asset_symbol, or(
         /* unit_scale */ mul(unit_scale, 0x10000000000000000000000000000000000000000), 
@@ -335,7 +339,7 @@ contract DCN {
       let session_ptr := add(add(sessions_slot, mul(55340232221128654848, caller)), mul(12884901888, exchange_id))
       let quote_state_ptr := add(session_ptr, mul(3, quote_asset_id))
       let state_version := and(div(sload(add(quote_state_ptr, 1)), 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
-      sstore(quote_state_ptr, or(
+      sstore(add(quote_state_ptr, 1), or(
         /* version */ mul(add(state_version, 1), 0x1000000000000000000000000000000000000000000000000), 
         /* expire_time */ expire_time))
       

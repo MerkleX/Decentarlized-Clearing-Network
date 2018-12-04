@@ -5,9 +5,11 @@ import io.merklex.dcn.contracts.DCN;
 import io.merklex.dcn.contracts.ERC20;
 import io.merklex.dcn.utils.Accounts;
 import io.merklex.dcn.utils.Box;
+import io.merklex.dcn.utils.RevertCodeExtractor;
 import io.merklex.dcn.utils.StaticNetwork;
 import io.merklex.web3.EtherTransactions;
 import org.junit.runner.RunWith;
+import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import java.math.BigInteger;
@@ -16,7 +18,7 @@ import java.util.ArrayList;
 import static com.greghaskins.spectrum.dsl.specification.Specification.beforeAll;
 import static com.greghaskins.spectrum.dsl.specification.Specification.describe;
 import static com.greghaskins.spectrum.dsl.specification.Specification.it;
-import static io.merklex.dcn.utils.BetterAssert.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 @RunWith(Spectrum.class)
 public class BalanceTests {
@@ -28,8 +30,8 @@ public class BalanceTests {
         EtherTransactions creator = Accounts.getTx(0);
 
         beforeAll(() -> {
-            for (int i = 1; i <= 5; i++) {
-                EtherTransactions tokenPerson = Accounts.getTx(i);
+            for (int i = 0; i < 5; i++) {
+                EtherTransactions tokenPerson = Accounts.getTx(i + 1);
 
                 try {
                     String data = ERC20.DeployData(BigInteger.valueOf(1000000000000000000L), "Token " + i, 1 + i, "MTK" + i);
@@ -48,14 +50,14 @@ public class BalanceTests {
 
 
         it("Inserted assets should be as expected", () -> {
-            for (int i = 1; i <= 5; i++) {
+            for (int i = 0; i < 5; i++) {
                 DCN.GetAssetReturnValue asset = DCN.query_get_asset(
                         StaticNetwork.DCN(), StaticNetwork.Web3(),
                         DCN.get_asset(i)
                 );
 
                 assertEquals(BigInteger.valueOf(10).pow(i).longValue(), asset.unit_scale);
-                assertEquals(tokens.get(i - 1), asset.contract_address);
+                assertEquals(tokens.get(i), asset.contract_address);
                 assertEquals("MTK" + i, asset.symbol);
             }
         });
@@ -66,7 +68,7 @@ public class BalanceTests {
         describe("manage assets", () -> {
             BigInteger initialBalance = BigInteger.valueOf(100000);
 
-            int assetId = 3;
+            int assetId = 2;
             int tokenIndex = 2;
 
             it("should be able to send bob funds over ERC20", () -> {
@@ -74,9 +76,9 @@ public class BalanceTests {
                         tokens.get(tokenIndex), StaticNetwork.Web3(),
                         ERC20.balanceOf(bob.credentials().getAddress())
                 ).balance;
-                assertEquals(0, balance);
+                assertEquals(BigInteger.ZERO, balance);
 
-                EtherTransactions tokenBoy = Accounts.getTx(assetId);
+                EtherTransactions tokenBoy = Accounts.getTx(assetId + 1);
                 TransactionReceipt tx = tokenBoy.call(tokens.get(tokenIndex), ERC20.transfer(bob.credentials().getAddress(), initialBalance));
 
                 assertEquals("0x1", tx.getStatus());
@@ -94,7 +96,7 @@ public class BalanceTests {
                         DCN.get_balance(bob.credentials().getAddress(), 3)
                 ).return_balance;
 
-                assertEquals(0, balance);
+                assertEquals(BigInteger.ZERO, balance);
             });
 
             it("should fail to deposit asset without allowance", () -> {
@@ -108,7 +110,6 @@ public class BalanceTests {
                         tokens.get(tokenIndex),
                         ERC20.approve(StaticNetwork.DCN(), deposit.multiply(BigInteger.valueOf(2)))
                 );
-
                 assertEquals("0x1", tx.getStatus());
 
                 tx = bob.call(StaticNetwork.DCN(), DCN.deposit_asset(assetId, deposit));
@@ -119,7 +120,7 @@ public class BalanceTests {
                         DCN.get_balance(bob.credentials().getAddress(), assetId)
                 ).return_balance;
 
-                assertEquals(11234, balance);
+                assertEquals(BigInteger.valueOf(11234), balance);
 
                 BigInteger ercBalance = ERC20.query_balanceOf(
                         tokens.get(tokenIndex), StaticNetwork.Web3(),
@@ -138,7 +139,7 @@ public class BalanceTests {
                         DCN.get_balance(bob.credentials().getAddress(), assetId)
                 ).return_balance;
 
-                assertEquals(11234, balance);
+                assertEquals(BigInteger.valueOf(11234), balance);
 
                 BigInteger ercBalance = ERC20.query_balanceOf(
                         tokens.get(tokenIndex), StaticNetwork.Web3(),
@@ -157,7 +158,7 @@ public class BalanceTests {
                         DCN.get_balance(bob.credentials().getAddress(), assetId)
                 ).return_balance;
 
-                assertEquals(11334, balance);
+                assertEquals(BigInteger.valueOf(11334), balance);
 
                 BigInteger ercBalance = ERC20.query_balanceOf(
                         tokens.get(tokenIndex), StaticNetwork.Web3(),
@@ -179,7 +180,7 @@ public class BalanceTests {
                         DCN.get_balance(bob.credentials().getAddress(), assetId)
                 ).return_balance;
 
-                assertEquals(11000, balance);
+                assertEquals(BigInteger.valueOf(11000), balance);
 
                 BigInteger ercBalance = ERC20.query_balanceOf(
                         tokens.get(tokenIndex), StaticNetwork.Web3(),
@@ -201,7 +202,7 @@ public class BalanceTests {
                         DCN.get_balance(bob.credentials().getAddress(), assetId)
                 ).return_balance;
 
-                assertEquals(11000, balance);
+                assertEquals(BigInteger.valueOf(11000), balance);
 
                 BigInteger ercBalance = ERC20.query_balanceOf(
                         tokens.get(tokenIndex), StaticNetwork.Web3(),
@@ -223,7 +224,7 @@ public class BalanceTests {
                         DCN.get_balance(bob.credentials().getAddress(), assetId)
                 ).return_balance;
 
-                assertEquals(0, balance);
+                assertEquals(BigInteger.ZERO, balance);
 
                 BigInteger ercBalance = ERC20.query_balanceOf(
                         tokens.get(tokenIndex), StaticNetwork.Web3(),

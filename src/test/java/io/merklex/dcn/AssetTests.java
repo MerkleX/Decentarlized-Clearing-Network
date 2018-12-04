@@ -8,11 +8,9 @@ import io.merklex.web3.EtherTransactions;
 import org.junit.runner.RunWith;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
-import java.math.BigInteger;
-
 import static com.greghaskins.spectrum.dsl.specification.Specification.describe;
 import static com.greghaskins.spectrum.dsl.specification.Specification.it;
-import static io.merklex.dcn.utils.BetterAssert.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 @RunWith(Spectrum.class)
 public class AssetTests {
@@ -28,26 +26,17 @@ public class AssetTests {
                 assertEquals(0, count);
             });
 
-            it("ether should exist at asset_id=0", () -> {
-                DCN.GetAssetReturnValue asset = DCN.query_get_asset(
-                        StaticNetwork.DCN(), StaticNetwork.Web3(),
-                        DCN.get_asset(0)
-                );
-
-                assertEquals("ETH ", asset.symbol);
-                assertEquals(10000000000L, asset.unit_scale);
-                assertEquals("0x0000000000000000000000000000000000000000", asset.contract_address);
-            });
-
             it("non allocated assets should be empty", () -> {
-                DCN.GetAssetReturnValue asset = DCN.query_get_asset(
-                        StaticNetwork.DCN(), StaticNetwork.Web3(),
-                        DCN.get_asset(123)
-                );
+                for (int i = 0; i < 10; i++) {
+                    DCN.GetAssetReturnValue asset = DCN.query_get_asset(
+                            StaticNetwork.DCN(), StaticNetwork.Web3(),
+                            DCN.get_asset(i)
+                    );
 
-                assertEquals("", asset.symbol.trim());
-                assertEquals(0L, asset.unit_scale);
-                assertEquals("0x0000000000000000000000000000000000000000", asset.contract_address);
+                    assertEquals("", asset.symbol.trim());
+                    assertEquals(0L, asset.unit_scale);
+                    assertEquals("0x0000000000000000000000000000000000000000", asset.contract_address);
+                }
             });
         });
 
@@ -79,21 +68,12 @@ public class AssetTests {
 
                 DCN.GetAssetReturnValue asset = DCN.query_get_asset(
                         StaticNetwork.DCN(), StaticNetwork.Web3(),
-                        DCN.get_asset(1)
+                        DCN.get_asset(0)
                 );
 
                 assertEquals("1234", asset.symbol.trim());
                 assertEquals(1000L, asset.unit_scale);
                 assertEquals(bob.credentials().getAddress(), asset.contract_address);
-
-                asset = DCN.query_get_asset(
-                        StaticNetwork.DCN(), StaticNetwork.Web3(),
-                        DCN.get_asset(0)
-                );
-
-                assertEquals("ETH ", asset.symbol);
-                assertEquals(10000000000L, asset.unit_scale);
-                assertEquals("0x0000000000000000000000000000000000000000", asset.contract_address);
             });
 
             it("should not be able to create asset with 0 unit scale", () -> {
@@ -120,7 +100,7 @@ public class AssetTests {
 
                 DCN.GetAssetReturnValue asset = DCN.query_get_asset(
                         StaticNetwork.DCN(), StaticNetwork.Web3(),
-                        DCN.get_asset(1)
+                        DCN.get_asset(0)
                 );
 
                 assertEquals("1234", asset.symbol.trim());
@@ -129,21 +109,12 @@ public class AssetTests {
 
                 asset = DCN.query_get_asset(
                         StaticNetwork.DCN(), StaticNetwork.Web3(),
-                        DCN.get_asset(2)
+                        DCN.get_asset(1)
                 );
 
                 assertEquals("ABCD", asset.symbol.trim());
                 assertEquals(1001L, asset.unit_scale);
                 assertEquals(creator.credentials().getAddress(), asset.contract_address);
-
-                asset = DCN.query_get_asset(
-                        StaticNetwork.DCN(), StaticNetwork.Web3(),
-                        DCN.get_asset(0)
-                );
-
-                assertEquals("ETH ", asset.symbol);
-                assertEquals(10000000000L, asset.unit_scale);
-                assertEquals("0x0000000000000000000000000000000000000000", asset.contract_address);
             });
         });
     }

@@ -322,6 +322,10 @@ contract DCN {
         REVERT(4)
       }
 
+      if iszero(contract_address) {
+        REVERT(5)
+      }
+
       let asset_symbol := mload(add(symbol, 32 /* offset as first word is size */))
 
       /* Note, symbol is already shifted not setting it in build */
@@ -562,7 +566,7 @@ contract DCN {
 
       let state_version := attr(QuoteAssetState, 1, sload(add(quote_state_ptr, 1)), version)
 
-      sstore(quote_state_ptr, build(
+      sstore(add(quote_state_ptr, 1), build(
         QuoteAssetState, 1,
         /* version overflow will wrap which is desired */
         add(state_version, 1),

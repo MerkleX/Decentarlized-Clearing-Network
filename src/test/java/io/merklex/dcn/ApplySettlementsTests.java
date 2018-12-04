@@ -66,40 +66,40 @@ public class ApplySettlementsTests {
             user3.call(StaticNetwork.DCN(), DCN.deposit_asset_to_session(1, 1, 10000000000000L));
         });
 
-        it("check initial state", () -> {
-            Assert.assertEquals(
-                    123000000,
-                    helper.query(DCN::query_get_session_balance, DCN.get_session_balance(user1.getAddress(), 1, 0)).asset_balance
-            );
-            Assert.assertEquals(
-                    123000000,
-                    helper.query(DCN::query_get_session_balance, DCN.get_session_balance(user2.getAddress(), 1, 0)).asset_balance
-            );
-            Assert.assertEquals(
-                    123000000,
-                    helper.query(DCN::query_get_session_balance, DCN.get_session_balance(user3.getAddress(), 1, 0)).asset_balance
-            );
-
-            Assert.assertEquals(
-                    10000000000000L,
-                    helper.query(DCN::query_get_session_balance, DCN.get_session_balance(user1.getAddress(), 1, 1)).asset_balance
-            );
-            Assert.assertEquals(
-                    10000000000000L,
-                    helper.query(DCN::query_get_session_balance, DCN.get_session_balance(user2.getAddress(), 1, 1)).asset_balance
-            );
-            Assert.assertEquals(
-                    10000000000000L,
-                    helper.query(DCN::query_get_session_balance, DCN.get_session_balance(user3.getAddress(), 1, 1)).asset_balance
-            );
-        });
-
-        it("apply simple settlement", () -> {
-            UnsafeBuffer buffer = new UnsafeBuffer(ByteBuffer.allocateDirect(1000));
-            Settlements settlements = new Settlements().wrap(buffer, 0);
-
-            Settlements.Group group = settlements.firstGruop(new Settlements.Group());
-            group.assetId(1);
-        });
+//        it("check initial state", () -> {
+//            Assert.assertEquals(
+//                    123000000,
+//                    helper.query(DCN::query_get_session_balance, DCN.get_session_balance(user1.getAddress(), 1, 0)).asset_balance
+//            );
+//            Assert.assertEquals(
+//                    123000000,
+//                    helper.query(DCN::query_get_session_balance, DCN.get_session_balance(user2.getAddress(), 1, 0)).asset_balance
+//            );
+//            Assert.assertEquals(
+//                    123000000,
+//                    helper.query(DCN::query_get_session_balance, DCN.get_session_balance(user3.getAddress(), 1, 0)).asset_balance
+//            );
+//
+//            Assert.assertEquals(
+//                    10000000000000L,
+//                    helper.query(DCN::query_get_session_balance, DCN.get_session_balance(user1.getAddress(), 1, 1)).asset_balance
+//            );
+//            Assert.assertEquals(
+//                    10000000000000L,
+//                    helper.query(DCN::query_get_session_balance, DCN.get_session_balance(user2.getAddress(), 1, 1)).asset_balance
+//            );
+//            Assert.assertEquals(
+//                    10000000000000L,
+//                    helper.query(DCN::query_get_session_balance, DCN.get_session_balance(user3.getAddress(), 1, 1)).asset_balance
+//            );
+//        });
+//
+//        it("apply simple settlement", () -> {
+//            UnsafeBuffer buffer = new UnsafeBuffer(ByteBuffer.allocateDirect(1000));
+//            Settlements settlements = new Settlements().wrap(buffer, 0);
+//
+//            Settlements.Group group = settlements.firstGruop(new Settlements.Group());
+//            group.assetId(1);
+//        });
     }
 }
