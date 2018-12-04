@@ -1,4 +1,4 @@
-image: registry.mxhq.org/containers/dcn-test:36625bca34384b7f4b2618773241e45c859a7d6e
+image: registry.mxhq.org/containers/dcn-test:master
 
 before_script:
 - export GRADLE_USER_HOME=`pwd`/.gradle
