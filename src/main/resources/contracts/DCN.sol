@@ -419,7 +419,7 @@ contract DCN {
       /* Validate asset_id */
       {
         let asset_count := sload(asset_count_slot)
-        if or(iszero(asset_id), iszero(lt(asset_id, asset_count))) {
+        if iszero(lt(asset_id, asset_count)) {
           REVERT(1)
         }
       }
@@ -673,25 +673,17 @@ contract DCN {
     uint256[4] memory log_data_mem;
 
     assembly {
-      /*
-       * Note, doesn't check exchange_id because safe to deposit into a non existent exchange.
-       * You cannot update expire time if the exchnage is not created so you can always withdraw from
-       * the session.
-       *
-       * Note, asset_id is not checked because if it doesn't exist source of funds will be 0
-       */
-      let user_ptr := pointer(User, users_slot, caller)
-      let asset_ptr := pointer(u256, user_ptr, asset_id)
-      let asset_balance := sload(asset_ptr)
-
-
       /* Update asset_balance variable */
       {
+        let user_ptr := pointer(User, users_slot, caller)
+        let asset_ptr := pointer(u256, user_ptr, asset_id)
+        let asset_balance := sload(asset_ptr)
+
         /* Convert quantity to amount using unit_scale */
         let asset_data := sload(pointer(Asset, assets_slot, asset_id))
         let unit_scale := attr(Asset, 0, asset_data, unit_scale)
 
-        /* Note mul cannot overflow as both numbers are 64 bit and result is 256 bits */
+        /* Note, mul cannot overflow as both numbers are 64 bit and result is 256 bits */
         let amount := mul(quantity, unit_scale)
 
         /* Ensure user has enough asset_balance for deposit */
@@ -700,26 +692,29 @@ contract DCN {
         }
 
         asset_balance := sub(asset_balance, amount)
+        sstore(asset_ptr, asset_balance)
       }
 
       /* Update session asset_balance */
       let session_ptr := SESSION_PTR(caller, exchange_id)
-      let asset_state_ptr := pointer(AssetState, 0, session_ptr, asset_id)
+      let asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
       let asset_state_data := sload(asset_state_ptr)
 
-      let total_deposit := and(add(attr(AssetState, 0, asset_state_data, total_deposit), quantity), 0xFFFFFFFFFFFFFFFF)
-      let position_balance := add(attr(AssetState, 0, asset_state_data, asset_balance), quantity)
+      let total_deposit := add(attr(AssetState, 0, asset_state_data, total_deposit), quantity)
+      let asset_balance := add(attr(AssetState, 0, asset_state_data, asset_balance), quantity)
 
-      /* ensure position_balance doesn't overflow */
-      if gt(position_balance, 0xFFFFFFFFFFFFFFFF) {
+      /* allow overflow in total_deposit */
+      total_deposit := and(total_deposit, U64_MASK)
+
+      /* ensure asset_balance doesn't overflow */
+      if gt(asset_balance, U64_MASK) {
         REVERT(2)
       }
 
       /* Update balances */
-      sstore(asset_ptr, asset_balance)
       sstore(asset_state_ptr, or(
         and(asset_state_data, mask_out(AssetState, 0, total_deposit, asset_balance)),
-        build(AssetState, 0, 0, 0, total_deposit, position_balance)
+        build(AssetState, 0, 0, 0, total_deposit, asset_balance)
       ))
 
       log_event(PositionUpdated, log_data_mem, caller, exchange_id, asset_id)
@@ -737,7 +732,7 @@ contract DCN {
       let session_ptr := SESSION_PTR(caller, exchange_id)
 
       {
-        let quote_state_ptr := pointer(AssetState, 0, session_ptr, asset_id)
+        let quote_state_ptr := pointer(AssetState, session_ptr, asset_id)
         let unlock_at := attr(QuoteAssetState, 1, sload(add(quote_state_ptr, 1)), unlock_at)
 
         /* revert if locked */
@@ -748,7 +743,7 @@ contract DCN {
 
       /* subtract from session */
       {
-        let asset_state_ptr := pointer(AssetState, 0, session_ptr, asset_id)
+        let asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
         let asset_state_data := sload(asset_state_ptr)
 
         /* trying to withdraw too much */
