@@ -69,7 +69,7 @@ public class StaticNetwork {
 
         Runtime.getRuntime().addShutdownHook(new Thread(network::close));
 
-        EtherTransactions etherTransactions = new EtherTransactions(network.web3(), Accounts.get(0));
+        EtherTransactions etherTransactions = Accounts.getTx(0);
 
         try {
             dcnAddress = etherTransactions.deployContract(BigInteger.ZERO, GAS_LIMIT, DCN.DeployData(), BigInteger.ZERO);

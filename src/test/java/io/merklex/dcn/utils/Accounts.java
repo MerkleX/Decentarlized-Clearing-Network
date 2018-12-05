@@ -21,10 +21,6 @@ public class Accounts {
         }
     }
 
-    public static Credentials get(int index) {
-        return keys.get(index);
-    }
-
     public static EtherTransactions getTx(int index) {
         return new EtherTransactions(StaticNetwork.Web3(), keys.get(index))
                 .withGas(BigInteger.ZERO, StaticNetwork.GAS_LIMIT);
