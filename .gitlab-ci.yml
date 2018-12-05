@@ -1,4 +1,4 @@
-image: merklex/ether-test-base
+image: registry.mxhq.org/containers/dcn-test:master
 
 before_script:
 - export GRADLE_USER_HOME=`pwd`/.gradle

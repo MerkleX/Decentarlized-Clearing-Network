@@ -29,7 +29,7 @@ public class TransferToSessionTests {
         Box<String> tokenAddress = new Box<>();
 
         beforeAll(() -> {
-            user.call(StaticNetwork.DCN(), DCN.deposit_eth(), BigInteger.valueOf(15).multiply(BigInteger.TEN.pow(18)));
+//            user.call(StaticNetwork.DCN(), DCN.deposit_eth(), BigInteger.valueOf(15).multiply(BigInteger.TEN.pow(18)));
 
             tokenAddress.value = tokenOwner.deployContract(
                     BigInteger.ZERO,

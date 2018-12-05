@@ -51,7 +51,6 @@ public class GenerateContractCode {
         File abiFile = abiFiles[0];
         String className = abiFile.getName().substring(0, abiFile.getName().lastIndexOf('.'));
 
-
         String generated = "package " + packageName + ";\n\n" +
                 new JavaContractGenerator(abiFile, binFiles[0]).generate(className);
 
