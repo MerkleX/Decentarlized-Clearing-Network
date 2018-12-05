@@ -4,24 +4,19 @@ import com.greghaskins.spectrum.Spectrum;
 import io.merklex.dcn.contracts.DCN;
 import io.merklex.dcn.contracts.ERC20;
 import io.merklex.dcn.utils.Accounts;
-import io.merklex.dcn.utils.Box;
-import io.merklex.dcn.utils.RevertCodeExtractor;
 import io.merklex.dcn.utils.StaticNetwork;
 import io.merklex.web3.EtherTransactions;
 import org.junit.runner.RunWith;
-import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
 
-import static com.greghaskins.spectrum.dsl.specification.Specification.beforeAll;
-import static com.greghaskins.spectrum.dsl.specification.Specification.describe;
-import static com.greghaskins.spectrum.dsl.specification.Specification.it;
+import static com.greghaskins.spectrum.dsl.specification.Specification.*;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(Spectrum.class)
-public class BalanceTests {
+public class DepositWithdrawTests {
     {
         StaticNetwork.DescribeCheckpoint();
 
@@ -48,7 +43,6 @@ public class BalanceTests {
             }
         });
 
-
         it("Inserted assets should be as expected", () -> {
             for (int i = 0; i < 5; i++) {
                 DCN.GetAssetReturnValue asset = DCN.query_get_asset(
@@ -61,7 +55,6 @@ public class BalanceTests {
                 assertEquals("MTK" + i, asset.symbol);
             }
         });
-
 
         EtherTransactions bob = Accounts.getTx(12);
 

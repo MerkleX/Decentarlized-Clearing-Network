@@ -363,6 +363,10 @@ contract DCN {
           revert(add(revert_reason, 31), 1)
         }
       }
+      if iszero(quantity) {
+        mstore(revert_reason, 2)
+        revert(add(revert_reason, 31), 1)
+      }
       let asset_data := sload(add(assets_slot, asset_id))
       let amount := mul(quantity, and(div(asset_data, 0x10000000000000000000000000000000000000000), 0xffffffffffffffff))
       let asset_address := and(asset_data, 0xffffffffffffffffffffffffffffffffffffffff)
@@ -373,12 +377,12 @@ contract DCN {
       {
         let success := call(gas, asset_address, 0, transfer_in_mem, 100, transfer_out_mem, 32)
         if iszero(success) {
-          mstore(revert_reason, 2)
+          mstore(revert_reason, 3)
           revert(add(revert_reason, 31), 1)
         }
         let result := mload(transfer_out_mem)
         if iszero(result) {
-          mstore(revert_reason, 3)
+          mstore(revert_reason, 4)
           revert(add(revert_reason, 31), 1)
         }
       }
@@ -388,7 +392,7 @@ contract DCN {
       let total_deposit := and(add(and(div(asset_state_data, 0x10000000000000000), 0xffffffffffffffff), quantity), 0xFFFFFFFFFFFFFFFF)
       let asset_balance := add(and(asset_state_data, 0xffffffffffffffff), quantity)
       if gt(asset_balance, 0xFFFFFFFFFFFFFFFF) {
-        mstore(revert_reason, 4)
+        mstore(revert_reason, 5)
         revert(add(revert_reason, 31), 1)
       }
       sstore(asset_state_ptr, or(and(asset_state_data, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000), or(

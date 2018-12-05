@@ -579,7 +579,10 @@ contract DCN {
   }
 
   /*
-   * Test, TODO
+   * Tests
+   * 
+   * DepositAssetToSessionTests
+   * - should error with invalid assset id
    */
   function deposit_asset_to_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
     uint256[1] memory revert_reason;
@@ -596,14 +599,18 @@ contract DCN {
         }
       }
 
+      if iszero(quantity) {
+        REVERT(2)
+      }
+
       let asset_data := sload(pointer(Asset, assets_slot, asset_id))
       let amount := mul(quantity, attr(Asset, 0, asset_data, unit_scale))
       let asset_address := attr(Asset, 0, asset_data, contract_address)
 
-       mstore(transfer_in_mem, fn_hash("transferFrom(address,address,uint256)"))
-       mstore(add(transfer_in_mem, 4), caller)
-       mstore(add(transfer_in_mem, 36), address)
-       mstore(add(transfer_in_mem, 68), amount)
+      mstore(transfer_in_mem, fn_hash("transferFrom(address,address,uint256)"))
+      mstore(add(transfer_in_mem, 4), caller)
+      mstore(add(transfer_in_mem, 36), address)
+      mstore(add(transfer_in_mem, 68), amount)
 
       /* call external contract */
       {
@@ -619,11 +626,12 @@ contract DCN {
 
         /* verify call was successful */
         if iszero(success) {
-          REVERT(2)
+          REVERT(3)
         }
+
         let result := mload(transfer_out_mem)
         if iszero(result) {
-          REVERT(3)
+          REVERT(4)
         }
       }
 
@@ -639,7 +647,7 @@ contract DCN {
       /* note, allow total_deposit to overflow */
       /* check for asset_balance overflow */
       if gt(asset_balance, U64_MASK) {
-        REVERT(4)
+        REVERT(5)
       }
 
       sstore(
