@@ -39,7 +39,7 @@ contract DCN {
     uint64 total_deposit;
     uint64 asset_balance;
     uint64 version;
-    uint192 expire_time;
+    uint192 unlock_at;
     uint256 padding;
   }
   struct UserExchangeSession {
@@ -121,7 +121,7 @@ contract DCN {
   }
   
   function get_session(address user, uint32 exchange_id) public view 
-  returns (uint64 version, uint64 expire_time, uint64 fee_limit, uint64 fee_used) {
+  returns (uint64 version, uint64 unlock_at, uint64 fee_limit, uint64 fee_used) {
     uint256[4] memory return_value_mem;
     assembly {
       let exchange_ptr := add(exchanges_slot, mul(2, exchange_id))
@@ -319,11 +319,11 @@ contract DCN {
     }
   }
   
-  function update_session(uint32 exchange_id, uint64 expire_time) public  {
+  function update_session(uint32 exchange_id, uint64 unlock_at) public  {
     uint256[1] memory revert_reason;
     uint256[3] memory log_data_mem;
     assembly {
-      if or(lt(expire_time, add(timestamp, 43200)), gt(expire_time, add(timestamp, 2592000))) {
+      if or(lt(unlock_at, add(timestamp, 43200)), gt(unlock_at, add(timestamp, 2592000))) {
         mstore(revert_reason, 1)
         revert(add(revert_reason, 31), 1)
       }
@@ -341,7 +341,7 @@ contract DCN {
       let state_version := and(div(sload(add(quote_state_ptr, 1)), 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
       sstore(add(quote_state_ptr, 1), or(
         /* version */ mul(add(state_version, 1), 0x1000000000000000000000000000000000000000000000000), 
-        /* expire_time */ expire_time))
+        /* unlock_at */ unlock_at))
       
       /* Log event: SessionUpdated */
       mstore(log_data_mem, caller)
@@ -437,6 +437,56 @@ contract DCN {
       sstore(asset_state_ptr, or(and(asset_state_data, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000), or(
         /* total_deposit */ mul(total_deposit, 0x10000000000000000), 
         /* asset_balance */ position_balance)))
+      
+      /* Log event: PositionUpdated */
+      mstore(log_data_mem, caller)
+      mstore(add(log_data_mem, 32), exchange_id)
+      mstore(add(log_data_mem, 64), asset_id)
+      log1(log_data_mem, 96, /* PositionUpdated */ 0x80e69f6146713abffddddec8ef3901e1cd3fd9e079375d62e04e2719f1adf500)
+    }
+  }
+  
+  function transfer_from_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) public  {
+    uint256[1] memory revert_reason;
+    uint256[4] memory log_data_mem;
+    assembly {
+      let exchange_data := sload(add(exchanges_slot, mul(2, exchange_id)))
+      let quote_asset := and(div(exchange_data, 0x10000000000000000000000000000000000000000), 0xffffffff)
+      let session_ptr := add(add(sessions_slot, mul(55340232221128654848, caller)), mul(12884901888, exchange_id))
+      {
+        let quote_state_ptr := add(0, mul(3, session_ptr))
+        let unlock_at := and(sload(add(quote_state_ptr, 1)), 0xffffffffffffffffffffffffffffffffffffffffffffffff)
+        if lt(timestamp, unlock_at) {
+          mstore(revert_reason, 1)
+          revert(add(revert_reason, 31), 1)
+        }
+      }
+      {
+        let asset_state_ptr := add(0, mul(3, session_ptr))
+        let asset_state_data := sload(asset_state_ptr)
+        let asset_balance := and(asset_state_data, 0xffffffffffffffff)
+        if gt(quantity, asset_balance) {
+          mstore(revert_reason, 2)
+          revert(add(revert_reason, 31), 1)
+        }
+        asset_balance := sub(asset_balance, quantity)
+        sstore(asset_state_ptr, or(and(asset_state_data, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000), 
+          /* asset_balance */ asset_balance))
+      }
+      {
+        let user_ptr := add(users_slot, mul(4294967296, caller))
+        let asset_ptr := add(user_ptr, asset_id)
+        let asset_balance := sload(asset_ptr)
+        let asset_data := sload(add(assets_slot, asset_id))
+        let unit_scale := and(div(asset_data, 0x10000000000000000000000000000000000000000), 0xffffffffffffffff)
+        let amount := mul(quantity, unit_scale)
+        asset_balance := add(asset_balance, amount)
+        if lt(asset_balance, amount) {
+          mstore(revert_reason, 3)
+          revert(add(revert_reason, 31), 1)
+        }
+        sstore(asset_ptr, asset_balance)
+      }
       
       /* Log event: PositionUpdated */
       mstore(log_data_mem, caller)
@@ -685,8 +735,8 @@ contract DCN {
           let base_state_ptr := add(session_ptr, mul(3, base_asset_id))
           {
             let state_data_1 := sload(add(quote_state_ptr, 1))
-            let expire_time := and(state_data_1, 0xffffffffffffffffffffffffffffffffffffffffffffffff)
-            if gt(expire_time, timestamp) {
+            let unlock_at := and(state_data_1, 0xffffffffffffffffffffffffffffffffffffffffffffffff)
+            if gt(unlock_at, timestamp) {
               mstore(352, 5)
               revert(add(352, 31), 1)
             }
