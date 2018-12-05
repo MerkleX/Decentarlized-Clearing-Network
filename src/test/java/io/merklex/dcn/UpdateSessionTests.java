@@ -44,20 +44,20 @@ public class UpdateSessionTests {
                     DCN.get_session(user.credentials().getAddress(), 0)
             );
 
-            Assert.assertEquals(0, getSessionReturnValue.expire_time);
+            Assert.assertEquals(0, getSessionReturnValue.unlock_at);
             Assert.assertEquals(0, getSessionReturnValue.fee_limit);
             Assert.assertEquals(0, getSessionReturnValue.fee_used);
             Assert.assertEquals(0, getSessionReturnValue.version);
         });
 
-        it("should fail to update with expire time = now", () -> {
+        it("should fail to update with unlock_at = now", () -> {
             EthSendTransaction tx = user.sendCall(StaticNetwork.DCN(),
                     DCN.update_session(0, System.currentTimeMillis() / 1000));
             Assert.assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
             Assert.assertEquals("0x0", user.waitForResult(tx).getStatus());
         });
 
-        it("should fail to update with expire time = now + 31 days", () -> {
+        it("should fail to update with unlock_at = now + 31 days", () -> {
             long now = System.currentTimeMillis() / 1000;
             long days31 = 31 * 24 * 3600;
             EthSendTransaction tx = user.sendCall(StaticNetwork.DCN(),
@@ -115,7 +115,7 @@ public class UpdateSessionTests {
                     DCN.get_session(user.credentials().getAddress(), 0)
             );
 
-            Assert.assertEquals(now + days10, getSessionReturnValue.expire_time);
+            Assert.assertEquals(now + days10, getSessionReturnValue.unlock_at);
             Assert.assertEquals(0, getSessionReturnValue.fee_limit);
             Assert.assertEquals(0, getSessionReturnValue.fee_used);
             Assert.assertEquals(1, getSessionReturnValue.version);

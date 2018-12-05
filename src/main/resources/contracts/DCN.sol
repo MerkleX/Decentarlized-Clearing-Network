@@ -80,7 +80,7 @@ contract DCN {
     uint64 asset_balance;
 
     uint64 version;
-    uint192 expire_time;
+    uint192 unlock_at;
 
     uint256 padding;
   }
@@ -196,7 +196,7 @@ contract DCN {
   }
 
   function get_session(address user, uint32 exchange_id) public view
-  returns (uint64 version, uint64 expire_time, uint64 fee_limit, uint64 fee_used) {
+  returns (uint64 version, uint64 unlock_at, uint64 fee_limit, uint64 fee_used) {
     uint256[4] memory return_value_mem;
 
     assembly {
@@ -210,7 +210,7 @@ contract DCN {
       let state_data_1 := sload(add(session_ptr, 1))
 
       mstore(return_value_mem, attr(QuoteAssetState, 1, state_data_1, version))
-      mstore(add(return_value_mem, WORD_1), attr(QuoteAssetState, 1, state_data_1, expire_time))
+      mstore(add(return_value_mem, WORD_1), attr(QuoteAssetState, 1, state_data_1, unlock_at))
       mstore(add(return_value_mem, WORD_2), attr(QuoteAssetState, 0, state_data_0, fee_limit))
       mstore(add(return_value_mem, WORD_3), attr(QuoteAssetState, 0, state_data_0, fee_used))
 
@@ -419,7 +419,7 @@ contract DCN {
       /* Validate asset_id */
       {
         let asset_count := sload(asset_count_slot)
-        if or(iszero(asset_id), iszero(lt(asset_id, asset_count))) {
+        if iszero(lt(asset_id, asset_count)) {
           REVERT(1)
         }
       }
@@ -540,13 +540,13 @@ contract DCN {
   #define MIN_EXPIRE_TIME 43200
   #define MAX_EXPIRE_TIME 2592000
 
-  function update_session(uint32 exchange_id, uint64 expire_time) public {
+  function update_session(uint32 exchange_id, uint64 unlock_at) public {
     uint256[1] memory revert_reason;
     uint256[3] memory log_data_mem;
 
     assembly {
-      /* ensure: expire_time >= timestamp + 12 hours && expire_time <= timestamp + 30 days */
-      if or(lt(expire_time, add(timestamp, MIN_EXPIRE_TIME)), gt(expire_time, add(timestamp, MAX_EXPIRE_TIME))) {
+      /* ensure: unlock_at >= timestamp + 12 hours && unlock_at <= timestamp + 30 days */
+      if or(lt(unlock_at, add(timestamp, MIN_EXPIRE_TIME)), gt(unlock_at, add(timestamp, MAX_EXPIRE_TIME))) {
         REVERT(1)
       }
 
@@ -571,7 +571,7 @@ contract DCN {
         /* version overflow will wrap which is desired */
         add(state_version, 1),
         /* timestamp should never overflow u192 */
-        expire_time
+        unlock_at
       ))
 
       log_event(SessionUpdated, log_data_mem, caller, exchange_id)
@@ -673,25 +673,17 @@ contract DCN {
     uint256[4] memory log_data_mem;
 
     assembly {
-      /*
-       * Note, doesn't check exchange_id because safe to deposit into a non existent exchange.
-       * You cannot update expire time if the exchnage is not created so you can always withdraw from
-       * the session.
-       *
-       * Note, asset_id is not checked because if it doesn't exist source of funds will be 0
-       */
-      let user_ptr := pointer(User, users_slot, caller)
-      let asset_ptr := pointer(u256, user_ptr, asset_id)
-      let asset_balance := sload(asset_ptr)
-
-
       /* Update asset_balance variable */
       {
+        let user_ptr := pointer(User, users_slot, caller)
+        let asset_ptr := pointer(u256, user_ptr, asset_id)
+        let asset_balance := sload(asset_ptr)
+
         /* Convert quantity to amount using unit_scale */
         let asset_data := sload(pointer(Asset, assets_slot, asset_id))
         let unit_scale := attr(Asset, 0, asset_data, unit_scale)
 
-        /* Note mul cannot overflow as both numbers are 64 bit and result is 256 bits */
+        /* Note, mul cannot overflow as both numbers are 64 bit and result is 256 bits */
         let amount := mul(quantity, unit_scale)
 
         /* Ensure user has enough asset_balance for deposit */
@@ -700,27 +692,96 @@ contract DCN {
         }
 
         asset_balance := sub(asset_balance, amount)
+        sstore(asset_ptr, asset_balance)
       }
 
       /* Update session asset_balance */
       let session_ptr := SESSION_PTR(caller, exchange_id)
-      let asset_state_ptr := pointer(AssetState, 0, session_ptr, asset_id)
+      let asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
       let asset_state_data := sload(asset_state_ptr)
 
-      let total_deposit := and(add(attr(AssetState, 0, asset_state_data, total_deposit), quantity), 0xFFFFFFFFFFFFFFFF)
-      let position_balance := add(attr(AssetState, 0, asset_state_data, asset_balance), quantity)
+      let total_deposit := add(attr(AssetState, 0, asset_state_data, total_deposit), quantity)
+      let asset_balance := add(attr(AssetState, 0, asset_state_data, asset_balance), quantity)
 
-      /* ensure position_balance doesn't overflow */
-      if gt(position_balance, 0xFFFFFFFFFFFFFFFF) {
+      /* allow overflow in total_deposit */
+      total_deposit := and(total_deposit, U64_MASK)
+
+      /* ensure asset_balance doesn't overflow */
+      if gt(asset_balance, U64_MASK) {
         REVERT(2)
       }
 
       /* Update balances */
-      sstore(asset_ptr, asset_balance)
       sstore(asset_state_ptr, or(
         and(asset_state_data, mask_out(AssetState, 0, total_deposit, asset_balance)),
-        build(AssetState, 0, 0, 0, total_deposit, position_balance)
+        build(AssetState, 0, 0, 0, total_deposit, asset_balance)
       ))
+
+      log_event(PositionUpdated, log_data_mem, caller, exchange_id, asset_id)
+    }
+  }
+
+  function transfer_from_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
+    uint256[1] memory revert_reason;
+    uint256[4] memory log_data_mem;
+
+    assembly {
+      let exchange_data := sload(pointer(Exchange, exchanges_slot, exchange_id))
+      let quote_asset := attr(Exchange, 0, exchange_data, quote_asset_id)
+
+      let session_ptr := SESSION_PTR(caller, exchange_id)
+
+      {
+        let quote_state_ptr := pointer(AssetState, session_ptr, asset_id)
+        let unlock_at := attr(QuoteAssetState, 1, sload(add(quote_state_ptr, 1)), unlock_at)
+
+        /* revert if locked */
+        if lt(timestamp, unlock_at) {
+          REVERT(1)
+        }
+      }
+
+      /* subtract from session */
+      {
+        let asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
+        let asset_state_data := sload(asset_state_ptr)
+
+        /* trying to withdraw too much */
+        let asset_balance := attr(AssetState, 0, asset_state_data, asset_balance)
+        if gt(quantity, asset_balance) {
+          REVERT(2)
+        }
+
+        asset_balance := sub(asset_balance, quantity)
+
+        sstore(asset_state_ptr, or(
+          and(asset_state_data, mask_out(AssetState, 0, asset_balance)),
+          build(AssetState, 0, 0, 0, 0, asset_balance)
+        ))
+      }
+
+      /* add to user balance */
+      {
+        let user_ptr := pointer(User, users_slot, caller)
+        let asset_ptr := pointer(u256, user_ptr, asset_id)
+        let asset_balance := sload(asset_ptr)
+
+        /* Convert quantity to amount using unit_scale */
+        let asset_data := sload(pointer(Asset, assets_slot, asset_id))
+        let unit_scale := attr(Asset, 0, asset_data, unit_scale)
+
+        /* Note mul cannot overflow as both numbers are 64 bit and result is 256 bits */
+        let amount := mul(quantity, unit_scale)
+
+        asset_balance := add(asset_balance, amount)
+
+        /* protect again overflow */
+        if lt(asset_balance, amount) {
+          REVERT(3)
+        }
+
+        sstore(asset_ptr, asset_balance)
+      }
 
       log_event(PositionUpdated, log_data_mem, caller, exchange_id, asset_id)
     }
@@ -1115,9 +1176,9 @@ contract DCN {
           /* ensure we're within expire time */
           {
             let state_data_1 := sload(add(quote_state_ptr, 1))
-            let expire_time := attr(QuoteAssetState, 1, state_data_1, expire_time)
+            let unlock_at := attr(QuoteAssetState, 1, state_data_1, unlock_at)
 
-            if gt(expire_time, timestamp) {
+            if gt(unlock_at, timestamp) {
               SMART_REVERT(5)
             }
           }

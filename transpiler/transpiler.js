@@ -71,6 +71,7 @@ module.exports = function(raw) {
     }
 
     function print(node, tab) {
+      const raw_input = source.substr(node.range[0], node.range[1] - node.range[0] + 1);
       tab = tab || '';
 
       if (node.type === 'SourceUnit') {
@@ -144,14 +145,14 @@ module.exports = function(raw) {
           parameters: params,
         };
 
-        return source.substr(node.range[0], node.range[1] - node.range[0] + 1);
+        return raw_input;
       }
 
       if (node.type === 'StateVariableDeclaration'
         || node.type === 'ReturnStatement'
         || node.type === 'VariableDeclarationStatement'
         || node.type === 'StructDefinition') {
-        return source.substr(node.range[0], node.range[1] - node.range[0] + 1);
+        return raw_input;
       }
 
       if (node.type === 'FunctionDefinition') {
@@ -193,9 +194,13 @@ module.exports = function(raw) {
         }
 
         if (node.functionName === 'pointer') {
-          const [ struct_type, offset, index ] = node.arguments.map(print);
+          const [ struct_type, offset, index, ...other ] = node.arguments.map(print);
           const bytes = typeSize(struct_type);
           const words = bytes / 32n;
+
+          if (other.length > 0) {
+            throw new Error('Too many arguments: ' + raw_input);
+          }
 
           if (bytes % 32n !== 0n) {
             throw new Error('Type must be word mulitple');
