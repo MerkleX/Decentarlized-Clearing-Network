@@ -756,6 +756,8 @@ contract DCN {
             }
             let fee_used := and(div(state_data_0, 0x100000000000000000000000000000000), 0xffffffffffffffff)
             fee_used := add(fee_used, fees)
+            let exchange_fees_mem := sub(msize, 128)
+            mstore(exchange_fees_mem, add(mload(exchange_fees_mem), fees))
             let fee_limit := and(div(state_data_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
             if gt(fee_used, fee_limit) {
               mstore(sub(msize, 32), 6)
@@ -839,6 +841,10 @@ contract DCN {
           revert(add(sub(msize, 32), 31), 1)
         }
       }
+      let exchange_fees := mload(sub(msize, 128))
+      let exchange_id := mload(sub(msize, 96))
+      let exchange_ptr := add(exchanges_slot, mul(2, exchange_id))
+      sstore(add(exchange_ptr, 1), exchange_fees)
     }
   }
 }

@@ -46,6 +46,7 @@ public class ApplySettlementsTests {
         Box<String> quoteToken = new Box<>();
 
         BigInteger qty = new BigInteger("10000000");
+        long initBalance = 10_000L;
 
         beforeAll(() -> {
             quoteToken.value = buyer.deployContract(BigInteger.ZERO, StaticNetwork.GAS_LIMIT, ERC20.DeployData(
@@ -69,8 +70,8 @@ public class ApplySettlementsTests {
             success(buyer.sendCall(quoteToken.value, ERC20.approve(StaticNetwork.DCN(), qty)));
             success(seller.sendCall(baseToken.value, ERC20.approve(StaticNetwork.DCN(), qty)));
 
-            success(buyer.sendCall(StaticNetwork.DCN(), DCN.deposit_asset_to_session(0, 0, 10_000L)));
-            success(seller.sendCall(StaticNetwork.DCN(), DCN.deposit_asset_to_session(0, 1, 10_000L)));
+            success(buyer.sendCall(StaticNetwork.DCN(), DCN.deposit_asset_to_session(0, 0, initBalance)));
+            success(seller.sendCall(StaticNetwork.DCN(), DCN.deposit_asset_to_session(0, 1, initBalance)));
         });
 
         byte[] data = new byte[1000];
@@ -287,11 +288,41 @@ public class ApplySettlementsTests {
             }
         });
 
-//        QueryHelper query = new QueryHelper(StaticNetwork.DCN(), StaticNetwork.Web3());
+        QueryHelper query = new QueryHelper(StaticNetwork.DCN(), StaticNetwork.Web3());
 
         it("should settle", () -> {
             String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
             success(creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload)));
+
+            DCN.GetSessionBalanceReturnValue balance;
+
+            /* buyer balances */
+            group.settlement(entry, 0);
+            balance = query.query(DCN::query_get_session_balance,
+                    DCN.get_session_balance(buyer.getAddress(), 0, 0));
+            assertEquals(initBalance + entry.quoteDelta() - entry.fees(), balance.asset_balance);
+
+            balance = query.query(DCN::query_get_session_balance,
+                    DCN.get_session_balance(buyer.getAddress(), 0, 1));
+            assertEquals(entry.baseDelta(), balance.asset_balance);
+
+            /* seller balances */
+            group.settlement(entry, 1);
+            balance = query.query(DCN::query_get_session_balance,
+                    DCN.get_session_balance(seller.getAddress(), 0, 0));
+            assertEquals(entry.quoteDelta(), balance.asset_balance);
+
+            balance = query.query(DCN::query_get_session_balance,
+                    DCN.get_session_balance(seller.getAddress(), 0, 1));
+            assertEquals(initBalance + entry.baseDelta(), balance.asset_balance);
+
+            /* exchange received fees */
+            DCN.GetExchangeReturnValue exchange = query.query(DCN::query_get_exchange, DCN.get_exchange(0));
+            assertEquals(group.settlement(entry, 0).fees(), exchange.fee_balance);
+
+            /* buyer fees used */
+            DCN.GetSessionReturnValue session = query.query(DCN::query_get_session, DCN.get_session(buyer.getAddress(), 0));
+            assertEquals(group.settlement(entry, 0).fees(), session.fee_used);
         });
     }
 }

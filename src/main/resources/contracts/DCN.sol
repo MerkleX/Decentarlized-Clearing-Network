@@ -1170,6 +1170,9 @@ contract DCN {
             let fee_used := attr(QuoteAssetState, 0, state_data_0, fee_used)
             fee_used := add(fee_used, fees)
 
+            let exchange_fees_mem := EXCHANGE_FEES_MEM
+            mstore(exchange_fees_mem, add(mload(exchange_fees_mem), fees))
+
             let fee_limit := attr(QuoteAssetState, 0, state_data_0, fee_limit)
 
             /* ensure don't over spend fee */
@@ -1272,6 +1275,12 @@ contract DCN {
           SMART_REVERT(15)
         }
       }
+
+      let exchange_fees := mload(EXCHANGE_FEES_MEM)
+
+      let exchange_id := mload(EXCHANGE_ID_MEM)
+      let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
+      sstore(add(exchange_ptr, 1), exchange_fees)
     }
   }
 }
