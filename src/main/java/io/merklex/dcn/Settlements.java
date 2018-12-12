@@ -1,89 +1,122 @@
 package io.merklex.dcn;
 
+import io.merklex.dcn.models.Settlement;
+import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.web3j.utils.Numeric;
 
-import java.util.Set;
-
-public class Settlements {
-    private UnsafeBuffer buffer;
-    private int offset;
-
-    public Settlements wrap(UnsafeBuffer buffer, int offset) {
-        this.buffer = buffer;
-        this.offset = offset;
-        return this;
+public class Settlements extends Settlement.GroupsHeader {
+    @Override
+    public Settlements wrap(MutableDirectBuffer buffer, int offset) {
+        return (Settlements) super.wrap(buffer, offset);
     }
 
-    public int exchangeId() {
-        return buffer.getInt(offset);
+    @Override
+    public Settlements exchangeId(int value) {
+        return (Settlements) super.exchangeId(value);
     }
 
-    public Group firstGruop(Group group) {
-        group.buffer = buffer;
-        group.offset = offset + 4;
-        return group;
+    @Override
+    public Settlements clearToZeros() {
+        return (Settlements) super.clearToZeros();
     }
 
-    public static class Group {
-        public static int BYTES = 5;
+    public Group firstGroup(Group group) {
+        return group.wrap(
+                this.messageMemoryBuffer(),
+                this.messageMemoryOffset() + BYTES
+        );
+    }
 
-        private UnsafeBuffer buffer;
-        private int offset;
-
-        public int assetId() {
-            return buffer.getInt(offset);
+    public static class Group extends Settlement.GroupHeader {
+        @Override
+        public Group clearToZeros() {
+            return (Group) super.clearToZeros();
         }
 
-        public int userCount() {
-            return Byte.toUnsignedInt(buffer.getByte(offset + 4));
+        @Override
+        public Group wrap(MutableDirectBuffer buffer, int offset) {
+            return (Group) super.wrap(buffer, offset);
         }
 
-        public Group assetId(int value) {
-            buffer.putInt(offset, value);
-            return this;
+        @Override
+        public Group baseAssetId(int value) {
+            return (Group) super.baseAssetId(value);
         }
 
-        public Group userCount(byte count) {
-            buffer.putByte(offset + 4, count);
-            return this;
+        @Override
+        public Group userCount(byte value) {
+            return (Group) super.userCount(value);
         }
 
-        public Group nextGroup(Group group) {
-            group.buffer = buffer;
-            group.offset = offset + Group.BYTES + Settlement.BYTES * userCount();
-            return group;
+        public Group userCount(int value) {
+            if ((value & 0xFF) != value) {
+                throw new IllegalArgumentException();
+            }
+
+            return (Group) super.userCount((byte) value);
         }
 
-        public Settlement settlement(Settlement settlement, int index) {
-            settlement.buffer = buffer;
-            settlement.offset = Group.BYTES + Settlement.BYTES * index;
-            return settlement;
+        public SettlementData settlement(SettlementData settlement, int index) {
+            return settlement.wrap(
+                    this.messageMemoryBuffer(),
+                    this.messageMemoryOffset() + Group.BYTES + SettlementData.BYTES * index
+            );
+        }
+
+        public int size() {
+            return Group.BYTES + SettlementData.BYTES * userCount();
         }
     }
 
-    public static class Settlement {
-        public static final int BYTES = 44;
-
-        private UnsafeBuffer buffer;
-        private int offset;
-
-        public String userAddress() {
-            byte[] addrBytes = new byte[20];
-            buffer.getBytes(offset, addrBytes);
-            return Numeric.toHexString(addrBytes);
+    public static class SettlementData extends Settlement.SettlementData {
+        @Override
+        public SettlementData clearToZeros() {
+            return (SettlementData) super.clearToZeros();
         }
 
-        public long etherDelta() {
-            return buffer.getLong(offset + 20);
+        @Override
+        public SettlementData wrap(MutableDirectBuffer buffer, int offset) {
+            return (SettlementData) super.wrap(buffer, offset);
         }
 
-        public long assetDelta() {
-            return buffer.getLong(offset + 28);
+        @Override
+        public SettlementData userAddress(int pos, byte value) {
+            return (SettlementData) super.userAddress(pos, value);
         }
 
-        public long fees() {
-            return buffer.getLong(offset + 36);
+        @Override
+        public SettlementData getUserAddress(byte[] value, int pos) {
+            return (SettlementData) super.getUserAddress(value, pos);
+        }
+
+        @Override
+        public SettlementData setUserAddress(byte[] value, int pos) {
+            return (SettlementData) super.setUserAddress(value, pos);
+        }
+
+        @Override
+        public SettlementData setUserAddress(byte[] value) {
+            return (SettlementData) super.setUserAddress(value);
+        }
+        
+        public SettlementData setUserAddress(String value) {
+            return (SettlementData) super.setUserAddress(Numeric.hexStringToByteArray(value));
+        }
+
+        @Override
+        public SettlementData quoteDelta(long value) {
+            return (SettlementData) super.quoteDelta(value);
+        }
+
+        @Override
+        public SettlementData baseDelta(long value) {
+            return (SettlementData) super.baseDelta(value);
+        }
+
+        @Override
+        public SettlementData fees(long value) {
+            return (SettlementData) super.fees(value);
         }
     }
 }

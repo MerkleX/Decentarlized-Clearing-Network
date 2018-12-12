@@ -2,7 +2,11 @@ package io.merklex.dcn;
 
 import io.merklex.dcn.models.UpdateLimitMessage;
 import org.agrona.MutableDirectBuffer;
+import org.web3j.crypto.Sign;
 import org.web3j.utils.Numeric;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class UpdateLimit extends UpdateLimitMessage.UpdateLimit {
     @Override
@@ -27,6 +31,23 @@ public class UpdateLimit extends UpdateLimitMessage.UpdateLimit {
 
         super.setSigR(signature, 0);
         super.setSigS(signature, 32);
+        super.sigV(v);
+
+        return this;
+    }
+
+    public UpdateLimit signature(Sign.SignatureData sig) {
+        byte v = sig.getV();
+        if (v < 27) {
+            v += 27;
+        }
+
+        if (v != 27 && v != 28) {
+            throw new IllegalArgumentException("Wrong version number must be 0, 1, 27, or 28");
+        }
+
+        super.setSigR(sig.getR());
+        super.setSigS(sig.getS());
         super.sigV(v);
 
         return this;
@@ -58,13 +79,13 @@ public class UpdateLimit extends UpdateLimitMessage.UpdateLimit {
     }
 
     @Override
-    public UpdateLimit minEtherQty(long value) {
-        return (UpdateLimit) super.minEtherQty(value);
+    public UpdateLimit minQuoteQty(long value) {
+        return (UpdateLimit) super.minQuoteQty(value);
     }
 
     @Override
-    public UpdateLimit minAssetQty(long value) {
-        return (UpdateLimit) super.minAssetQty(value);
+    public UpdateLimit minBaseQty(long value) {
+        return (UpdateLimit) super.minBaseQty(value);
     }
 
     @Override
@@ -76,4 +97,41 @@ public class UpdateLimit extends UpdateLimitMessage.UpdateLimit {
     public UpdateLimit assetShift(long value) {
         return (UpdateLimit) super.assetShift(value);
     }
+
+    private static final byte[] TYPE_HASH = KeccakHash.Hash(("UpdateLimit(" +
+            "uint32 exchange_id," +
+            "uint32 asset_id," +
+            "uint64 version," +
+            "uint64 max_long_price," +
+            "uint64 min_short_price," +
+            "int64 min_ether_qty," +
+            "int64 min_asset_qty," +
+            "int64 ether_shift," +
+            "int64 asset_shift" +
+            ")").getBytes()
+    );
+
+    public byte[] hash() {
+        byte[] bytes = new byte[9 * 32];
+
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        buffer.order(ByteOrder.BIG_ENDIAN);
+
+        SolidityBuffers.putUInt32(buffer, exchangeId());
+        SolidityBuffers.putUInt32(buffer, assetId());
+        SolidityBuffers.putUInt64(buffer, version());
+        SolidityBuffers.putUInt64(buffer, maxLongPrice());
+        SolidityBuffers.putUInt64(buffer, minShortPrice());
+        SolidityBuffers.putInt64(buffer, minQuoteQty());
+        SolidityBuffers.putInt64(buffer, minBaseQty());
+        SolidityBuffers.putInt64(buffer, etherShift());
+        SolidityBuffers.putInt64(buffer, assetShift());
+        buffer.flip();
+
+        return KeccakHash.Hash(
+                TYPE_HASH,
+                bytes
+        );
+    }
+
 }

@@ -1,6 +1,6 @@
 package io.merklex.dcn.models;
 import org.agrona.MutableDirectBuffer;
-import java.util.HashMap;
+
 import java.nio.ByteOrder;
 
 @javax.annotation.Generated(value="merklex-code-gen")
@@ -125,17 +125,17 @@ public class UpdateLimitMessage {
             this.buffer.putLong(this.offset + MIN_SHORT_PRICE_OFFSET, value, ByteOrder.BIG_ENDIAN);
             return this;
         }
-        public long minEtherQty() {
+        public long minQuoteQty() {
             return this.buffer.getLong(this.offset + MIN_ETHER_QTY_OFFSET, ByteOrder.BIG_ENDIAN);
         }
-        public UpdateLimit minEtherQty(long value) {
+        public UpdateLimit minQuoteQty(long value) {
             this.buffer.putLong(this.offset + MIN_ETHER_QTY_OFFSET, value, ByteOrder.BIG_ENDIAN);
             return this;
         }
-        public long minAssetQty() {
+        public long minBaseQty() {
             return this.buffer.getLong(this.offset + MIN_ASSET_QTY_OFFSET, ByteOrder.BIG_ENDIAN);
         }
-        public UpdateLimit minAssetQty(long value) {
+        public UpdateLimit minBaseQty(long value) {
             this.buffer.putLong(this.offset + MIN_ASSET_QTY_OFFSET, value, ByteOrder.BIG_ENDIAN);
             return this;
         }
@@ -233,9 +233,9 @@ public class UpdateLimitMessage {
             sb.append(", min_short_price: ");
             sb.append(Long.toUnsignedString(minShortPrice()));
             sb.append(", min_ether_qty: ");
-            sb.append(minEtherQty());
+            sb.append(minQuoteQty());
             sb.append(", min_asset_qty: ");
-            sb.append(minAssetQty());
+            sb.append(minBaseQty());
             sb.append(", ether_shift: ");
             sb.append(etherShift());
             sb.append(", asset_shift: ");

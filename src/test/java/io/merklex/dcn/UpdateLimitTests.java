@@ -50,8 +50,8 @@ public class UpdateLimitTests {
 //            update.assetId(2);
 //            update.maxLongPrice(10000000);
 //            update.minShortPrice(0);
-//            update.minEtherQty(-1000000);
-//            update.minAssetQty(0);
+//            update.minQuoteQty(-1000000);
+//            update.minBaseQty(0);
 //            update.etherShift(0);
 //            update.assetShift(0);
 //

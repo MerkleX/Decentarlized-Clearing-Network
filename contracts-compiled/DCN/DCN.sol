@@ -319,7 +319,7 @@ contract DCN {
     }
   }
   
-  function update_session(uint32 exchange_id, uint64 unlock_at) public  {
+  function update_session(uint32 exchange_id, uint64 unlock_at, uint64 fee_limit) public  {
     uint256[1] memory revert_reason;
     uint256[3] memory log_data_mem;
     assembly {
@@ -338,9 +338,17 @@ contract DCN {
       let quote_asset_id := and(div(sload(exchange_ptr), 0x10000000000000000000000000000000000000000), 0xffffffff)
       let session_ptr := add(add(sessions_slot, mul(55340232221128654848, caller)), mul(12884901888, exchange_id))
       let quote_state_ptr := add(session_ptr, mul(3, quote_asset_id))
-      let state_version := and(div(sload(add(quote_state_ptr, 1)), 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
+      let quote_state := sload(quote_state_ptr)
+      let current_fee_limit := and(div(quote_state, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
+      if lt(fee_limit, current_fee_limit) {
+        mstore(revert_reason, 3)
+        revert(add(revert_reason, 31), 1)
+      }
+      if gt(fee_limit, current_fee_limit) { sstore(quote_state_ptr, or(and(quote_state, 0xffffffffffffffffffffffffffffffffffffffffffffffff), 
+  /* fee_limit */ mul(fee_limit, 0x1000000000000000000000000000000000000000000000000))) }
+      let version := and(div(sload(add(quote_state_ptr, 1)), 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
       sstore(add(quote_state_ptr, 1), or(
-        /* version */ mul(add(state_version, 1), 0x1000000000000000000000000000000000000000000000000), 
+        /* version */ mul(add(version, 1), 0x1000000000000000000000000000000000000000000000000), 
         /* unlock_at */ unlock_at))
       
       /* Log event: SessionUpdated */
@@ -531,7 +539,7 @@ contract DCN {
       let update_data := mload(cursor)
       cursor := add(cursor, 20)
       user_addr := and(div(update_data, 0x1000000000000000000000000), 0xffffffffffffffffffffffffffffffffffffffff)
-      mstore(hash_buffer_mem, 0x74be7520fc933d8061b6cf113d28a772f7a40539ab5e0e8276dd066dd71a7d69)
+      mstore(hash_buffer_mem, 0x54f117d451d3a82d44e7d7965ecb9427e0092827103aac90b3ffffcc9ed91895)
       update_data := mload(cursor)
       cursor := add(cursor, 32)
       let asset_state_ptr := 0
@@ -546,22 +554,16 @@ contract DCN {
           mstore(add(hash_buffer_mem, 96), version)
           let session_ptr := add(add(sessions_slot, mul(55340232221128654848, user_addr)), mul(12884901888, exchange_id))
           asset_state_ptr := add(session_ptr, mul(3, asset_id))
-          let exchange_data := sload(add(exchanges_slot, mul(2, exchange_id)))
           {
+            let exchange_data := sload(add(exchanges_slot, mul(2, exchange_id)))
             let exchange_address := and(exchange_data, 0xffffffffffffffffffffffffffffffffffffffff)
             if iszero(eq(caller, exchange_address)) {
               mstore(revert_reason, 2)
               revert(add(revert_reason, 31), 1)
             }
           }
-          let quote_state_1 := 0
-          {
-            let quote_asset_id := and(div(exchange_data, 0x10000000000000000000000000000000000000000), 0xffffffff)
-            let quote_state_ptr := add(session_ptr, mul(3, quote_asset_id))
-            quote_state_1 := sload(add(quote_state_ptr, 1))
-          }
-          let current_version := and(div(quote_state_1, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
-          if iszero(lt(current_version, version)) {
+          let current_version := and(div(sload(add(asset_state_ptr, 2)), 0x100000000000000000000000000000000), 0xffffffffffffffff)
+          if iszero(gt(version, current_version)) {
             mstore(revert_reason, 3)
             revert(add(revert_reason, 31), 1)
           }
@@ -633,7 +635,7 @@ contract DCN {
         let final_ptr := hash_buffer_mem
         mstore(final_ptr, 0x1901000000000000000000000000000000000000000000000000000000000000)
         final_ptr := add(final_ptr, 2)
-        mstore(final_ptr, 0x8bdc799ab1e4f88b464481578308e5bde325b7ed088fe2b99495c7924d58c7f9)
+        mstore(final_ptr, 0x044c7dbaf083d34033441e730195278b6b4e3ea03f9bb3fb208a721e7c15b72c)
         final_ptr := add(final_ptr, 32)
         mstore(final_ptr, hash)
       }
@@ -678,51 +680,52 @@ contract DCN {
   function apply_settlement_groups(bytes memory data) public  {
     uint256[5] memory variables;
     assembly {
-      if iszero(eq(0xC0, variables)) {
-        mstore(352, 0)
-        revert(add(352, 31), 1)
+      let cursor := add(data, 32)
+      let data_len := mload(data)
+      mstore(sub(msize, 160), add(cursor, data_len))
+      if lt(data_len, 4) {
+        mstore(sub(msize, 32), 0)
+        revert(add(sub(msize, 32), 31), 1)
       }
-      let cursor := add(data, 1)
-      mstore(224, add(cursor, mload(data)))
       let tmp_data := mload(cursor)
       cursor := add(cursor, 4)
       {
         let exchange_id := and(div(tmp_data, 0x100000000000000000000000000000000000000000000000000000000), 0xffffffff)
         let exchange_count := sload(exchange_count_slot)
         if iszero(lt(exchange_id, exchange_count)) {
-          mstore(352, 1)
-          revert(add(352, 31), 1)
+          mstore(sub(msize, 32), 1)
+          revert(add(sub(msize, 32), 31), 1)
         }
         let exchange_ptr := add(exchanges_slot, mul(2, exchange_id))
         let exchange_data_0 := sload(exchange_ptr)
         if iszero(eq(caller, and(exchange_data_0, 0xffffffffffffffffffffffffffffffffffffffff))) {
-          mstore(352, 2)
-          revert(add(352, 31), 1)
+          mstore(sub(msize, 32), 2)
+          revert(add(sub(msize, 32), 31), 1)
         }
-        mstore(0xC0, and(div(exchange_data_0, 0x10000000000000000000000000000000000000000), 0xffffffff))
-        mstore(256, sload(add(exchange_ptr, 1)))
-        mstore(288, exchange_id)
+        mstore(sub(msize, 192), and(div(exchange_data_0, 0x10000000000000000000000000000000000000000), 0xffffffff))
+        mstore(sub(msize, 128), sload(add(exchange_ptr, 1)))
+        mstore(sub(msize, 96), exchange_id)
       }
-      for {} iszero(lt(sub(mload(224), cursor), 5)) {} {
+      for {} iszero(lt(sub(mload(sub(msize, 160)), cursor), 5)) {} {
         tmp_data := mload(cursor)
-        cursor := add(cursor, 4)
+        cursor := add(cursor, 5)
         {
           let user_count := and(div(tmp_data, 0x1000000000000000000000000000000000000000000000000000000), 0xff)
           let settlements_size := mul(user_count, 44)
           let group_end := add(cursor, settlements_size)
-          if gt(group_end, mload(224)) {
-            mstore(352, 3)
-            revert(add(352, 31), 1)
+          if gt(group_end, mload(sub(msize, 160))) {
+            mstore(sub(msize, 32), 3)
+            revert(add(sub(msize, 32), 31), 1)
           }
-          mstore(320, group_end)
+          mstore(sub(msize, 64), group_end)
         }
         let base_asset_id := and(div(tmp_data, 0x100000000000000000000000000000000000000000000000000000000), 0xffffffff)
         let quote_net := 0
         let base_net := 0
-        for {} lt(cursor, mload(320)) {} {
+        for {} lt(cursor, mload(sub(msize, 64))) {} {
           tmp_data := mload(cursor)
           cursor := add(cursor, 20)
-          let session_ptr := add(add(sessions_slot, mul(55340232221128654848, and(div(tmp_data, 0x1000000000000000000000000), 0xffffffffffffffffffffffffffffffffffffffff))), mul(12884901888, mload(288)))
+          let session_ptr := add(add(sessions_slot, mul(55340232221128654848, and(div(tmp_data, 0x1000000000000000000000000), 0xffffffffffffffffffffffffffffffffffffffff))), mul(12884901888, mload(sub(msize, 96))))
           tmp_data := mload(cursor)
           cursor := add(cursor, 24)
           let quote_delta := and(div(tmp_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
@@ -732,14 +735,14 @@ contract DCN {
           if and(base_delta, 0x8000000000000000) { base_delta := or(base_delta, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
           quote_net := add(quote_net, quote_delta)
           base_net := add(base_net, base_delta)
-          let quote_state_ptr := add(session_ptr, mul(3, mload(0xC0)))
+          let quote_state_ptr := add(session_ptr, mul(3, mload(sub(msize, 192))))
           let base_state_ptr := add(session_ptr, mul(3, base_asset_id))
           {
             let state_data_1 := sload(add(quote_state_ptr, 1))
             let unlock_at := and(state_data_1, 0xffffffffffffffffffffffffffffffffffffffffffffffff)
-            if gt(unlock_at, timestamp) {
-              mstore(352, 5)
-              revert(add(352, 31), 1)
+            if gt(timestamp, unlock_at) {
+              mstore(sub(msize, 32), 4)
+              revert(add(sub(msize, 32), 31), 1)
             }
           }
           {
@@ -748,15 +751,15 @@ contract DCN {
             asset_balance := add(asset_balance, quote_delta)
             asset_balance := sub(asset_balance, fees)
             if gt(asset_balance, 0xFFFFFFFFFFFFFFFF) {
-              mstore(352, 4)
-              revert(add(352, 31), 1)
+              mstore(sub(msize, 32), 5)
+              revert(add(sub(msize, 32), 31), 1)
             }
             let fee_used := and(div(state_data_0, 0x100000000000000000000000000000000), 0xffffffffffffffff)
             fee_used := add(fee_used, fees)
             let fee_limit := and(div(state_data_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
             if gt(fee_used, fee_limit) {
-              mstore(352, 5)
-              revert(add(352, 31), 1)
+              mstore(sub(msize, 32), 6)
+              revert(add(sub(msize, 32), 31), 1)
             }
             sstore(quote_state_ptr, or(and(state_data_0, 0xffffffffffffffff0000000000000000ffffffffffffffff0000000000000000), or(
               /* fee_used */ mul(fee_used, 0x100000000000000000000000000000000), 
@@ -770,8 +773,8 @@ contract DCN {
             let asset_balance := and(state_data_0, 0xffffffffffffffff)
             asset_balance := add(asset_balance, base_delta)
             if gt(asset_balance, 0xFFFFFFFFFFFFFFFF) {
-              mstore(352, 6)
-              revert(add(352, 31), 1)
+              mstore(sub(msize, 32), 7)
+              revert(add(sub(msize, 32), 31), 1)
             }
             quote_qty := and(div(state_data_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
             base_qty := and(div(state_data_0, 0x100000000000000000000000000000000), 0xffffffffffffffff)
@@ -780,8 +783,8 @@ contract DCN {
             quote_qty := add(quote_qty, quote_delta)
             base_qty := add(base_qty, base_delta)
             if or(or(slt(quote_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000), sgt(quote_qty, 0x7fffffffffffffff)), or(slt(base_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000), sgt(base_qty, 0x7fffffffffffffff))) {
-              mstore(352, 7)
-              revert(add(352, 31), 1)
+              mstore(sub(msize, 32), 8)
+              revert(add(sub(msize, 32), 31), 1)
             }
             sstore(state_ptr, or(and(state_data_0, 0xffffffffffffffff0000000000000000), or(or(
               /* quote_qty */ mul(quote_qty, 0x1000000000000000000000000000000000000000000000000), 
@@ -795,8 +798,8 @@ contract DCN {
             if and(min_quote, 0x8000000000000000) { min_quote := or(min_quote, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
             if and(min_base, 0x8000000000000000) { min_base := or(min_base, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
             if or(slt(quote_qty, min_quote), slt(base_qty, min_base)) {
-              mstore(352, 8)
-              revert(add(352, 31), 1)
+              mstore(sub(msize, 32), 9)
+              revert(add(sub(msize, 32), 31), 1)
             }
           }
           {
@@ -804,34 +807,37 @@ contract DCN {
             let negatives := add(slt(quote_qty, 0), mul(slt(base_qty, 0), 2))
             switch negatives
               case 3 {
-                mstore(352, 9)
-                revert(add(352, 31), 1)
+                mstore(sub(msize, 32), 10)
+                revert(add(sub(msize, 32), 31), 1)
               }
               case 1 {
                 if iszero(base_qty) {
-                  mstore(352, 10)
-                  revert(add(352, 31), 1)
+                  mstore(sub(msize, 32), 11)
+                  revert(add(sub(msize, 32), 31), 1)
                 }
                 let current_price := div(mul(sub(0, quote_qty), 100000000), base_qty)
                 if gt(current_price, and(div(state_data_2, 0x10000000000000000), 0xffffffffffffffff)) {
-                  mstore(352, 11)
-                  revert(add(352, 31), 1)
+                  mstore(sub(msize, 32), 12)
+                  revert(add(sub(msize, 32), 31), 1)
                 }
               }
               case 2 {
                 if iszero(quote_qty) {
-                  mstore(352, 12)
-                  revert(add(352, 31), 1)
+                  mstore(sub(msize, 32), 13)
+                  revert(add(sub(msize, 32), 31), 1)
                 }
                 let current_price := div(mul(quote_qty, 100000000), sub(0, base_qty))
                 if lt(current_price, and(state_data_2, 0xffffffffffffffff)) {
-                  mstore(352, 13)
-                  revert(add(352, 31), 1)
+                  mstore(sub(msize, 32), 14)
+                  revert(add(sub(msize, 32), 31), 1)
                 }
               }
           }
         }
-        if or(quote_net, base_net) { revert(0, 0) }
+        if or(quote_net, base_net) {
+          mstore(sub(msize, 32), 15)
+          revert(add(sub(msize, 32), 31), 1)
+        }
       }
     }
   }

@@ -3,6 +3,7 @@ package io.merklex.web3;
 import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.datatypes.Function;
 import org.web3j.crypto.Credentials;
+import org.web3j.crypto.Sign;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.methods.response.EthGetTransactionReceipt;
 import org.web3j.protocol.core.methods.response.EthSendTransaction;
@@ -107,5 +108,9 @@ public class EtherTransactions {
 
     public String getAddress() {
         return credentials.getAddress();
+    }
+
+    public Sign.SignatureData signHash(byte[] hash) {
+        return Sign.signMessage(hash, credentials.getEcKeyPair(), false);
     }
 }

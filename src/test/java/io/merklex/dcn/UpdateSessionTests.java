@@ -52,7 +52,7 @@ public class UpdateSessionTests {
 
         it("should fail to update with unlock_at = now", () -> {
             EthSendTransaction tx = user.sendCall(StaticNetwork.DCN(),
-                    DCN.update_session(0, System.currentTimeMillis() / 1000));
+                    DCN.update_session(0, System.currentTimeMillis() / 1000, 0));
             Assert.assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
             Assert.assertEquals("0x0", user.waitForResult(tx).getStatus());
         });
@@ -61,7 +61,7 @@ public class UpdateSessionTests {
             long now = System.currentTimeMillis() / 1000;
             long days31 = 31 * 24 * 3600;
             EthSendTransaction tx = user.sendCall(StaticNetwork.DCN(),
-                    DCN.update_session(0, now + days31));
+                    DCN.update_session(0, now + days31, 0));
             Assert.assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
             Assert.assertEquals("0x0", user.waitForResult(tx).getStatus());
         });
@@ -70,7 +70,7 @@ public class UpdateSessionTests {
             long now = System.currentTimeMillis() / 1000;
             long days10 = 10 * 24 * 3600;
             EthSendTransaction tx = user.sendCall(StaticNetwork.DCN(),
-                    DCN.update_session(2, now + days10));
+                    DCN.update_session(2, now + days10, 0));
             Assert.assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
             Assert.assertEquals("0x0", user.waitForResult(tx).getStatus());
         });
@@ -85,7 +85,7 @@ public class UpdateSessionTests {
             long now = System.currentTimeMillis() / 1000;
             long days10 = 10 * 24 * 3600;
             TransactionReceipt tx = user.call(StaticNetwork.DCN(),
-                    DCN.update_session(0, now + days10));
+                    DCN.update_session(0, now + days10, 0));
             Assert.assertEquals("0x1", tx.getStatus());
 
             List<Log> logs = tx.getLogs();

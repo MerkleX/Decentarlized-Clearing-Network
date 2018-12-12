@@ -540,7 +540,7 @@ contract DCN {
   #define MIN_EXPIRE_TIME 43200
   #define MAX_EXPIRE_TIME 2592000
 
-  function update_session(uint32 exchange_id, uint64 unlock_at) public {
+  function update_session(uint32 exchange_id, uint64 unlock_at, uint64 fee_limit) public {
     uint256[1] memory revert_reason;
     uint256[3] memory log_data_mem;
 
@@ -564,12 +564,28 @@ contract DCN {
       let session_ptr := SESSION_PTR(caller, exchange_id)
       let quote_state_ptr := pointer(AssetState, session_ptr, quote_asset_id)
 
-      let state_version := attr(QuoteAssetState, 1, sload(add(quote_state_ptr, 1)), version)
+      let quote_state := sload(quote_state_ptr)
+      let current_fee_limit := attr(QuoteAssetState, 0, quote_state, fee_limit)
+
+      /* fee limit cannot decrease */
+      if lt(fee_limit, current_fee_limit) {
+        REVERT(3)
+      }
+
+      /* only update if needed */
+      if gt(fee_limit, current_fee_limit) {
+        sstore(quote_state_ptr, or(
+          and(quote_state, mask_out(QuoteAssetState, 0, fee_limit)),
+          build(QuoteAssetState, 0, fee_limit)
+        ))
+      }
+
+      let version := attr(QuoteAssetState, 1, sload(add(quote_state_ptr, 1)), version)
 
       sstore(add(quote_state_ptr, 1), build(
         QuoteAssetState, 1,
         /* version overflow will wrap which is desired */
-        add(state_version, 1),
+        add(version, 1),
         /* timestamp should never overflow u192 */
         unlock_at
       ))
@@ -813,8 +829,8 @@ contract DCN {
 
   #define UPDATE_LIMIT_BYTES const_add(sizeof(address), sizeof(UpdateLimit), sizeof(Signature))
   #define SIG_HASH_HEADER 0x1901000000000000000000000000000000000000000000000000000000000000
-  #define DCN_HEADER_HASH 0x8bdc799ab1e4f88b464481578308e5bde325b7ed088fe2b99495c7924d58c7f9
-  #define UPDATE_LIMIT_TYPE_HASH 0x74be7520fc933d8061b6cf113d28a772f7a40539ab5e0e8276dd066dd71a7d69
+  #define DCN_HEADER_HASH 0x044c7dbaf083d34033441e730195278b6b4e3ea03f9bb3fb208a721e7c15b72c
+  #define UPDATE_LIMIT_TYPE_HASH 0x54f117d451d3a82d44e7d7965ecb9427e0092827103aac90b3ffffcc9ed91895
 
   #define NEG_64_FLAG 0x8000000000000000
   #define I64_TO_NEG 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000
@@ -823,43 +839,6 @@ contract DCN {
       if and(variable, NEG_64_FLAG) { \
         variable := or(variable, I64_TO_NEG) \
       }
-
-  /*
-
-     Layout
-     [ UPDATE_LIMIT_ADDR, UPDATE_LIMIT_1, UPDATE_LIMIT_2, UPDATE_LIMIT_3, sig_r, sig_s, SIG_V ]
-
-     #define LIMIT_UPDATE_SIZE 149
-     #define UPDATE_LIMIT_ADDR_SIZE 20
-     #define UPDATE_LIMIT_1_SIZE 32
-     #define UPDATE_LIMIT_2_SIZE 32
-
-
-     UPDATE_LIMIT_ADDR_DEF {
-      user_address : 160,
-     }
-
-     UPDATE_LIMIT_1_DEF {
-      exchange_id : 32,
-      asset_id : 32,
-      version : 64,
-      max_long_price : 64,
-      min_short_price : 64,
-     }
-
-     UPDATE_LIMIT_2_DEF {
-      min_quote_qty : 64,
-      min_base_qty : 64,
-      quote_shift   : 64,
-      base_shift   : 64,
-     }
-
-     SIG_V_DEF {
-      sig_v : 8,
-     }
-
-     #define U128_MASK 0xffffffffffffffffffffffffffffffff
-  */
 
   function set_limit(bytes memory data) public {
     uint256[1] memory revert_reason;
@@ -906,25 +885,19 @@ contract DCN {
           let session_ptr := SESSION_PTR(user_addr, exchange_id)
           asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
 
-          let exchange_data := sload(pointer(Exchange, exchanges_slot, exchange_id))
-
           /* exchange address must be caller */
           {
+            let exchange_data := sload(pointer(Exchange, exchanges_slot, exchange_id))
             let exchange_address := attr(Exchange, 0, exchange_data, owner)
             if iszero(eq(caller, exchange_address)) {
               REVERT(2)
             }
           }
 
-          let quote_state_1 := 0
-          {
-            let quote_asset_id := attr(Exchange, 0, exchange_data, quote_asset_id)
-            let quote_state_ptr := pointer(AssetState, session_ptr, quote_asset_id)
-            quote_state_1 := sload(add(quote_state_ptr, 1))
-          }
+          let current_version := attr(AssetState, 2, sload(add(asset_state_ptr, 2)), limit_version)
 
-          let current_version := attr(QuoteAssetState, 1, quote_state_1, version)
-          if iszero(lt(current_version, version)) {
+          /* version must be greater than */
+          if iszero(gt(version, current_version)) {
             REVERT(3)
           }
         }
@@ -1011,10 +984,13 @@ contract DCN {
 
       {
         let final_ptr := hash_buffer_mem
+
         mstore(final_ptr, SIG_HASH_HEADER)
         final_ptr := add(final_ptr, 2)
+
         mstore(final_ptr, DCN_HEADER_HASH)
         final_ptr := add(final_ptr, WORD_1)
+
         mstore(final_ptr, hash)
       }
 
@@ -1066,40 +1042,35 @@ contract DCN {
     uint64 fees;
   }
 
-  /*
-
-    #define GROUPS_HEADER_SIZE 4
-    #define GROUP_HEADER_SIZE 40
-    #define SETTLEMENT_SIZE 352
-
-    #define I64_MIN 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000
-    #define U64_INV_MASK 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000
-    #define I64_MAX 0x7fffffffffffffff
-    #define POSITION_BALANCES_MASK 0xffffffffffffffffffffffffffffffff
-   */
-
   function apply_settlement_groups(bytes memory data) public {
     uint256[5] memory variables;
     
-    #define VARIABLES_START       0xC0 // = 0x80 + 32*2
+    #define VARIABLES_END         msize
+    #define VARIABLES_START       sub(VARIABLES_END, WORD_6)
 
-    #define QUOTE_ASSET_ID_MEM    VARIABLES_START
-    #define DATA_END_MEM          const_add(VARIABLES_START, WORD_1)
-    #define EXCHANGE_FEES_MEM     const_add(VARIABLES_START, WORD_2)
-    #define EXCHANGE_ID_MEM       const_add(VARIABLES_START, WORD_3)
-    #define GROUP_END_MEM         const_add(VARIABLES_START, WORD_4)
+    #define QUOTE_ASSET_ID_MEM    sub(VARIABLES_END, WORD_6)
+    #define DATA_END_MEM          sub(VARIABLES_END, WORD_5)
+    #define EXCHANGE_FEES_MEM     sub(VARIABLES_END, WORD_4)
+    #define EXCHANGE_ID_MEM       sub(VARIABLES_END, WORD_3)
+    #define GROUP_END_MEM         sub(VARIABLES_END, WORD_2)
+    #define REVERT_REASON_MEM     sub(VARIABLES_END, WORD_1)
 
-    #define REVERT_REASON_MEM const_add(VARIABLES_START, WORD_5)
-    #define SMART_REVERT(code) mstore(REVERT_REASON_MEM, code) revert(add(REVERT_REASON_MEM, 31), 1)
+    #define SMART_REVERT(code)    mstore(REVERT_REASON_MEM, code) \
+                                  revert(add(REVERT_REASON_MEM, 31), 1)
+    
+    #define DEBUG(code)           mstore(REVERT_REASON_MEM, code) \
+                                  revert(REVERT_REASON_MEM, 32)
 
     assembly {
-      /* ensure compiler mapped variables to where we expect */
-      if iszero(eq(VARIABLES_START, variables)) {
+      let cursor := add(data, 32)
+      let data_len := mload(data)
+
+      mstore(DATA_END_MEM, add(cursor, data_len))
+
+      /* ensure there is space for a header */
+      if lt(data_len, sizeof(GroupsHeader)) {
         SMART_REVERT(0)
       }
-
-      let cursor := add(data, 1)
-      mstore(DATA_END_MEM, add(cursor, mload(data)))
 
       let tmp_data /* GroupsHeader */ := mload(cursor)
       cursor := add(cursor, sizeof(GroupsHeader))
@@ -1130,7 +1101,7 @@ contract DCN {
       /* keep looping while there is space for a GroupHeader */
       for {} iszero(lt(sub(mload(DATA_END_MEM), cursor), sizeof(GroupHeader))) {} {
         tmp_data /* GroupHeader */ := mload(cursor)
-        cursor := add(cursor, sizeof(GroupsHeader))
+        cursor := add(cursor, sizeof(GroupHeader))
 
         {
           let user_count := attr(GroupHeader, 0, tmp_data /* GroupHeader */, user_count)
@@ -1157,7 +1128,7 @@ contract DCN {
 
           let session_ptr := SESSION_PTR(attr(UserAddress, 0, tmp_data, user_address), mload(EXCHANGE_ID_MEM))
 
-          tmp_data /* Settlement */ := mload(cursor)
+          tmp_data /* SettlementData */ := mload(cursor)
           cursor := add(cursor, sizeof(Settlement))
 
           let quote_delta := attr(Settlement, 0, tmp_data, quote_delta)
@@ -1178,8 +1149,8 @@ contract DCN {
             let state_data_1 := sload(add(quote_state_ptr, 1))
             let unlock_at := attr(QuoteAssetState, 1, state_data_1, unlock_at)
 
-            if gt(unlock_at, timestamp) {
-              SMART_REVERT(5)
+            if gt(timestamp, unlock_at) {
+              SMART_REVERT(4)
             }
           }
 
@@ -1193,7 +1164,7 @@ contract DCN {
 
             /* make sure quote balance is positive and doesn't overflow */
             if gt(asset_balance, U64_MASK) {
-              SMART_REVERT(4)
+              SMART_REVERT(5)
             }
 
             let fee_used := attr(QuoteAssetState, 0, state_data_0, fee_used)
@@ -1204,7 +1175,7 @@ contract DCN {
             /* ensure don't over spend fee */
             /* note, also provides overflow check */
             if gt(fee_used, fee_limit) {
-              SMART_REVERT(5)
+              SMART_REVERT(6)
             }
 
             sstore(quote_state_ptr, or(
@@ -1222,7 +1193,7 @@ contract DCN {
 
             asset_balance := add(asset_balance, base_delta)
             if gt(asset_balance, U64_MASK) {
-              SMART_REVERT(6)
+              SMART_REVERT(7)
             }
 
             quote_qty := attr(AssetState, 0, state_data_0, quote_qty)
@@ -1235,7 +1206,7 @@ contract DCN {
             base_qty := add(base_qty, base_delta)
 
             if or(INVALID_I64(quote_qty), INVALID_I64(base_qty)) {
-              SMART_REVERT(7)
+              SMART_REVERT(8)
             }
 
             sstore(state_ptr, or(
@@ -1255,7 +1226,7 @@ contract DCN {
             CAST_64_NEG(min_base)
 
             if or(slt(quote_qty, min_quote), slt(base_qty, min_base)) {
-              SMART_REVERT(8)
+              SMART_REVERT(9)
             }
           }
 
@@ -1269,28 +1240,28 @@ contract DCN {
             switch negatives
             /* Both negative */
             case 3 {
-              SMART_REVERT(9)
+              SMART_REVERT(10)
             }
             /* long: quote_qty negative */
             case 1 {
               if iszero(base_qty) {
-                SMART_REVERT(10)
+                SMART_REVERT(11)
               }
 
               let current_price := div(mul(sub(0, quote_qty), PRICE_UNITS), base_qty)
               if gt(current_price, attr(AssetState, 2, state_data_2, long_max_price)) {
-                SMART_REVERT(11)
+                SMART_REVERT(12)
               }
             }
             /* short: base_qty negative */
             case 2 {
               if iszero(quote_qty) {
-                SMART_REVERT(12)
+                SMART_REVERT(13)
               }
 
               let current_price := div(mul(quote_qty, PRICE_UNITS), sub(0, base_qty))
               if lt(current_price, attr(AssetState, 2, state_data_2, short_min_price)) {
-                SMART_REVERT(13)
+                SMART_REVERT(14)
               }
             }
           }
@@ -1298,7 +1269,7 @@ contract DCN {
 
         /* ensure net balance is 0 for settlement group */
         if or(quote_net, base_net) {
-          revert(0, 0)
+          SMART_REVERT(15)
         }
       }
     }
