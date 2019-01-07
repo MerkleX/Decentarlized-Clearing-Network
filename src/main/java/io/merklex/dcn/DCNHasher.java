@@ -1,8 +1,5 @@
 package io.merklex.dcn;
 
-import com.sun.org.apache.regexp.internal.RE;
-import org.web3j.utils.Numeric;
-
 import java.nio.ByteBuffer;
 
 public class DCNHasher {

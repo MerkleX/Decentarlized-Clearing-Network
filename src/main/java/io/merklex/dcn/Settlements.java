@@ -2,7 +2,6 @@ package io.merklex.dcn;
 
 import io.merklex.dcn.models.Settlement;
 import org.agrona.MutableDirectBuffer;
-import org.agrona.concurrent.UnsafeBuffer;
 import org.web3j.utils.Numeric;
 
 public class Settlements extends Settlement.GroupsHeader {
