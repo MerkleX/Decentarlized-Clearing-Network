@@ -539,7 +539,7 @@ contract DCN {
       let update_data := mload(cursor)
       cursor := add(cursor, 20)
       user_addr := and(div(update_data, 0x1000000000000000000000000), 0xffffffffffffffffffffffffffffffffffffffff)
-      mstore(hash_buffer_mem, 0x54f117d451d3a82d44e7d7965ecb9427e0092827103aac90b3ffffcc9ed91895)
+      mstore(hash_buffer_mem, 0xe0bfc2789e007df269c9fec46d3ddd4acf88fdf0f76af154da933aab7fb2f2b9)
       update_data := mload(cursor)
       cursor := add(cursor, 32)
       let asset_state_ptr := 0
