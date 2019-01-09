@@ -1,6 +1,6 @@
 package io.merklex.dcn.models;
 import org.agrona.MutableDirectBuffer;
-
+import java.util.HashMap;
 import java.nio.ByteOrder;
 
 @javax.annotation.Generated(value="merklex-code-gen")
@@ -35,14 +35,14 @@ public class UpdateLimitMessage {
         public static final int MAX_LONG_PRICE_LENGTH = 8;
         public static final int MIN_SHORT_PRICE_OFFSET = 44;
         public static final int MIN_SHORT_PRICE_LENGTH = 8;
-        public static final int MIN_ETHER_QTY_OFFSET = 52;
-        public static final int MIN_ETHER_QTY_LENGTH = 8;
-        public static final int MIN_ASSET_QTY_OFFSET = 60;
-        public static final int MIN_ASSET_QTY_LENGTH = 8;
-        public static final int ETHER_SHIFT_OFFSET = 68;
-        public static final int ETHER_SHIFT_LENGTH = 8;
-        public static final int ASSET_SHIFT_OFFSET = 76;
-        public static final int ASSET_SHIFT_LENGTH = 8;
+        public static final int MIN_QUOTE_QTY_OFFSET = 52;
+        public static final int MIN_QUOTE_QTY_LENGTH = 8;
+        public static final int MIN_BASE_QTY_OFFSET = 60;
+        public static final int MIN_BASE_QTY_LENGTH = 8;
+        public static final int QUOTE_SHIFT_OFFSET = 68;
+        public static final int QUOTE_SHIFT_LENGTH = 8;
+        public static final int BASE_SHIFT_OFFSET = 76;
+        public static final int BASE_SHIFT_LENGTH = 8;
         public static final int SIG_R_OFFSET = 84;
         public static final int SIG_R_COUNT = 32;
         public static final int SIG_R_LENGTH = 32;
@@ -126,31 +126,31 @@ public class UpdateLimitMessage {
             return this;
         }
         public long minQuoteQty() {
-            return this.buffer.getLong(this.offset + MIN_ETHER_QTY_OFFSET, ByteOrder.BIG_ENDIAN);
+            return this.buffer.getLong(this.offset + MIN_QUOTE_QTY_OFFSET, ByteOrder.BIG_ENDIAN);
         }
         public UpdateLimit minQuoteQty(long value) {
-            this.buffer.putLong(this.offset + MIN_ETHER_QTY_OFFSET, value, ByteOrder.BIG_ENDIAN);
+            this.buffer.putLong(this.offset + MIN_QUOTE_QTY_OFFSET, value, ByteOrder.BIG_ENDIAN);
             return this;
         }
         public long minBaseQty() {
-            return this.buffer.getLong(this.offset + MIN_ASSET_QTY_OFFSET, ByteOrder.BIG_ENDIAN);
+            return this.buffer.getLong(this.offset + MIN_BASE_QTY_OFFSET, ByteOrder.BIG_ENDIAN);
         }
         public UpdateLimit minBaseQty(long value) {
-            this.buffer.putLong(this.offset + MIN_ASSET_QTY_OFFSET, value, ByteOrder.BIG_ENDIAN);
+            this.buffer.putLong(this.offset + MIN_BASE_QTY_OFFSET, value, ByteOrder.BIG_ENDIAN);
             return this;
         }
-        public long etherShift() {
-            return this.buffer.getLong(this.offset + ETHER_SHIFT_OFFSET, ByteOrder.BIG_ENDIAN);
+        public long quoteShift() {
+            return this.buffer.getLong(this.offset + QUOTE_SHIFT_OFFSET, ByteOrder.BIG_ENDIAN);
         }
-        public UpdateLimit etherShift(long value) {
-            this.buffer.putLong(this.offset + ETHER_SHIFT_OFFSET, value, ByteOrder.BIG_ENDIAN);
+        public UpdateLimit quoteShift(long value) {
+            this.buffer.putLong(this.offset + QUOTE_SHIFT_OFFSET, value, ByteOrder.BIG_ENDIAN);
             return this;
         }
-        public long assetShift() {
-            return this.buffer.getLong(this.offset + ASSET_SHIFT_OFFSET, ByteOrder.BIG_ENDIAN);
+        public long baseShift() {
+            return this.buffer.getLong(this.offset + BASE_SHIFT_OFFSET, ByteOrder.BIG_ENDIAN);
         }
-        public UpdateLimit assetShift(long value) {
-            this.buffer.putLong(this.offset + ASSET_SHIFT_OFFSET, value, ByteOrder.BIG_ENDIAN);
+        public UpdateLimit baseShift(long value) {
+            this.buffer.putLong(this.offset + BASE_SHIFT_OFFSET, value, ByteOrder.BIG_ENDIAN);
             return this;
         }
         public UpdateLimit sigR(int pos, byte value) {
@@ -232,14 +232,14 @@ public class UpdateLimitMessage {
             sb.append(Long.toUnsignedString(maxLongPrice()));
             sb.append(", min_short_price: ");
             sb.append(Long.toUnsignedString(minShortPrice()));
-            sb.append(", min_ether_qty: ");
+            sb.append(", min_quote_qty: ");
             sb.append(minQuoteQty());
-            sb.append(", min_asset_qty: ");
+            sb.append(", min_base_qty: ");
             sb.append(minBaseQty());
-            sb.append(", ether_shift: ");
-            sb.append(etherShift());
-            sb.append(", asset_shift: ");
-            sb.append(assetShift());
+            sb.append(", quote_shift: ");
+            sb.append(quoteShift());
+            sb.append(", base_shift: ");
+            sb.append(baseShift());
             sb.append(", sig_r: ");
             sb.append("[").append(sigR(0)).append(", ").append(sigR(1)).append(", ").append(sigR(2)).append(", ")
                     .append(sigR(3)).append(", ").append(sigR(4)).append(", ").append(sigR(5)).append(", ")

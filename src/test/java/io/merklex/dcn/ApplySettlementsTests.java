@@ -212,8 +212,8 @@ public class ApplySettlementsTests {
                     .minShortPrice(-1)
                     .minQuoteQty(group.settlement(entry, 0).quoteDelta())
                     .minBaseQty(0)
-                    .etherShift(0)
-                    .assetShift(0);
+                    .quoteShift(0)
+                    .baseShift(0);
 
             byte[] hash = DCNHasher.instance.hash(updateLimit.hash());
             updateLimit.signature(buyer.signHash(hash));
@@ -242,8 +242,8 @@ public class ApplySettlementsTests {
                     .minShortPrice(-1)
                     .minQuoteQty(group.settlement(entry, 0).quoteDelta())
                     .minBaseQty(0)
-                    .etherShift(0)
-                    .assetShift(0);
+                    .quoteShift(0)
+                    .baseShift(0);
 
             byte[] hash = DCNHasher.instance.hash(updateLimit.hash());
             updateLimit.signature(buyer.signHash(hash));
@@ -277,8 +277,8 @@ public class ApplySettlementsTests {
                         .minShortPrice(25000000L)
                         .minQuoteQty(0)
                         .minBaseQty(group.settlement(entry, 1).baseDelta())
-                        .etherShift(0)
-                        .assetShift(0);
+                        .quoteShift(0)
+                        .baseShift(0);
 
                 byte[] hash = DCNHasher.instance.hash(updateLimit.hash());
                 updateLimit.signature(seller.signHash(hash));

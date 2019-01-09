@@ -9,8 +9,8 @@ struct UpdateLimit {
     u64 min_short_price;
     i64 min_quote_qty;
     i64 min_base_qty;
-    i64 ether_shift;
-    i64 asset_shift;
+    i64 quote_shift;
+    i64 base_shift;
 
     u8 sig_r[32];
     u8 sig_s[32];

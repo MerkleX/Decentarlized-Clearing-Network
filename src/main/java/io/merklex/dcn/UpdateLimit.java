@@ -89,13 +89,13 @@ public class UpdateLimit extends UpdateLimitMessage.UpdateLimit {
     }
 
     @Override
-    public UpdateLimit etherShift(long value) {
-        return (UpdateLimit) super.etherShift(value);
+    public UpdateLimit quoteShift(long value) {
+        return (UpdateLimit) super.quoteShift(value);
     }
 
     @Override
-    public UpdateLimit assetShift(long value) {
-        return (UpdateLimit) super.assetShift(value);
+    public UpdateLimit baseShift(long value) {
+        return (UpdateLimit) super.baseShift(value);
     }
 
     private static final byte[] TYPE_HASH = KeccakHash.Hash(("UpdateLimit(" +
@@ -124,8 +124,8 @@ public class UpdateLimit extends UpdateLimitMessage.UpdateLimit {
         SolidityBuffers.putUInt64(buffer, minShortPrice());
         SolidityBuffers.putInt64(buffer, minQuoteQty());
         SolidityBuffers.putInt64(buffer, minBaseQty());
-        SolidityBuffers.putInt64(buffer, etherShift());
-        SolidityBuffers.putInt64(buffer, assetShift());
+        SolidityBuffers.putInt64(buffer, quoteShift());
+        SolidityBuffers.putInt64(buffer, baseShift());
         buffer.flip();
 
         return KeccakHash.Hash(

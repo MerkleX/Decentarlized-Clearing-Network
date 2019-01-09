@@ -52,8 +52,8 @@ public class UpdateLimitTests {
 //            update.minShortPrice(0);
 //            update.minQuoteQty(-1000000);
 //            update.minBaseQty(0);
-//            update.etherShift(0);
-//            update.assetShift(0);
+//            update.quoteShift(0);
+//            update.baseShift(0);
 //
 //            String payload = Numeric.toHexString(bytes);
 //            System.out.println(payload);
