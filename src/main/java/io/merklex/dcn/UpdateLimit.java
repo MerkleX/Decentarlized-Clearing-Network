@@ -104,12 +104,16 @@ public class UpdateLimit extends UpdateLimitMessage.UpdateLimit {
             "uint64 version," +
             "uint64 max_long_price," +
             "uint64 min_short_price," +
-            "int64 min_ether_qty," +
-            "int64 min_asset_qty," +
-            "int64 ether_shift," +
-            "int64 asset_shift" +
+            "int64 min_quote_qty," +
+            "int64 min_base_qty," +
+            "int64 quote_shift," +
+            "int64 base_shift" +
             ")").getBytes()
     );
+
+//    public static void main(String[] args) {
+//        System.out.println(Numeric.toHexString(TYPE_HASH));
+//    }
 
     public byte[] hash() {
         byte[] bytes = new byte[9 * 32];
