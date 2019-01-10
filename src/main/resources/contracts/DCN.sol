@@ -885,12 +885,19 @@ contract DCN {
           let session_ptr := SESSION_PTR(user_addr, exchange_id)
           asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
 
-          /* exchange address must be caller */
+          /* exchange address must be caller and asset_id cannot be quote */
           {
             let exchange_data := sload(pointer(Exchange, exchanges_slot, exchange_id))
+
             let exchange_address := attr(Exchange, 0, exchange_data, owner)
             if iszero(eq(caller, exchange_address)) {
               REVERT(2)
+            }
+
+            /* Prevents exchange from corrupting user's limits */
+            let quote_asset_id := attr(Exchange, 0, exchange_data, quote_asset_id)
+            if eq(quote_asset_id, asset_id) {
+              REVERT(6)
             }
           }
 

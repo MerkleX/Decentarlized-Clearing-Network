@@ -561,6 +561,11 @@ contract DCN {
               mstore(revert_reason, 2)
               revert(add(revert_reason, 31), 1)
             }
+            let quote_asset_id := and(div(exchange_data, 0x10000000000000000000000000000000000000000), 0xffffffff)
+            if eq(quote_asset_id, asset_id) {
+              mstore(revert_reason, 6)
+              revert(add(revert_reason, 31), 1)
+            }
           }
           let current_version := and(div(sload(add(asset_state_ptr, 2)), 0x100000000000000000000000000000000), 0xffffffffffffffff)
           if iszero(gt(version, current_version)) {
