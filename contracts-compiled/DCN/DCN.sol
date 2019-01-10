@@ -128,8 +128,8 @@ contract DCN {
       let quote_asset_id := and(div(sload(exchange_ptr), 0x10000000000000000000000000000000000000000), 0xffffffff)
       let session_ptr := add(add(sessions_slot, mul(55340232221128654848, user)), mul(12884901888, exchange_id))
       let quote_state_ptr := add(session_ptr, mul(3, quote_asset_id))
-      let state_data_0 := sload(session_ptr)
-      let state_data_1 := sload(add(session_ptr, 1))
+      let state_data_0 := sload(quote_state_ptr)
+      let state_data_1 := sload(add(quote_state_ptr, 1))
       mstore(return_value_mem, and(div(state_data_1, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
       mstore(add(return_value_mem, 32), and(state_data_1, 0xffffffffffffffffffffffffffffffffffffffffffffffff))
       mstore(add(return_value_mem, 64), and(div(state_data_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
@@ -460,10 +460,10 @@ contract DCN {
     uint256[4] memory log_data_mem;
     assembly {
       let exchange_data := sload(add(exchanges_slot, mul(2, exchange_id)))
-      let quote_asset := and(div(exchange_data, 0x10000000000000000000000000000000000000000), 0xffffffff)
+      let quote_asset_id := and(div(exchange_data, 0x10000000000000000000000000000000000000000), 0xffffffff)
       let session_ptr := add(add(sessions_slot, mul(55340232221128654848, caller)), mul(12884901888, exchange_id))
       {
-        let quote_state_ptr := add(session_ptr, mul(3, asset_id))
+        let quote_state_ptr := add(session_ptr, mul(3, quote_asset_id))
         let unlock_at := and(sload(add(quote_state_ptr, 1)), 0xffffffffffffffffffffffffffffffffffffffffffffffff)
         if lt(timestamp, unlock_at) {
           mstore(revert_reason, 1)

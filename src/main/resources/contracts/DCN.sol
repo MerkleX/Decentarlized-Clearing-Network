@@ -204,10 +204,10 @@ contract DCN {
       let quote_asset_id := attr(Exchange, 0, sload(exchange_ptr), quote_asset_id)
 
       let session_ptr := SESSION_PTR(user, exchange_id)
-      let quote_state_ptr := pointer(QuoteAssetState, session_ptr, quote_asset_id)
+      let quote_state_ptr := pointer(AssetState, session_ptr, quote_asset_id)
 
-      let state_data_0 := sload(session_ptr)
-      let state_data_1 := sload(add(session_ptr, 1))
+      let state_data_0 := sload(quote_state_ptr)
+      let state_data_1 := sload(add(quote_state_ptr, 1))
 
       mstore(return_value_mem, attr(QuoteAssetState, 1, state_data_1, version))
       mstore(add(return_value_mem, WORD_1), attr(QuoteAssetState, 1, state_data_1, unlock_at))
@@ -743,12 +743,12 @@ contract DCN {
 
     assembly {
       let exchange_data := sload(pointer(Exchange, exchanges_slot, exchange_id))
-      let quote_asset := attr(Exchange, 0, exchange_data, quote_asset_id)
+      let quote_asset_id := attr(Exchange, 0, exchange_data, quote_asset_id)
 
       let session_ptr := SESSION_PTR(caller, exchange_id)
 
       {
-        let quote_state_ptr := pointer(AssetState, session_ptr, asset_id)
+        let quote_state_ptr := pointer(AssetState, session_ptr, quote_asset_id)
         let unlock_at := attr(QuoteAssetState, 1, sload(add(quote_state_ptr, 1)), unlock_at)
 
         /* revert if locked */
