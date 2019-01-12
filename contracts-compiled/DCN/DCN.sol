@@ -640,7 +640,7 @@ contract DCN {
         let final_ptr := hash_buffer_mem
         mstore(final_ptr, 0x1901000000000000000000000000000000000000000000000000000000000000)
         final_ptr := add(final_ptr, 2)
-        mstore(final_ptr, 0x044c7dbaf083d34033441e730195278b6b4e3ea03f9bb3fb208a721e7c15b72c)
+        mstore(final_ptr, 0xe3d3073cc59e3a3126c17585a7e516a048e61a9a1c82144af982d1c194b18710)
         final_ptr := add(final_ptr, 32)
         mstore(final_ptr, hash)
       }
