@@ -1245,12 +1245,15 @@ contract DCN {
             let state_data_2 := sload(add(base_state_ptr, 2))
 
             /* Check if price fits limit */
-            let negatives := add(slt(quote_qty, 0), mul(slt(base_qty, 0), 2))
+            let negatives := add(slt(quote_qty, 1), mul(slt(base_qty, 1), 2))
 
             switch negatives
             /* Both negative */
             case 3 {
-              SMART_REVERT(10)
+              /* if both values are 0, we're fine */
+              if not(and(eq(quote_qty, 0), eq(base_qty, 0) {
+                SMART_REVERT(10)
+              }
             }
             /* long: quote_qty negative */
             case 1 {
