@@ -1050,7 +1050,7 @@ contract DCN {
   }
 
   function apply_settlement_groups(bytes memory data) public {
-    uint256[5] memory variables;
+    uint256[6] memory variables;
     
     #define VARIABLES_END         msize
     #define VARIABLES_START       sub(VARIABLES_END, WORD_6)
@@ -1245,12 +1245,15 @@ contract DCN {
             let state_data_2 := sload(add(base_state_ptr, 2))
 
             /* Check if price fits limit */
-            let negatives := add(slt(quote_qty, 0), mul(slt(base_qty, 0), 2))
+            let negatives := add(slt(quote_qty, 1), mul(slt(base_qty, 1), 2))
 
             switch negatives
             /* Both negative */
             case 3 {
-              SMART_REVERT(10)
+              /* if both values are 0, we're fine */
+              if iszero(or(quote_qty, base_qty)) {
+                SMART_REVERT(10)
+              }
             }
             /* long: quote_qty negative */
             case 1 {

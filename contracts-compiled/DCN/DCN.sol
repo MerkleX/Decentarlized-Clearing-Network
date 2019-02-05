@@ -683,7 +683,7 @@ contract DCN {
   }
   
   function apply_settlement_groups(bytes memory data) public  {
-    uint256[5] memory variables;
+    uint256[6] memory variables;
     assembly {
       let cursor := add(data, 32)
       let data_len := mload(data)
@@ -811,12 +811,12 @@ contract DCN {
           }
           {
             let state_data_2 := sload(add(base_state_ptr, 2))
-            let negatives := add(slt(quote_qty, 0), mul(slt(base_qty, 0), 2))
+            let negatives := add(slt(quote_qty, 1), mul(slt(base_qty, 1), 2))
             switch negatives
-              case 3 {
-                mstore(sub(msize, 32), 10)
-                revert(add(sub(msize, 32), 31), 1)
-              }
+              case 3 { if iszero(or(quote_qty, base_qty)) {
+  mstore(sub(msize, 32), 10)
+  revert(add(sub(msize, 32), 31), 1)
+} }
               case 1 {
                 if iszero(base_qty) {
                   mstore(sub(msize, 32), 11)
