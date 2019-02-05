@@ -724,6 +724,122 @@ contract DCN {
     }
   }
 
+  function withdraw_from_session(uint32 exchange_id, uint32 asset_id, address user, uint64 amount) public {
+    uint256[1] memory revert_reason;
+
+    assembly {
+      if iszero(amount) {
+        stop()
+      }
+
+      /* ensure caller is the exchange */
+      let exchange_data := sload(pointer(Exchange, exchanges_slot, exchange_id))
+      if iszero(eq(caller, attr(Exchange, 0, exchange_data, owner))) {
+        REVERT(1)
+      }
+
+      let session_ptr := SESSION_PTR(user, exchange_id)
+      let asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
+      let asset_state_data := sload(asset_state_ptr)
+      let asset_balance := attr(AssetState, 0, asset_state_data, asset_balance)
+
+      /* cannot withdraw more than available */
+      if gt(amount, asset_balance) {
+        REVERT(2)
+      }
+
+      /* withdraw funds from exchange session */
+      asset_balance := sub(asset_balance, amount)
+      sstore(
+        asset_state_ptr,
+        or(
+          and(asset_state_data, mask_out(AssetState, 0, asset_balance)),
+          build(AssetState, 0, 0, 0, 0, asset_balance)
+        )
+      )
+
+      /* apply unit scale */
+      let asset_data := sload(pointer(Asset, assets_slot, asset_id))
+      let unit_scale := attr(Asset, 0, asset_data, unit_scale)
+      let credit := mul(amount, unit_scale)
+
+      /* credit funds to user balance */
+      let user_ptr := pointer(User, users_slot, user)
+      let balance_ptr := pointer(u256, user_ptr, asset_id)
+      let current_balance := sload(balance_ptr)
+      sstore(balance_ptr, add(current_balance, credit))
+    }
+  }
+
+  function withdraw_from_session_to_account(uint32 exchange_id, uint32 asset_id, address user, uint64 amount) public {
+    uint256[1] memory revert_reason;
+    uint256[3] memory transfer_in_mem;
+    uint256[1] memory transfer_out_mem;
+
+    assembly {
+      if iszero(amount) {
+        stop()
+      }
+
+      /* ensure caller is the exchange */
+      let exchange_data := sload(pointer(Exchange, exchanges_slot, exchange_id))
+      if iszero(eq(caller, attr(Exchange, 0, exchange_data, owner))) {
+        REVERT(1)
+      }
+
+      let session_ptr := SESSION_PTR(user, exchange_id)
+      let asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
+      let asset_state_data := sload(asset_state_ptr)
+      let asset_balance := attr(AssetState, 0, asset_state_data, asset_balance)
+
+      /* cannot withdraw more than available */
+      if gt(amount, asset_balance) {
+        REVERT(2)
+      }
+
+      /* withdraw funds from exchange session */
+      asset_balance := sub(asset_balance, amount)
+      sstore(
+        asset_state_ptr,
+        or(
+          and(asset_state_data, mask_out(AssetState, 0, asset_balance)),
+          build(AssetState, 0, 0, 0, 0, asset_balance)
+        )
+      )
+
+      let asset_data := sload(pointer(Asset, assets_slot, asset_id))
+      let unit_scale := attr(Asset, 0, asset_data, unit_scale)
+      let asset_address := attr(Asset, 0, asset_data, contract_address)
+
+      /* apply unit scale */
+      let credit := mul(amount, unit_scale)
+
+      /* send funds via ERC-20 contract */
+      mstore(transfer_in_mem, fn_hash("transfer(address,uint256)"))
+      mstore(add(transfer_in_mem, 4), user)
+      mstore(add(transfer_in_mem, 36), credit)
+
+      let success := call(
+        gas,
+        asset_address,
+        /* don't send any ether */ 0,
+        transfer_in_mem,
+        /* transfer_in_mem size (bytes) */ 68,
+        transfer_out_mem,
+        /* transfer_out_mem size (bytes) */ 32
+      )
+
+      if iszero(success) {
+        REVERT(2)
+      }
+
+      let result := mload(transfer_out_mem)
+      if iszero(result) {
+        REVERT(3)
+      }
+    }
+  }
+
   struct Signature {
     uint256 sig_r;
     uint256 sig_s;

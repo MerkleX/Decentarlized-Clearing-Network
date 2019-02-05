@@ -504,6 +504,78 @@ contract DCN {
       log1(log_data_mem, 96, /* PositionUpdated */ 0x80e69f6146713abffddddec8ef3901e1cd3fd9e079375d62e04e2719f1adf500)
     }
   }
+  
+  function withdraw_from_session(uint32 exchange_id, uint32 asset_id, address user, uint64 amount) public  {
+    uint256[1] memory revert_reason;
+    assembly {
+      if iszero(amount) { stop() }
+      let exchange_data := sload(add(exchanges_slot, mul(2, exchange_id)))
+      if iszero(eq(caller, and(exchange_data, 0xffffffffffffffffffffffffffffffffffffffff))) {
+        mstore(revert_reason, 1)
+        revert(add(revert_reason, 31), 1)
+      }
+      let session_ptr := add(add(sessions_slot, mul(55340232221128654848, user)), mul(12884901888, exchange_id))
+      let asset_state_ptr := add(session_ptr, mul(3, asset_id))
+      let asset_state_data := sload(asset_state_ptr)
+      let asset_balance := and(asset_state_data, 0xffffffffffffffff)
+      if gt(amount, asset_balance) {
+        mstore(revert_reason, 2)
+        revert(add(revert_reason, 31), 1)
+      }
+      asset_balance := sub(asset_balance, amount)
+      sstore(asset_state_ptr, or(and(asset_state_data, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000), 
+        /* asset_balance */ asset_balance))
+      let asset_data := sload(add(assets_slot, asset_id))
+      let unit_scale := and(div(asset_data, 0x10000000000000000000000000000000000000000), 0xffffffffffffffff)
+      let credit := mul(amount, unit_scale)
+      let user_ptr := add(users_slot, mul(4294967296, user))
+      let balance_ptr := add(user_ptr, asset_id)
+      let current_balance := sload(balance_ptr)
+      sstore(balance_ptr, add(current_balance, credit))
+    }
+  }
+  
+  function withdraw_from_session_to_account(uint32 exchange_id, uint32 asset_id, address user, uint64 amount) public  {
+    uint256[1] memory revert_reason;
+    uint256[3] memory transfer_in_mem;
+    uint256[1] memory transfer_out_mem;
+    assembly {
+      if iszero(amount) { stop() }
+      let exchange_data := sload(add(exchanges_slot, mul(2, exchange_id)))
+      if iszero(eq(caller, and(exchange_data, 0xffffffffffffffffffffffffffffffffffffffff))) {
+        mstore(revert_reason, 1)
+        revert(add(revert_reason, 31), 1)
+      }
+      let session_ptr := add(add(sessions_slot, mul(55340232221128654848, user)), mul(12884901888, exchange_id))
+      let asset_state_ptr := add(session_ptr, mul(3, asset_id))
+      let asset_state_data := sload(asset_state_ptr)
+      let asset_balance := and(asset_state_data, 0xffffffffffffffff)
+      if gt(amount, asset_balance) {
+        mstore(revert_reason, 2)
+        revert(add(revert_reason, 31), 1)
+      }
+      asset_balance := sub(asset_balance, amount)
+      sstore(asset_state_ptr, or(and(asset_state_data, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000), 
+        /* asset_balance */ asset_balance))
+      let asset_data := sload(add(assets_slot, asset_id))
+      let unit_scale := and(div(asset_data, 0x10000000000000000000000000000000000000000), 0xffffffffffffffff)
+      let asset_address := and(asset_data, 0xffffffffffffffffffffffffffffffffffffffff)
+      let credit := mul(amount, unit_scale)
+      mstore(transfer_in_mem, /* fn_hash("transfer(address,uint256)") */ 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+      mstore(add(transfer_in_mem, 4), user)
+      mstore(add(transfer_in_mem, 36), credit)
+      let success := call(gas, asset_address, 0, transfer_in_mem, 68, transfer_out_mem, 32)
+      if iszero(success) {
+        mstore(revert_reason, 2)
+        revert(add(revert_reason, 31), 1)
+      }
+      let result := mload(transfer_out_mem)
+      if iszero(result) {
+        mstore(revert_reason, 3)
+        revert(add(revert_reason, 31), 1)
+      }
+    }
+  }
   struct Signature {
     uint256 sig_r;
     uint256 sig_s;
