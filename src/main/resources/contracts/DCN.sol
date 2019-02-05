@@ -1050,7 +1050,7 @@ contract DCN {
   }
 
   function apply_settlement_groups(bytes memory data) public {
-    uint256[5] memory variables;
+    uint256[6] memory variables;
     
     #define VARIABLES_END         msize
     #define VARIABLES_START       sub(VARIABLES_END, WORD_6)
@@ -1251,7 +1251,7 @@ contract DCN {
             /* Both negative */
             case 3 {
               /* if both values are 0, we're fine */
-              if not(and(eq(quote_qty, 0), eq(base_qty, 0) {
+              if iszero(or(quote_qty, base_qty)) {
                 SMART_REVERT(10)
               }
             }
