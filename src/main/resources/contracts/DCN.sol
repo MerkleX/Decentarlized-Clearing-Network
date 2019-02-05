@@ -264,16 +264,6 @@ contract DCN {
     }
   }
 
-  /*
-   * Tests:
-   *
-   * CreatorTests
-   * - non creator should not be able to change creator to self
-   * - non creator should not be able to change creator to other
-   * - creator should be able to change to other
-   * - new creator should be able to change to other
-   */
-
   function set_creator(address new_creator) public {
     assembly {
       let current_creator := sload(creator_slot)
@@ -285,15 +275,6 @@ contract DCN {
     }
   }
 
-  /*
-   * Tests:
-   *
-   * AssetTests
-   * - add assets
-   * -- non creator should not be able to add asset
-   * -- creator should be able to add asset
-   * -- should not be able to create asset with 0 unit scale
-   */
   function add_asset(string memory symbol, uint64 unit_scale, address contract_address) public {
     uint256[1] memory revert_reason;
 
@@ -339,18 +320,6 @@ contract DCN {
   }
 
 
-  /*
-   * Tests:
-   *
-   * ExchangeTests
-   * - add exchange
-   * -- non creator should fail to add exchange
-   * -- creator should be able to create exchange
-   * -- should not be able to create exchange with 10 char name
-   * -- should not be able to create exchange with 15 char name
-   * -- should not be able to add exchange with invalid quote_asset
-   * -- should be able to add exchange with non eth asset
-   */
   function add_exchange(string memory name, uint32 quote_asset_id, address addr) public {
     uint256[1] memory revert_reason;
 
@@ -393,19 +362,6 @@ contract DCN {
     }
   }
 
-  /*
-   * Tests
-   *
-   * BalanceTests
-   * - manage assets
-   * -- should fail to deposit asset without allowance
-   * -- should be able to deposit asset
-   * -- should fail to deposit more than allowance
-   * -- should be able to deposit more
-   *
-   * TODO:
-   * - should fail if asset_id is invalid
-   */
   function deposit_asset(uint32 asset_id, uint256 amount) public {
     uint256[1] memory revert_reason;
     uint256[4] memory transfer_in_mem;
@@ -462,18 +418,6 @@ contract DCN {
     }
   }
 
-  /*
-   * Tests:
-   *
-   * BalanceTests
-   * - manage assets
-   * -- should be able to partial withdraw
-   * -- should not be able to overdraft
-   * -- should be able to withdraw to zero
-   *
-   * TODO:
-   * - should exit with zero affect if amount is zero
-   */
   function withdraw_asset(uint32 asset_id, address destination, uint256 amount) public {
     uint256[1] memory revert_reason;
     uint256[3] memory transfer_in_mem;
@@ -525,17 +469,6 @@ contract DCN {
       sstore(asset_ptr, sub(current_balance, amount))
     }
   }
-
-  /*
-   * Tests:
-   *
-   * UpdateSessionTests
-   * - should fail to update with expire time = now
-   * - should fail to update with expire time = now + 31 days
-   * - should fail to update with non existent exchange_id
-   * - should be able to update, send log, update version/state
-   * - should be able to deposit with update_session, check remainder
-   */
 
   #define MIN_EXPIRE_TIME 43200
   #define MAX_EXPIRE_TIME 2592000
@@ -594,12 +527,6 @@ contract DCN {
     }
   }
 
-  /*
-   * Tests
-   * 
-   * DepositAssetToSessionTests
-   * - should error with invalid assset id
-   */
   function deposit_asset_to_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
     uint256[1] memory revert_reason;
     uint256[4] memory transfer_in_mem;
@@ -678,12 +605,6 @@ contract DCN {
     }
   }
 
-  /*
-   * Tests, TODO
-   *
-   * TransferToSessionTests
-   * - should not be able to transfer from 0 funds account
-   */
   function transfer_to_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
     uint256[1] memory revert_reason;
     uint256[4] memory log_data_mem;
