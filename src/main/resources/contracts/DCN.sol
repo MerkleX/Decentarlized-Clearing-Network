@@ -767,186 +767,200 @@ contract DCN {
 
     uint256 user_addr;
 
+    uint256 cursor_end;
+    uint256 cursor;
+
     assembly {
       let data_size := mload(data)
-      let cursor := add(data, WORD_1)
+      cursor := add(data, WORD_1)
+      cursor_end := add(cursor, data_size)
 
-      /* ensure data size is correct */
-      if iszero(eq(data_size, UPDATE_LIMIT_BYTES)) {
+      /* ensure data_size is a multiple of UPDATE_LIMIT_BYTES */
+      if mod(data_size, UPDATE_LIMIT_BYTES) {
         REVERT(1)
       }
-
-      /* load user_address */
-      let update_data := mload(cursor)
-      cursor := add(cursor, sizeof(address))
-      user_addr := attr(Address, 0, update_data, user_address)
-
-      /* start hash buffer */
-      mstore(hash_buffer_mem, UPDATE_LIMIT_TYPE_HASH)
-
-      /* load update_limit_1 */
-      update_data := mload(cursor)
-      cursor := add(cursor, WORD_1)
-
-      /* note, scopes used to help compiler trim the stack */
-
-      let asset_state_ptr := 0
-      {
-        let version := 0
-        {
-          let exchange_id := attr(UpdateLimit, 0, update_data, exchange_id)
-          mstore(add(hash_buffer_mem, WORD_1), exchange_id)
-
-          let asset_id := attr(UpdateLimit, 0, update_data, asset_id)
-          mstore(add(hash_buffer_mem, WORD_2), asset_id)
-
-          version := attr(UpdateLimit, 0, update_data, version)
-          mstore(add(hash_buffer_mem, WORD_3), version)
-
-          let session_ptr := SESSION_PTR(user_addr, exchange_id)
-          asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
-
-          /* exchange address must be caller and asset_id cannot be quote */
-          {
-            let exchange_data := sload(pointer(Exchange, exchanges_slot, exchange_id))
-
-            let exchange_address := attr(Exchange, 0, exchange_data, owner)
-            if iszero(eq(caller, exchange_address)) {
-              REVERT(2)
-            }
-
-            /* Prevents exchange from corrupting user's limits */
-            let quote_asset_id := attr(Exchange, 0, exchange_data, quote_asset_id)
-            if eq(quote_asset_id, asset_id) {
-              REVERT(6)
-            }
-          }
-
-          let current_version := attr(AssetState, 2, sload(add(asset_state_ptr, 2)), limit_version)
-
-          /* version must be greater than */
-          if iszero(gt(version, current_version)) {
-            REVERT(3)
-          }
-        }
-
-        {
-          let long_max_price := attr(UpdateLimit, 0, update_data, long_max_price)
-          mstore(add(hash_buffer_mem, WORD_4), long_max_price)
-
-          let short_min_price := attr(UpdateLimit, 0, update_data, short_min_price)
-          mstore(add(hash_buffer_mem, WORD_5), short_min_price)
-
-          sstore(add(asset_state_ptr, 2), build(AssetState, 2,
-            /* padding */ 0,
-            version,
-            long_max_price,
-            short_min_price
-          ))
-        }
-      }
-
-      update_data := mload(cursor)
-      cursor := add(cursor, WORD_1)
-
-      /* Note, set asset_state_data before CAST_64_NEG so we don't need to mask */
-      let state_data_1 := 0
-
-      {
-        let min_quote_qty := attr(UpdateLimit, 1, update_data, min_quote_qty)
-        state_data_1 := build(AssetState, 1, min_quote_qty)
-        CAST_64_NEG(min_quote_qty)
-        mstore(add(hash_buffer_mem, WORD_6), min_quote_qty)
-      }
-
-      {
-        let min_base_qty := attr(UpdateLimit, 1, update_data, min_base_qty)
-        state_data_1 := or(state_data_1, build(AssetState, 1, 0, min_base_qty))
-        CAST_64_NEG(min_base_qty)
-        mstore(add(hash_buffer_mem, WORD_7), min_base_qty)
-      }
-
-      let quote_shift := attr(UpdateLimit, 1, update_data, quote_shift)
-      state_data_1 := or(state_data_1, build(AssetState, 1, 0, 0, quote_shift))
-      CAST_64_NEG(quote_shift)
-      mstore(add(hash_buffer_mem, WORD_8), quote_shift)
-
-      let base_shift := attr(UpdateLimit, 1, update_data, base_shift)
-      state_data_1 := or(state_data_1, build(AssetState, 1, 0, 0, 0, base_shift))
-      CAST_64_NEG(base_shift)
-      mstore(add(hash_buffer_mem, WORD_9), base_shift)
-
-      sstore(add(asset_state_ptr, 1), state_data_1)
-
-      /* Normalize shift against existing */
-      {
-        let current_state_data := sload(add(asset_state_ptr, 1))
-
-        {
-          let current_quote_shift := attr(AssetState, 1, current_state_data, quote_shift)
-          CAST_64_NEG(current_quote_shift)
-          quote_shift := sub(quote_shift, current_quote_shift)
-        }
-
-        {
-          let current_base_shift := attr(AssetState, 1, current_state_data, base_shift)
-          CAST_64_NEG(current_base_shift)
-          base_shift := sub(base_shift, current_base_shift)
-        }
-      }
-
-      let state_data_0 := sload(asset_state_ptr)
-      let quote_qty := add(quote_shift, attr(AssetState, 0, state_data_0, quote_qty))
-      let base_qty := add(base_shift, attr(AssetState, 0, state_data_0, base_qty))
-
-      if or(INVALID_I64(quote_qty), INVALID_I64(base_qty)) {
-        REVERT(4)
-      }
-
-      sstore(asset_state_ptr, or(
-        and(state_data_0, mask_out(AssetState, 0, quote_qty, base_qty)),
-        build(AssetState, 1, and(quote_qty, U64_MASK), and(base_qty, U64_MASK))
-      ))
-
-      let hash := keccak256(hash_buffer_mem, WORD_10)
-
-      {
-        let final_ptr := hash_buffer_mem
-
-        mstore(final_ptr, SIG_HASH_HEADER)
-        final_ptr := add(final_ptr, 2)
-
-        mstore(final_ptr, DCN_HEADER_HASH)
-        final_ptr := add(final_ptr, WORD_1)
-
-        mstore(final_ptr, hash)
-      }
-
-      hash := keccak256(hash_buffer_mem, 66)
-      mstore(hash_buffer_mem, hash)
-
-      update_data := mload(cursor)
-      cursor := add(cursor, WORD_1)
-      mstore(add(hash_buffer_mem, WORD_1), attr(Signature, 0, update_data, sig_r))
-
-      update_data := mload(cursor)
-      cursor := add(cursor, WORD_1)
-      mstore(add(hash_buffer_mem, WORD_2), attr(Signature, 1, update_data, sig_s))
-
-      update_data := mload(cursor)
-      mstore(add(hash_buffer_mem, WORD_3), attr(Signature, 2, update_data, sig_v))
     }
 
-    uint256 recover_address = uint256(ecrecover(
-      bytes32(hash_buffer_mem[0]),
-      uint8(hash_buffer_mem[3]),
-      bytes32(hash_buffer_mem[1]),
-      bytes32(hash_buffer_mem[2])
-    ));
+    while (true) {
+      assembly {
+        /* ensure data size is correct */
+        if eq(cursor, cursor_end) {
+          return(0, 0)
+        }
 
-    assembly {
-      if iszero(eq(recover_address, user_addr)) {
-        REVERT(5)
+        /* load user_address */
+        let update_data := mload(cursor)
+        cursor := add(cursor, sizeof(address))
+        user_addr := attr(Address, 0, update_data, user_address)
+
+        /* start hash buffer */
+        mstore(hash_buffer_mem, UPDATE_LIMIT_TYPE_HASH)
+
+        /* load update_limit_1 */
+        update_data := mload(cursor)
+        cursor := add(cursor, WORD_1)
+
+        /* note, scopes used to help compiler trim the stack */
+
+        let asset_state_ptr := 0
+        {
+          let version := 0
+          {
+            let exchange_id := attr(UpdateLimit, 0, update_data, exchange_id)
+            mstore(add(hash_buffer_mem, WORD_1), exchange_id)
+
+            let asset_id := attr(UpdateLimit, 0, update_data, asset_id)
+            mstore(add(hash_buffer_mem, WORD_2), asset_id)
+
+            version := attr(UpdateLimit, 0, update_data, version)
+            mstore(add(hash_buffer_mem, WORD_3), version)
+
+            let session_ptr := SESSION_PTR(user_addr, exchange_id)
+            asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
+
+            /* exchange address must be caller and asset_id cannot be quote */
+            {
+              let exchange_data := sload(pointer(Exchange, exchanges_slot, exchange_id))
+
+              let exchange_address := attr(Exchange, 0, exchange_data, owner)
+              if iszero(eq(caller, exchange_address)) {
+                REVERT(2)
+              }
+
+              /* Prevents exchange from corrupting user's limits */
+              let quote_asset_id := attr(Exchange, 0, exchange_data, quote_asset_id)
+              if eq(quote_asset_id, asset_id) {
+                REVERT(6)
+              }
+            }
+
+            let current_version := attr(AssetState, 2, sload(add(asset_state_ptr, 2)), limit_version)
+
+            /* version must be greater than */
+            if iszero(gt(version, current_version)) {
+              REVERT(3)
+            }
+          }
+
+          {
+            let long_max_price := attr(UpdateLimit, 0, update_data, long_max_price)
+            mstore(add(hash_buffer_mem, WORD_4), long_max_price)
+
+            let short_min_price := attr(UpdateLimit, 0, update_data, short_min_price)
+            mstore(add(hash_buffer_mem, WORD_5), short_min_price)
+
+            sstore(add(asset_state_ptr, 2), build(AssetState, 2,
+                                                  /* padding */ 0,
+                                                  version,
+                                                  long_max_price,
+                                                  short_min_price
+                                                 ))
+          }
+        }
+
+        update_data := mload(cursor)
+        cursor := add(cursor, WORD_1)
+
+        /* Note, set asset_state_data before CAST_64_NEG so we don't need to mask */
+        let state_data_1 := 0
+
+        {
+          let min_quote_qty := attr(UpdateLimit, 1, update_data, min_quote_qty)
+          state_data_1 := build(AssetState, 1, min_quote_qty)
+          CAST_64_NEG(min_quote_qty)
+          mstore(add(hash_buffer_mem, WORD_6), min_quote_qty)
+        }
+
+        {
+          let min_base_qty := attr(UpdateLimit, 1, update_data, min_base_qty)
+          state_data_1 := or(state_data_1, build(AssetState, 1, 0, min_base_qty))
+          CAST_64_NEG(min_base_qty)
+          mstore(add(hash_buffer_mem, WORD_7), min_base_qty)
+        }
+
+        let quote_shift := attr(UpdateLimit, 1, update_data, quote_shift)
+        state_data_1 := or(state_data_1, build(AssetState, 1, 0, 0, quote_shift))
+        CAST_64_NEG(quote_shift)
+        mstore(add(hash_buffer_mem, WORD_8), quote_shift)
+
+        let base_shift := attr(UpdateLimit, 1, update_data, base_shift)
+        state_data_1 := or(state_data_1, build(AssetState, 1, 0, 0, 0, base_shift))
+        CAST_64_NEG(base_shift)
+        mstore(add(hash_buffer_mem, WORD_9), base_shift)
+
+        sstore(add(asset_state_ptr, 1), state_data_1)
+
+        /* Normalize shift against existing */
+        {
+          let current_state_data := sload(add(asset_state_ptr, 1))
+
+          {
+            let current_quote_shift := attr(AssetState, 1, current_state_data, quote_shift)
+            CAST_64_NEG(current_quote_shift)
+            quote_shift := sub(quote_shift, current_quote_shift)
+          }
+
+          {
+            let current_base_shift := attr(AssetState, 1, current_state_data, base_shift)
+            CAST_64_NEG(current_base_shift)
+            base_shift := sub(base_shift, current_base_shift)
+          }
+        }
+
+        let state_data_0 := sload(asset_state_ptr)
+        let quote_qty := add(quote_shift, attr(AssetState, 0, state_data_0, quote_qty))
+        let base_qty := add(base_shift, attr(AssetState, 0, state_data_0, base_qty))
+
+        if or(INVALID_I64(quote_qty), INVALID_I64(base_qty)) {
+          REVERT(4)
+        }
+
+        sstore(asset_state_ptr, or(
+          and(state_data_0, mask_out(AssetState, 0, quote_qty, base_qty)),
+          build(AssetState, 1, and(quote_qty, U64_MASK), and(base_qty, U64_MASK))
+        ))
+
+        let hash := keccak256(hash_buffer_mem, WORD_10)
+
+        {
+          let final_ptr := hash_buffer_mem
+
+          mstore(final_ptr, SIG_HASH_HEADER)
+          final_ptr := add(final_ptr, 2)
+
+          mstore(final_ptr, DCN_HEADER_HASH)
+          final_ptr := add(final_ptr, WORD_1)
+
+          mstore(final_ptr, hash)
+        }
+
+        hash := keccak256(hash_buffer_mem, 66)
+        mstore(hash_buffer_mem, hash)
+
+        update_data := mload(cursor)
+        cursor := add(cursor, WORD_1)
+        mstore(add(hash_buffer_mem, WORD_1), attr(Signature, 0, update_data, sig_r))
+
+        update_data := mload(cursor)
+        cursor := add(cursor, WORD_1)
+        mstore(add(hash_buffer_mem, WORD_2), attr(Signature, 1, update_data, sig_s))
+
+        update_data := mload(cursor)
+        cursor := add(cursor, 1)
+        mstore(add(hash_buffer_mem, WORD_3), attr(Signature, 2, update_data, sig_v))
+      }
+
+      uint256 recover_address = uint256(ecrecover(
+        bytes32(hash_buffer_mem[0]),
+        uint8(hash_buffer_mem[3]),
+        bytes32(hash_buffer_mem[1]),
+        bytes32(hash_buffer_mem[2])
+      ));
+
+      assembly {
+        if iszero(eq(recover_address, user_addr)) {
+          REVERT(5)
+        }
       }
     }
   }

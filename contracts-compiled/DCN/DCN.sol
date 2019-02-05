@@ -529,142 +529,152 @@ contract DCN {
     uint256[1] memory revert_reason;
     uint256[10] memory hash_buffer_mem;
     uint256 user_addr;
+    uint256 cursor_end;
+    uint256 cursor;
     assembly {
       let data_size := mload(data)
-      let cursor := add(data, 32)
-      if iszero(eq(data_size, 149)) {
+      cursor := add(data, 32)
+      cursor_end := add(cursor, data_size)
+      if mod(data_size, 149) {
         mstore(revert_reason, 1)
         revert(add(revert_reason, 31), 1)
       }
-      let update_data := mload(cursor)
-      cursor := add(cursor, 20)
-      user_addr := and(div(update_data, 0x1000000000000000000000000), 0xffffffffffffffffffffffffffffffffffffffff)
-      mstore(hash_buffer_mem, 0xe0bfc2789e007df269c9fec46d3ddd4acf88fdf0f76af154da933aab7fb2f2b9)
-      update_data := mload(cursor)
-      cursor := add(cursor, 32)
-      let asset_state_ptr := 0
-      {
-        let version := 0
-        {
-          let exchange_id := and(div(update_data, 0x100000000000000000000000000000000000000000000000000000000), 0xffffffff)
-          mstore(add(hash_buffer_mem, 32), exchange_id)
-          let asset_id := and(div(update_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffff)
-          mstore(add(hash_buffer_mem, 64), asset_id)
-          version := and(div(update_data, 0x100000000000000000000000000000000), 0xffffffffffffffff)
-          mstore(add(hash_buffer_mem, 96), version)
-          let session_ptr := add(add(sessions_slot, mul(55340232221128654848, user_addr)), mul(12884901888, exchange_id))
-          asset_state_ptr := add(session_ptr, mul(3, asset_id))
+    }
+    while (true)
+    {
+        assembly {
+          if eq(cursor, cursor_end) { return(0, 0) }
+          let update_data := mload(cursor)
+          cursor := add(cursor, 20)
+          user_addr := and(div(update_data, 0x1000000000000000000000000), 0xffffffffffffffffffffffffffffffffffffffff)
+          mstore(hash_buffer_mem, 0xe0bfc2789e007df269c9fec46d3ddd4acf88fdf0f76af154da933aab7fb2f2b9)
+          update_data := mload(cursor)
+          cursor := add(cursor, 32)
+          let asset_state_ptr := 0
           {
-            let exchange_data := sload(add(exchanges_slot, mul(2, exchange_id)))
-            let exchange_address := and(exchange_data, 0xffffffffffffffffffffffffffffffffffffffff)
-            if iszero(eq(caller, exchange_address)) {
-              mstore(revert_reason, 2)
-              revert(add(revert_reason, 31), 1)
+            let version := 0
+            {
+              let exchange_id := and(div(update_data, 0x100000000000000000000000000000000000000000000000000000000), 0xffffffff)
+              mstore(add(hash_buffer_mem, 32), exchange_id)
+              let asset_id := and(div(update_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffff)
+              mstore(add(hash_buffer_mem, 64), asset_id)
+              version := and(div(update_data, 0x100000000000000000000000000000000), 0xffffffffffffffff)
+              mstore(add(hash_buffer_mem, 96), version)
+              let session_ptr := add(add(sessions_slot, mul(55340232221128654848, user_addr)), mul(12884901888, exchange_id))
+              asset_state_ptr := add(session_ptr, mul(3, asset_id))
+              {
+                let exchange_data := sload(add(exchanges_slot, mul(2, exchange_id)))
+                let exchange_address := and(exchange_data, 0xffffffffffffffffffffffffffffffffffffffff)
+                if iszero(eq(caller, exchange_address)) {
+                  mstore(revert_reason, 2)
+                  revert(add(revert_reason, 31), 1)
+                }
+                let quote_asset_id := and(div(exchange_data, 0x10000000000000000000000000000000000000000), 0xffffffff)
+                if eq(quote_asset_id, asset_id) {
+                  mstore(revert_reason, 6)
+                  revert(add(revert_reason, 31), 1)
+                }
+              }
+              let current_version := and(div(sload(add(asset_state_ptr, 2)), 0x100000000000000000000000000000000), 0xffffffffffffffff)
+              if iszero(gt(version, current_version)) {
+                mstore(revert_reason, 3)
+                revert(add(revert_reason, 31), 1)
+              }
             }
-            let quote_asset_id := and(div(exchange_data, 0x10000000000000000000000000000000000000000), 0xffffffff)
-            if eq(quote_asset_id, asset_id) {
-              mstore(revert_reason, 6)
-              revert(add(revert_reason, 31), 1)
+            {
+              let long_max_price := and(div(update_data, 0x10000000000000000), 0xffffffffffffffff)
+              mstore(add(hash_buffer_mem, 128), long_max_price)
+              let short_min_price := and(update_data, 0xffffffffffffffff)
+              mstore(add(hash_buffer_mem, 160), short_min_price)
+              sstore(add(asset_state_ptr, 2), or(or(
+                /* limit_version */ mul(version, 0x100000000000000000000000000000000), 
+                /* long_max_price */ mul(long_max_price, 0x10000000000000000)), 
+                /* short_min_price */ short_min_price))
             }
           }
-          let current_version := and(div(sload(add(asset_state_ptr, 2)), 0x100000000000000000000000000000000), 0xffffffffffffffff)
-          if iszero(gt(version, current_version)) {
-            mstore(revert_reason, 3)
+          update_data := mload(cursor)
+          cursor := add(cursor, 32)
+          let state_data_1 := 0
+          {
+            let min_quote_qty := and(div(update_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
+            state_data_1 := 
+              /* min_quote */ mul(min_quote_qty, 0x1000000000000000000000000000000000000000000000000)
+            if and(min_quote_qty, 0x8000000000000000) { min_quote_qty := or(min_quote_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
+            mstore(add(hash_buffer_mem, 192), min_quote_qty)
+          }
+          {
+            let min_base_qty := and(div(update_data, 0x100000000000000000000000000000000), 0xffffffffffffffff)
+            state_data_1 := or(state_data_1, 
+              /* min_base */ mul(min_base_qty, 0x100000000000000000000000000000000))
+            if and(min_base_qty, 0x8000000000000000) { min_base_qty := or(min_base_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
+            mstore(add(hash_buffer_mem, 224), min_base_qty)
+          }
+          let quote_shift := and(div(update_data, 0x10000000000000000), 0xffffffffffffffff)
+          state_data_1 := or(state_data_1, 
+            /* quote_shift */ mul(quote_shift, 0x10000000000000000))
+          if and(quote_shift, 0x8000000000000000) { quote_shift := or(quote_shift, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
+          mstore(add(hash_buffer_mem, 256), quote_shift)
+          let base_shift := and(update_data, 0xffffffffffffffff)
+          state_data_1 := or(state_data_1, 
+            /* base_shift */ base_shift)
+          if and(base_shift, 0x8000000000000000) { base_shift := or(base_shift, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
+          mstore(add(hash_buffer_mem, 288), base_shift)
+          sstore(add(asset_state_ptr, 1), state_data_1)
+          {
+            let current_state_data := sload(add(asset_state_ptr, 1))
+            {
+              let current_quote_shift := and(div(current_state_data, 0x10000000000000000), 0xffffffffffffffff)
+              if and(current_quote_shift, 0x8000000000000000) { current_quote_shift := or(current_quote_shift, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
+              quote_shift := sub(quote_shift, current_quote_shift)
+            }
+            {
+              let current_base_shift := and(current_state_data, 0xffffffffffffffff)
+              if and(current_base_shift, 0x8000000000000000) { current_base_shift := or(current_base_shift, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
+              base_shift := sub(base_shift, current_base_shift)
+            }
+          }
+          let state_data_0 := sload(asset_state_ptr)
+          let quote_qty := add(quote_shift, and(div(state_data_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
+          let base_qty := add(base_shift, and(div(state_data_0, 0x100000000000000000000000000000000), 0xffffffffffffffff))
+          if or(or(slt(quote_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000), sgt(quote_qty, 0x7fffffffffffffff)), or(slt(base_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000), sgt(base_qty, 0x7fffffffffffffff))) {
+            mstore(revert_reason, 4)
             revert(add(revert_reason, 31), 1)
           }
+          sstore(asset_state_ptr, or(and(state_data_0, 0xffffffffffffffffffffffffffffffff), or(
+            /* min_quote */ mul(and(quote_qty, 0xFFFFFFFFFFFFFFFF), 0x1000000000000000000000000000000000000000000000000), 
+            /* min_base */ mul(and(base_qty, 0xFFFFFFFFFFFFFFFF), 0x100000000000000000000000000000000))))
+          let hash := keccak256(hash_buffer_mem, 320)
+          {
+            let final_ptr := hash_buffer_mem
+            mstore(final_ptr, 0x1901000000000000000000000000000000000000000000000000000000000000)
+            final_ptr := add(final_ptr, 2)
+            mstore(final_ptr, 0xe3d3073cc59e3a3126c17585a7e516a048e61a9a1c82144af982d1c194b18710)
+            final_ptr := add(final_ptr, 32)
+            mstore(final_ptr, hash)
+          }
+          hash := keccak256(hash_buffer_mem, 66)
+          mstore(hash_buffer_mem, hash)
+          update_data := mload(cursor)
+          cursor := add(cursor, 32)
+          mstore(add(hash_buffer_mem, 32), update_data)
+          update_data := mload(cursor)
+          cursor := add(cursor, 32)
+          mstore(add(hash_buffer_mem, 64), update_data)
+          update_data := mload(cursor)
+          cursor := add(cursor, 1)
+          mstore(add(hash_buffer_mem, 96), and(div(update_data, 0x100000000000000000000000000000000000000000000000000000000000000), 0xff))
         }
-        {
-          let long_max_price := and(div(update_data, 0x10000000000000000), 0xffffffffffffffff)
-          mstore(add(hash_buffer_mem, 128), long_max_price)
-          let short_min_price := and(update_data, 0xffffffffffffffff)
-          mstore(add(hash_buffer_mem, 160), short_min_price)
-          sstore(add(asset_state_ptr, 2), or(or(
-            /* limit_version */ mul(version, 0x100000000000000000000000000000000), 
-            /* long_max_price */ mul(long_max_price, 0x10000000000000000)), 
-            /* short_min_price */ short_min_price))
-        }
-      }
-      update_data := mload(cursor)
-      cursor := add(cursor, 32)
-      let state_data_1 := 0
-      {
-        let min_quote_qty := and(div(update_data, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
-        state_data_1 := 
-          /* min_quote */ mul(min_quote_qty, 0x1000000000000000000000000000000000000000000000000)
-        if and(min_quote_qty, 0x8000000000000000) { min_quote_qty := or(min_quote_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
-        mstore(add(hash_buffer_mem, 192), min_quote_qty)
-      }
-      {
-        let min_base_qty := and(div(update_data, 0x100000000000000000000000000000000), 0xffffffffffffffff)
-        state_data_1 := or(state_data_1, 
-          /* min_base */ mul(min_base_qty, 0x100000000000000000000000000000000))
-        if and(min_base_qty, 0x8000000000000000) { min_base_qty := or(min_base_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
-        mstore(add(hash_buffer_mem, 224), min_base_qty)
-      }
-      let quote_shift := and(div(update_data, 0x10000000000000000), 0xffffffffffffffff)
-      state_data_1 := or(state_data_1, 
-        /* quote_shift */ mul(quote_shift, 0x10000000000000000))
-      if and(quote_shift, 0x8000000000000000) { quote_shift := or(quote_shift, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
-      mstore(add(hash_buffer_mem, 256), quote_shift)
-      let base_shift := and(update_data, 0xffffffffffffffff)
-      state_data_1 := or(state_data_1, 
-        /* base_shift */ base_shift)
-      if and(base_shift, 0x8000000000000000) { base_shift := or(base_shift, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
-      mstore(add(hash_buffer_mem, 288), base_shift)
-      sstore(add(asset_state_ptr, 1), state_data_1)
-      {
-        let current_state_data := sload(add(asset_state_ptr, 1))
-        {
-          let current_quote_shift := and(div(current_state_data, 0x10000000000000000), 0xffffffffffffffff)
-          if and(current_quote_shift, 0x8000000000000000) { current_quote_shift := or(current_quote_shift, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
-          quote_shift := sub(quote_shift, current_quote_shift)
-        }
-        {
-          let current_base_shift := and(current_state_data, 0xffffffffffffffff)
-          if and(current_base_shift, 0x8000000000000000) { current_base_shift := or(current_base_shift, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
-          base_shift := sub(base_shift, current_base_shift)
-        }
-      }
-      let state_data_0 := sload(asset_state_ptr)
-      let quote_qty := add(quote_shift, and(div(state_data_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
-      let base_qty := add(base_shift, and(div(state_data_0, 0x100000000000000000000000000000000), 0xffffffffffffffff))
-      if or(or(slt(quote_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000), sgt(quote_qty, 0x7fffffffffffffff)), or(slt(base_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000), sgt(base_qty, 0x7fffffffffffffff))) {
-        mstore(revert_reason, 4)
-        revert(add(revert_reason, 31), 1)
-      }
-      sstore(asset_state_ptr, or(and(state_data_0, 0xffffffffffffffffffffffffffffffff), or(
-        /* min_quote */ mul(and(quote_qty, 0xFFFFFFFFFFFFFFFF), 0x1000000000000000000000000000000000000000000000000), 
-        /* min_base */ mul(and(base_qty, 0xFFFFFFFFFFFFFFFF), 0x100000000000000000000000000000000))))
-      let hash := keccak256(hash_buffer_mem, 320)
-      {
-        let final_ptr := hash_buffer_mem
-        mstore(final_ptr, 0x1901000000000000000000000000000000000000000000000000000000000000)
-        final_ptr := add(final_ptr, 2)
-        mstore(final_ptr, 0xe3d3073cc59e3a3126c17585a7e516a048e61a9a1c82144af982d1c194b18710)
-        final_ptr := add(final_ptr, 32)
-        mstore(final_ptr, hash)
-      }
-      hash := keccak256(hash_buffer_mem, 66)
-      mstore(hash_buffer_mem, hash)
-      update_data := mload(cursor)
-      cursor := add(cursor, 32)
-      mstore(add(hash_buffer_mem, 32), update_data)
-      update_data := mload(cursor)
-      cursor := add(cursor, 32)
-      mstore(add(hash_buffer_mem, 64), update_data)
-      update_data := mload(cursor)
-      mstore(add(hash_buffer_mem, 96), and(div(update_data, 0x100000000000000000000000000000000000000000000000000000000000000), 0xff))
-    }
-    uint256 recover_address = uint256(ecrecover(
-      bytes32(hash_buffer_mem[0]),
-      uint8(hash_buffer_mem[3]),
-      bytes32(hash_buffer_mem[1]),
-      bytes32(hash_buffer_mem[2])
-    ));
-    assembly { if iszero(eq(recover_address, user_addr)) {
+        uint256 recover_address = uint256(ecrecover(
+        bytes32(hash_buffer_mem[0]),
+        uint8(hash_buffer_mem[3]),
+        bytes32(hash_buffer_mem[1]),
+        bytes32(hash_buffer_mem[2])
+      ));
+        assembly { if iszero(eq(recover_address, user_addr)) {
   mstore(revert_reason, 5)
   revert(add(revert_reason, 31), 1)
 } }
+      }
   }
   struct GroupsHeader {
     uint32 exchange_id;

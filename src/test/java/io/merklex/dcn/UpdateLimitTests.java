@@ -14,67 +14,277 @@ import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.utils.Numeric;
 
-import java.nio.ByteBuffer;
-
 import static com.greghaskins.spectrum.Spectrum.beforeAll;
 import static com.greghaskins.spectrum.Spectrum.it;
 
 @RunWith(Spectrum.class)
 public class UpdateLimitTests {
-//    {
-//
-//        StaticNetwork.DescribeCheckpoint();
-//
-//        EtherTransactions creator = Accounts.getTx(0);
-//        EtherTransactions exchange = Accounts.getTx(1);
-//
-//        beforeAll(() -> {
-//            TransactionReceipt tx = creator.call(StaticNetwork.DCN(), DCN.add_exchange("merklex ", 0, exchange.getAddress()));
-//            Assert.assertEquals("0x1", tx.getStatus());
-//        });
-//
-//        QueryHelper helper = new QueryHelper(StaticNetwork.DCN(), StaticNetwork.Web3());
-//
-//        it("should be able to update limit", () -> {
-//            byte[] bytes = new byte[UpdateLimit.BYTES];
-//            UnsafeBuffer buffer = new UnsafeBuffer(bytes);
-//            UpdateLimit update = new UpdateLimit().wrap(buffer, 0);
-//
-//            String userAddress = "0x261514fb9e305df0a965a0963e7a190aa7ae8f22";
-//            update.user(userAddress);
-//            update.signature("0x8239f33ff9a872a74486ddda9763a0e7411370cf00e64c654625e5d997afa6ac049568db93152884dc06cb3dc2" +
-//                    "c1ef36d944e1df16395486423c674ceb48e0361b");
-//            update.exchangeId(0);
-//
-//            update.version(1);
-//            update.assetId(2);
-//            update.maxLongPrice(10000000);
-//            update.minShortPrice(0);
-//            update.minQuoteQty(-1000000);
-//            update.minBaseQty(0);
-//            update.quoteShift(0);
-//            update.baseShift(0);
-//
-//            String payload = Numeric.toHexString(bytes);
-//            System.out.println(payload);
-//            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
-//
-//
-//            if (ethSendTransaction.hasError()) {
-//                System.out.println(RevertCodeExtractor.Get(ethSendTransaction.getError()));
-//            }
-//
-//            /*
-//            0x261514fb9e305df0a965a0963e7a190aa7ae8f22
-//                00000000 02000000020000000000000080969800000000000000000000000000c0bdf0ffffffffff0000000000000000000000000000000000000000000000008239f33ff9a872a74486ddda9763a0e7411370cf00e64c654625e5d997afa6ac049568db93152884dc06cb3dc2c1ef36d944e1df16395486423c674ceb48e0361b
-//            0x0000000002000000020000000000000080969800000000000000000000000000
-//             */
-//
-//            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
-//            Assert.assertEquals("0x1", call.getStatus());
-//
-//            DCN.GetSessionLimitReturnValue limit = helper.query(DCN::query_get_session_limit, DCN.get_session_limit(userAddress, 0, 2));
-//            System.out.println(limit);
-//        });
-//    }
+    {
+        StaticNetwork.DescribeCheckpoint();
+
+        EtherTransactions creator = Accounts.getTx(0);
+        EtherTransactions exchange = Accounts.getTx(1);
+        EtherTransactions user1 = Accounts.getTx(2);
+        EtherTransactions user2 = Accounts.getTx(3);
+        EtherTransactions user3 = Accounts.getTx(4);
+
+        int quoteAssetId = 0;
+        int baseAssetId = 1;
+
+        beforeAll(() -> {
+            TransactionReceipt tx;
+
+            tx = creator.call(StaticNetwork.DCN(), DCN.add_asset("abcd", 1, creator.getAddress()));
+            Assert.assertEquals("0x1", tx.getStatus());
+
+            tx = creator.call(StaticNetwork.DCN(), DCN.add_asset("abce", 1, creator.getAddress()));
+            Assert.assertEquals("0x1", tx.getStatus());
+
+            tx = creator.call(StaticNetwork.DCN(), DCN.add_exchange("merklex ", quoteAssetId, exchange.getAddress()));
+            Assert.assertEquals("0x1", tx.getStatus());
+        });
+
+        QueryHelper helper = new QueryHelper(StaticNetwork.DCN(), StaticNetwork.Web3());
+
+        byte[] bytes = new byte[1024];
+        UnsafeBuffer buffer = new UnsafeBuffer(bytes);
+        UpdateLimit updateLimit = new UpdateLimit()
+                .wrap(buffer, 0);
+
+        it("should fail to update limit for quote asset", () -> {
+            updateLimit.wrap(buffer, 0)
+                    .user(user1.getAddress())
+                    .exchangeId(0)
+                    .assetId(quoteAssetId)
+                    .minBaseQty(-100)
+                    .minQuoteQty(-100)
+                    .maxLongPrice(100000)
+                    .minShortPrice(1000)
+                    .quoteShift(0)
+                    .baseShift(10)
+                    .version(3)
+                    .signature(user1.signHash(DCNHasher.instance.hash(updateLimit.hash())));
+
+            String payload = Numeric.toHexString(bytes, 0, UpdateLimit.BYTES, true);
+            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
+
+            Assert.assertTrue(ethSendTransaction.hasError());
+            Assert.assertEquals("0x06", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+
+            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
+            Assert.assertEquals("0x0", call.getStatus());
+        });
+
+        it("should apply limit with valid signature", () -> {
+            updateLimit.wrap(buffer, 0)
+                    .user(user1.getAddress())
+                    .exchangeId(0)
+                    .assetId(baseAssetId)
+                    .minBaseQty(-100)
+                    .minQuoteQty(-100)
+                    .maxLongPrice(100000)
+                    .minShortPrice(1000)
+                    .quoteShift(0)
+                    .baseShift(10)
+                    .version(3)
+                    .signature(user1.signHash(DCNHasher.instance.hash(updateLimit.hash())));
+
+            String payload = Numeric.toHexString(bytes, 0, UpdateLimit.BYTES, true);
+            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
+
+            Assert.assertFalse(ethSendTransaction.hasError());
+
+            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
+            Assert.assertEquals("0x1", call.getStatus());
+
+            DCN.GetSessionStateReturnValue query = helper.query(DCN::query_get_session_state,
+                    DCN.get_session_state(user1.getAddress(), 0, baseAssetId));
+
+            ShouldMatch(updateLimit, query);
+        });
+
+        it("should fail to apply same version", () -> {
+            updateLimit.wrap(buffer, 0)
+                    .user(user1.getAddress())
+                    .exchangeId(0)
+                    .assetId(baseAssetId)
+                    .minBaseQty(-100)
+                    .minQuoteQty(-100)
+                    .maxLongPrice(100000)
+                    .minShortPrice(1000)
+                    .quoteShift(0)
+                    .baseShift(10)
+                    .version(3)
+                    .signature(user1.signHash(DCNHasher.instance.hash(updateLimit.hash())));
+
+            String payload = Numeric.toHexString(bytes, 0, UpdateLimit.BYTES, true);
+            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
+
+            Assert.assertTrue(ethSendTransaction.hasError());
+            Assert.assertEquals("0x03", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+
+            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
+            Assert.assertEquals("0x0", call.getStatus());
+        });
+
+        it("should fail to apply older version", () -> {
+            updateLimit.wrap(buffer, 0)
+                    .user(user1.getAddress())
+                    .exchangeId(0)
+                    .assetId(baseAssetId)
+                    .minBaseQty(-100)
+                    .minQuoteQty(-100)
+                    .maxLongPrice(100000)
+                    .minShortPrice(1000)
+                    .quoteShift(0)
+                    .baseShift(10)
+                    .version(1)
+                    .signature(user1.signHash(DCNHasher.instance.hash(updateLimit.hash())));
+
+            String payload = Numeric.toHexString(bytes, 0, UpdateLimit.BYTES, true);
+            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
+
+            Assert.assertTrue(ethSendTransaction.hasError());
+            Assert.assertEquals("0x03", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+
+            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
+            Assert.assertEquals("0x0", call.getStatus());
+        });
+
+        it("should fail to apply with invalid signature", () -> {
+            updateLimit.wrap(buffer, 0)
+                    .user(user1.getAddress())
+                    .exchangeId(0)
+                    .assetId(baseAssetId)
+                    .minBaseQty(-100)
+                    .minQuoteQty(-100)
+                    .maxLongPrice(100000)
+                    .minShortPrice(1000)
+                    .quoteShift(0)
+                    .baseShift(10)
+                    .version(5);
+
+            String payload = Numeric.toHexString(bytes, 0, UpdateLimit.BYTES, true);
+            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
+
+            Assert.assertTrue(ethSendTransaction.hasError());
+            Assert.assertEquals("0x05", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+
+            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
+            Assert.assertEquals("0x0", call.getStatus());
+        });
+
+        it("should be able to apply multiple updates", () -> {
+            updateLimit.wrap(buffer, 0)
+                    .user(user1.getAddress())
+                    .exchangeId(0)
+                    .assetId(baseAssetId)
+                    .minBaseQty(-100)
+                    .minQuoteQty(-100)
+                    .maxLongPrice(100000)
+                    .minShortPrice(1000)
+                    .quoteShift(0)
+                    .baseShift(10)
+                    .version(5)
+                    .signature(user1.signHash(DCNHasher.instance.hash(updateLimit.hash())));
+            updateLimit.wrap(buffer, UpdateLimit.BYTES)
+                    .user(user2.getAddress())
+                    .exchangeId(0)
+                    .assetId(baseAssetId)
+                    .minBaseQty(1241)
+                    .minQuoteQty(-1130)
+                    .maxLongPrice(32141)
+                    .minShortPrice(123)
+                    .quoteShift(-12543)
+                    .baseShift(10)
+                    .version(1)
+                    .signature(user2.signHash(DCNHasher.instance.hash(updateLimit.hash())));
+            updateLimit.wrap(buffer, UpdateLimit.BYTES * 2)
+                    .user(user3.getAddress())
+                    .exchangeId(0)
+                    .assetId(baseAssetId)
+                    .minBaseQty(76)
+                    .minQuoteQty(-1)
+                    .maxLongPrice(412)
+                    .minShortPrice(5)
+                    .quoteShift(-3214)
+                    .baseShift(3)
+                    .version(1)
+                    .signature(user3.signHash(DCNHasher.instance.hash(updateLimit.hash())));
+
+            String payload = Numeric.toHexString(bytes, 0, UpdateLimit.BYTES * 3, true);
+            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
+
+            Assert.assertFalse(ethSendTransaction.hasError());
+
+            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
+            Assert.assertEquals("0x1", call.getStatus());
+
+            ShouldMatch(updateLimit.wrap(buffer, 0), helper.query(DCN::query_get_session_state,
+                    DCN.get_session_state(user1.getAddress(), 0, baseAssetId)));
+
+            ShouldMatch(updateLimit.wrap(buffer, UpdateLimit.BYTES), helper.query(DCN::query_get_session_state,
+                    DCN.get_session_state(user2.getAddress(), 0, baseAssetId)));
+
+            ShouldMatch(updateLimit.wrap(buffer, UpdateLimit.BYTES * 2), helper.query(DCN::query_get_session_state,
+                    DCN.get_session_state(user3.getAddress(), 0, baseAssetId)));
+        });
+
+        it("single bad update should stop everything", () -> {
+            updateLimit.wrap(buffer, 0)
+                    .user(user1.getAddress())
+                    .exchangeId(0)
+                    .assetId(baseAssetId)
+                    .minBaseQty(-100)
+                    .minQuoteQty(-100)
+                    .maxLongPrice(100000)
+                    .minShortPrice(1000)
+                    .quoteShift(0)
+                    .baseShift(10)
+                    .version(6)
+                    .signature(user1.signHash(DCNHasher.instance.hash(updateLimit.hash())));
+            updateLimit.wrap(buffer, UpdateLimit.BYTES)
+                    .user(user2.getAddress())
+                    .exchangeId(0)
+                    .assetId(baseAssetId)
+                    .minBaseQty(1241)
+                    .minQuoteQty(-1130)
+                    .maxLongPrice(32141)
+                    .minShortPrice(123)
+                    .quoteShift(-12543)
+                    .baseShift(10)
+                    .version(2);
+            updateLimit.wrap(buffer, UpdateLimit.BYTES * 2)
+                    .user(user3.getAddress())
+                    .exchangeId(0)
+                    .assetId(baseAssetId)
+                    .minBaseQty(76)
+                    .minQuoteQty(-1)
+                    .maxLongPrice(412)
+                    .minShortPrice(5)
+                    .quoteShift(-3214)
+                    .baseShift(3)
+                    .version(2)
+                    .signature(user3.signHash(DCNHasher.instance.hash(updateLimit.hash())));
+
+            String payload = Numeric.toHexString(bytes, 0, UpdateLimit.BYTES * 2, true);
+            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
+
+            Assert.assertTrue(ethSendTransaction.hasError());
+            Assert.assertEquals("0x05", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+
+            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
+            Assert.assertEquals("0x0", call.getStatus());
+        });
+    }
+
+    private static void ShouldMatch(UpdateLimit updateLimit, DCN.GetSessionStateReturnValue dcn) {
+        Assert.assertEquals(updateLimit.quoteShift(), dcn.quote_shift);
+        Assert.assertEquals(updateLimit.baseShift(), dcn.base_shift);
+        Assert.assertEquals(updateLimit.maxLongPrice(), dcn.long_max_price);
+        Assert.assertEquals(updateLimit.minShortPrice(), dcn.short_min_price);
+        Assert.assertEquals(updateLimit.version(), dcn.version);
+        Assert.assertEquals(updateLimit.minQuoteQty(), dcn.min_quote);
+        Assert.assertEquals(updateLimit.minBaseQty(), dcn.min_base);
+    }
 }

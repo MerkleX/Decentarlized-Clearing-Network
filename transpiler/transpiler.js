@@ -87,6 +87,14 @@ module.exports = function(raw) {
         return `contract ${node.name} {${pre}${ node.subNodes.map(node => print(node, tab + TAB)).join(pre) }\n${tab}}`;
       }
 
+      if (node.type === 'WhileStatement') {
+        return `while (${print(node.condition)})\n${tab}${print(node.body, tab + TAB)}`;
+      }
+
+      if (node.type === 'BooleanLiteral') {
+        return node.value ? 'true' : 'false';
+      }
+
       if (node.type === 'StructDefinition') {
         const struct = []
         const pre = `\n${tab}${TAB}`;
