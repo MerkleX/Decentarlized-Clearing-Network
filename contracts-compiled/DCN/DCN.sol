@@ -5,6 +5,7 @@ contract DCN {
   uint256 creator;
   uint256 exchange_count;
   uint256 asset_count;
+  uint256 locked_timestamp;
   struct Exchange {
     uint64 name;
     uint32 quote_asset_id;
@@ -179,6 +180,37 @@ contract DCN {
   if iszero(eq(current_creator, caller)) { revert(0, 0) }
   sstore(creator_slot, new_creator)
 } }
+  
+  function security_lock() public  {
+    uint256[1] memory revert_reason;
+    assembly {
+      let creator := sload(creator_slot)
+      if iszero(eq(creator, caller)) {
+        mstore(revert_reason, 1)
+        revert(add(revert_reason, 31), 1)
+      }
+      sstore(locked_timestamp_slot, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
+    }
+  }
+  
+  function security_unlock() public  {
+    uint256[1] memory revert_reason;
+    assembly {
+      let creator := sload(creator_slot)
+      if iszero(eq(creator, caller)) {
+        mstore(revert_reason, 1)
+        revert(add(revert_reason, 31), 1)
+      }
+      let locked := sload(locked_timestamp_slot)
+      if gt(locked, timestamp) {
+        let new_unlock := add(timestamp, 432000)
+        if gt(new_unlock, locked) { return(0, 0) }
+        sstore(locked_timestamp_slot, new_unlock)
+        return(0, 0)
+      }
+      sstore(locked_timestamp_slot, 0)
+    }
+  }
   
   function add_asset(string memory symbol, uint64 unit_scale, address contract_address) public  {
     uint256[1] memory revert_reason;
@@ -767,6 +799,10 @@ contract DCN {
   function apply_settlement_groups(bytes memory data) public  {
     uint256[6] memory variables;
     assembly {
+      if sload(locked_timestamp_slot) {
+        mstore(sub(msize, 32), 100)
+        revert(add(sub(msize, 32), 31), 1)
+      }
       let cursor := add(data, 32)
       let data_len := mload(data)
       mstore(sub(msize, 160), add(cursor, data_len))

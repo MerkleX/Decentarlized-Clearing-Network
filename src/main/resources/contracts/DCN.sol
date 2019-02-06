@@ -32,6 +32,7 @@ contract DCN {
   uint256 creator;
   uint256 exchange_count;
   uint256 asset_count;
+  uint256 locked_timestamp;
 
   /* Memory Layout */
 
@@ -272,6 +273,49 @@ contract DCN {
       }
 
       sstore(creator_slot, new_creator)
+    }
+  }
+
+  function security_lock() public {
+    uint256[1] memory revert_reason;
+
+    assembly {
+      let creator := sload(creator_slot)
+      if iszero(eq(creator, caller)) {
+        REVERT(1)
+      }
+      /* set lock timestamp to end of time */
+      sstore(locked_timestamp_slot, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
+    }
+  }
+
+  #define DAYS_5 432000
+
+  function security_unlock() public {
+    uint256[1] memory revert_reason;
+
+    assembly {
+      let creator := sload(creator_slot)
+      if iszero(eq(creator, caller)) {
+        REVERT(1)
+      }
+
+      let locked := sload(locked_timestamp_slot)
+
+      /* lock hasn't expired */
+      if gt(locked, timestamp) {
+        let new_unlock := add(timestamp, DAYS_5)
+
+        /* lock expiring soon, let it be */
+        if gt(new_unlock, locked) {
+          return(0, 0)
+        }
+
+        sstore(locked_timestamp_slot, new_unlock)
+        return(0, 0)
+      }
+
+      sstore(locked_timestamp_slot, 0)
     }
   }
 
@@ -1120,6 +1164,11 @@ contract DCN {
                                   revert(REVERT_REASON_MEM, 32)
 
     assembly {
+      /* Check security lock */
+      if sload(locked_timestamp_slot) {
+        SMART_REVERT(100)
+      }
+
       let cursor := add(data, 32)
       let data_len := mload(data)
 
