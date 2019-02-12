@@ -25,6 +25,7 @@ import static org.junit.Assert.fail;
 public class ApplySettlementsTests {
     private static void success(EthSendTransaction tx) throws Exception {
         if (tx.hasError()) {
+            System.out.println(tx.getError());
             fail("TX Failed, Revert: " + RevertCodeExtractor.Get(tx.getError()));
         }
 
@@ -344,6 +345,16 @@ public class ApplySettlementsTests {
                 /* buyer fees used */
                 DCN.GetSessionReturnValue session = query.query(DCN::query_get_session, DCN.get_session(buyer.getAddress(), 0));
                 assertEquals(group.settlement(entry, 0).fees(), session.fee_used);
+            });
+
+            it("should not settle if locked", () -> {
+                success(creator.sendCall(StaticNetwork.DCN(), DCN.security_lock()));
+
+                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
+                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
+
+                Assert.assertTrue(tx.hasError());
+                Assert.assertEquals("0x64", RevertCodeExtractor.Get(tx.getError()));
             });
         });
     }
