@@ -236,6 +236,14 @@ contract DCN {
     }
   }
 
+  #define NEG_64_FLAG 0x8000000000000000
+  #define I64_TO_NEG 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000
+
+  #define CAST_64_NEG(variable) \
+      if and(variable, NEG_64_FLAG) { \
+        variable := or(variable, I64_TO_NEG) \
+      }
+
   function get_session_state(address user, uint32 exchange_id, uint32 asset_id) public view
   returns (int64 quote_qty, int64 base_qty, int64 quote_shift, int64 base_shift,
            uint64 version, int64 min_quote, int64 min_base, uint64 long_max_price, uint64 short_min_price) {
@@ -249,14 +257,25 @@ contract DCN {
       let state_data_1 := sload(add(state_ptr, 1))
       let state_data_2 := sload(add(state_ptr, 2))
 
-      mstore(return_value_mem, attr(AssetState, 0, state_data_0, quote_qty))
-      mstore(add(return_value_mem, WORD_1), attr(AssetState, 0, state_data_0, base_qty))
-      mstore(add(return_value_mem, WORD_2), attr(AssetState, 1, state_data_1, quote_shift))
-      mstore(add(return_value_mem, WORD_3), attr(AssetState, 1, state_data_1, base_shift))
+      let value := attr(AssetState, 0, state_data_0, quote_qty)
+      CAST_64_NEG(value) mstore(return_value_mem, value)
+
+      value := attr(AssetState, 0, state_data_0, base_qty)
+      CAST_64_NEG(value) mstore(add(return_value_mem, WORD_1), value)
+
+      value := attr(AssetState, 1, state_data_1, quote_shift)
+      CAST_64_NEG(value) mstore(add(return_value_mem, WORD_2), value)
+
+      value := attr(AssetState, 1, state_data_1, base_shift)
+      CAST_64_NEG(value) mstore(add(return_value_mem, WORD_3), value)
 
       mstore(add(return_value_mem, WORD_4), attr(AssetState, 2, state_data_2, limit_version))
-      mstore(add(return_value_mem, WORD_5), attr(AssetState, 1, state_data_1, min_quote))
-      mstore(add(return_value_mem, WORD_6), attr(AssetState, 1, state_data_1, min_base))
+
+      value := attr(AssetState, 1, state_data_1, min_quote)
+      CAST_64_NEG(value) mstore(add(return_value_mem, WORD_5), value)
+
+      value := attr(AssetState, 1, state_data_1, min_base)
+      CAST_64_NEG(value) mstore(add(return_value_mem, WORD_6), value)
 
       mstore(add(return_value_mem, WORD_7), attr(AssetState, 2, state_data_2, long_max_price))
       mstore(add(return_value_mem, WORD_8), attr(AssetState, 2, state_data_2, short_min_price))
@@ -912,14 +931,6 @@ contract DCN {
   #define SIG_HASH_HEADER 0x1901000000000000000000000000000000000000000000000000000000000000
   #define DCN_HEADER_HASH 0xe3d3073cc59e3a3126c17585a7e516a048e61a9a1c82144af982d1c194b18710
   #define UPDATE_LIMIT_TYPE_HASH 0xe0bfc2789e007df269c9fec46d3ddd4acf88fdf0f76af154da933aab7fb2f2b9
-
-  #define NEG_64_FLAG 0x8000000000000000
-  #define I64_TO_NEG 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000
-
-  #define CAST_64_NEG(variable) \
-      if and(variable, NEG_64_FLAG) { \
-        variable := or(variable, I64_TO_NEG) \
-      }
 
   function set_limit(bytes memory data) public {
     uint256[1] memory revert_reason;

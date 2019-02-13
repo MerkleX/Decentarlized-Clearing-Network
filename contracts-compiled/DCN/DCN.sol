@@ -162,13 +162,25 @@ contract DCN {
       let state_data_0 := sload(state_ptr)
       let state_data_1 := sload(add(state_ptr, 1))
       let state_data_2 := sload(add(state_ptr, 2))
-      mstore(return_value_mem, and(div(state_data_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
-      mstore(add(return_value_mem, 32), and(div(state_data_0, 0x100000000000000000000000000000000), 0xffffffffffffffff))
-      mstore(add(return_value_mem, 64), and(div(state_data_1, 0x10000000000000000), 0xffffffffffffffff))
-      mstore(add(return_value_mem, 96), and(state_data_1, 0xffffffffffffffff))
+      let value := and(div(state_data_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
+      if and(value, 0x8000000000000000) { value := or(value, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
+      mstore(return_value_mem, value)
+      value := and(div(state_data_0, 0x100000000000000000000000000000000), 0xffffffffffffffff)
+      if and(value, 0x8000000000000000) { value := or(value, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
+      mstore(add(return_value_mem, 32), value)
+      value := and(div(state_data_1, 0x10000000000000000), 0xffffffffffffffff)
+      if and(value, 0x8000000000000000) { value := or(value, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
+      mstore(add(return_value_mem, 64), value)
+      value := and(state_data_1, 0xffffffffffffffff)
+      if and(value, 0x8000000000000000) { value := or(value, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
+      mstore(add(return_value_mem, 96), value)
       mstore(add(return_value_mem, 128), and(div(state_data_2, 0x100000000000000000000000000000000), 0xffffffffffffffff))
-      mstore(add(return_value_mem, 160), and(div(state_data_1, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
-      mstore(add(return_value_mem, 192), and(div(state_data_1, 0x100000000000000000000000000000000), 0xffffffffffffffff))
+      value := and(div(state_data_1, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
+      if and(value, 0x8000000000000000) { value := or(value, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
+      mstore(add(return_value_mem, 160), value)
+      value := and(div(state_data_1, 0x100000000000000000000000000000000), 0xffffffffffffffff)
+      if and(value, 0x8000000000000000) { value := or(value, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000) }
+      mstore(add(return_value_mem, 192), value)
       mstore(add(return_value_mem, 224), and(div(state_data_2, 0x10000000000000000), 0xffffffffffffffff))
       mstore(add(return_value_mem, 256), and(state_data_2, 0xffffffffffffffff))
       return(return_value_mem, 288)
