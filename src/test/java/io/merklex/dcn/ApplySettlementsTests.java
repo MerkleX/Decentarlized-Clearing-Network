@@ -48,8 +48,8 @@ public class ApplySettlementsTests {
             Box<String> baseToken = new Box<>();
             Box<String> quoteToken = new Box<>();
 
-            BigInteger qty = new BigInteger("10000000");
             long initBalance = 10_000L;
+            BigInteger qty = BigInteger.valueOf(initBalance);
 
             final int quoteAssetId;
             final int baseAssetId;
@@ -72,25 +72,25 @@ public class ApplySettlementsTests {
                 ), BigInteger.ZERO);
 
                 baseToken.value = seller.deployContract(BigInteger.ZERO, StaticNetwork.GAS_LIMIT, ERC20.DeployData(
-                        qty.multiply(BigInteger.TEN),
+                        qty.multiply(BigInteger.valueOf(100)),
                         "Test Token",
                         10,
                         "TK1"
                 ), BigInteger.ZERO);
 
                 if (flip) {
-                    success(creator.sendCall(StaticNetwork.DCN(), DCN.add_asset("BASE", 1, baseToken.value)));
-                    success(creator.sendCall(StaticNetwork.DCN(), DCN.add_asset("QTY!", 1, quoteToken.value)));
+                    success(creator.sendCall(StaticNetwork.DCN(), DCN.add_asset("BASE", 100, baseToken.value)));
+                    success(creator.sendCall(StaticNetwork.DCN(), DCN.add_asset("QTY!", 10, quoteToken.value)));
                 }
                 else {
-                    success(creator.sendCall(StaticNetwork.DCN(), DCN.add_asset("QTY!", 1, quoteToken.value)));
-                    success(creator.sendCall(StaticNetwork.DCN(), DCN.add_asset("BASE", 1, baseToken.value)));
+                    success(creator.sendCall(StaticNetwork.DCN(), DCN.add_asset("QTY!", 10, quoteToken.value)));
+                    success(creator.sendCall(StaticNetwork.DCN(), DCN.add_asset("BASE", 100, baseToken.value)));
                 }
 
                 success(creator.sendCall(StaticNetwork.DCN(), DCN.add_exchange("exchange", quoteAssetId, creator.getAddress())));
 
-                success(buyer.sendCall(quoteToken.value, ERC20.approve(StaticNetwork.DCN(), qty)));
-                success(seller.sendCall(baseToken.value, ERC20.approve(StaticNetwork.DCN(), qty)));
+                success(buyer.sendCall(quoteToken.value, ERC20.approve(StaticNetwork.DCN(), qty.multiply(BigInteger.TEN))));
+                success(seller.sendCall(baseToken.value, ERC20.approve(StaticNetwork.DCN(), qty.multiply(BigInteger.valueOf(100)))));
 
                 success(buyer.sendCall(StaticNetwork.DCN(), DCN.deposit_asset_to_session(0, quoteAssetId, initBalance)));
                 success(seller.sendCall(StaticNetwork.DCN(), DCN.deposit_asset_to_session(0, baseAssetId, initBalance)));
@@ -134,7 +134,6 @@ public class ApplySettlementsTests {
 
                 settlements.exchangeId(oldExchangeId);
             });
-
 
             it("should fail with non creator as caller", () -> {
                 String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
@@ -355,6 +354,63 @@ public class ApplySettlementsTests {
 
                 Assert.assertTrue(tx.hasError());
                 Assert.assertEquals("0x64", RevertCodeExtractor.Get(tx.getError()));
+            });
+
+            it("non exchange should not be able to withdraw fee", () -> {
+                EthSendTransaction tx = buyer.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 11));
+                Assert.assertTrue(tx.hasError());
+                Assert.assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
+            });
+
+            it("exchange should not be able to withdraw more than fee", () -> {
+                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 11));
+                Assert.assertTrue(tx.hasError());
+                Assert.assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
+            });
+
+            it("should be able to withdraw fee 50", () -> {
+                success(creator.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 5)));
+
+                DCN.GetExchangeReturnValue exchange = query.query(DCN::query_get_exchange, DCN.get_exchange(0));
+                assertEquals(5, exchange.fee_balance);
+
+                ERC20.BalanceofReturnValue balance = ERC20.query_balanceOf(quoteToken.value, StaticNetwork.Web3(),
+                        ERC20.balanceOf(creator.getAddress()));
+                Assert.assertEquals(BigInteger.valueOf(50), balance.balance);
+            });
+
+            it("should be able to withdraw fee 0", () -> {
+                success(creator.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 0)));
+
+                DCN.GetExchangeReturnValue exchange = query.query(DCN::query_get_exchange, DCN.get_exchange(0));
+                assertEquals(5, exchange.fee_balance);
+
+                ERC20.BalanceofReturnValue balance = ERC20.query_balanceOf(quoteToken.value, StaticNetwork.Web3(),
+                        ERC20.balanceOf(creator.getAddress()));
+                Assert.assertEquals(BigInteger.valueOf(50), balance.balance);
+            });
+
+            it("should be able to withdraw fee 50 to 0", () -> {
+                success(creator.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 5)));
+
+                DCN.GetExchangeReturnValue exchange = query.query(DCN::query_get_exchange, DCN.get_exchange(0));
+                assertEquals(0, exchange.fee_balance);
+
+                ERC20.BalanceofReturnValue balance = ERC20.query_balanceOf(quoteToken.value, StaticNetwork.Web3(),
+                        ERC20.balanceOf(creator.getAddress()));
+                Assert.assertEquals(BigInteger.valueOf(100), balance.balance);
+            });
+
+            it("should fail to withdraw with no balance", () -> {
+                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 1));
+                Assert.assertTrue(tx.hasError());
+                Assert.assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
             });
         });
     }

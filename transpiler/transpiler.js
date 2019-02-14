@@ -330,7 +330,7 @@ module.exports = function(raw) {
 
               if (length === 32n) {
                 if (bits_remaining !== 0n) {
-                  throw new Error('full width member should span word');
+                  throw new Error(`full width member "${member_name}" should span word, remain: ${bits_remaining}`);
                 }
 
                 return data;

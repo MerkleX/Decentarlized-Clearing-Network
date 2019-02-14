@@ -44,7 +44,10 @@ contract DCN {
     uint64 name;
     uint32 quote_asset_id;
     address owner;
+
     uint256 fee_balance;
+    uint256 owner_backup;
+    uint256 owner_backup_proposed;
   }
 
   struct Asset {
@@ -137,18 +140,20 @@ contract DCN {
     }
   }
 
-  function get_exchange(uint32 exchange_id) public view returns (string memory name, uint64 quote_asset_id, address addr, uint64 fee_balance) {
+  function get_exchange(uint32 exchange_id) public view returns (string memory name, uint64 quote_asset_id,
+                                                                 address addr, uint64 fee_balance,
+                                                                 address owner_backup, address owner_backup_proposed) {
     /* [ name_offset, quote_asset_id, addr, fee_balance, name_len, name_data(8) ] */
-    uint256[6] memory return_value_mem;
+    uint256[8] memory return_value_mem;
 
     assembly {
       let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
       let exchange_data := sload(exchange_ptr)
 
       /* Store name */
-      mstore(return_value_mem, WORD_4)
-      mstore(add(return_value_mem, WORD_4), 8)
-      mstore(add(return_value_mem, WORD_5), exchange_data)
+      mstore(return_value_mem, WORD_6)
+      mstore(add(return_value_mem, WORD_6), 8)
+      mstore(add(return_value_mem, WORD_7), exchange_data)
 
       /* Store quote_asset_id */
       mstore(add(return_value_mem, WORD_1), attr(Exchange, 0, exchange_data, quote_asset_id))
@@ -160,7 +165,15 @@ contract DCN {
       exchange_data := sload(add(exchange_ptr, 1))
       mstore(add(return_value_mem, WORD_3), attr(Exchange, 1, exchange_data, fee_balance))
 
-      return(return_value_mem, 168)
+      /* Store owner_backup */
+      exchange_data := sload(add(exchange_ptr, 2))
+      mstore(add(return_value_mem, WORD_4), attr(Exchange, 2, exchange_data, owner_backup))
+
+      /* Store owner_backup_proposed */
+      exchange_data := sload(add(exchange_ptr, 3))
+      mstore(add(return_value_mem, WORD_5), attr(Exchange, 3, exchange_data, owner_backup_proposed))
+
+      return(return_value_mem, const_add(WORD_7, 8))
     }
   }
 
@@ -295,6 +308,116 @@ contract DCN {
     }
   }
 
+  function exchange_update_owner(uint32 exchange_id, address new_owner) public {
+    assembly {
+      let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
+      let exchange_data_2 := sload(add(exchange_ptr, 2))
+
+      /* ensure caller is backup */
+      if iszero(eq(attr(Exchange, 2, exchange_data_2, owner_backup), caller)) {
+        revert(0, 0)
+      }
+
+      let exchange_data_0 := sload(exchange_ptr)
+      sstore(exchange_ptr, or(
+        and(exchange_data_0, mask_out(Exchange, 0, owner)),
+        build(Exchange, 0, /* name */ 0, /* quote_asset_id */ 0, /* owner */ new_owner)
+      ))
+    }
+  }
+
+  function exchange_propose_backup(uint32 exchange_id, address backup) public {
+    assembly {
+      let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
+      let exchange_data_2 := sload(add(exchange_ptr, 2))
+
+      /* ensure caller is backup */
+      if iszero(eq(attr(Exchange, 2, exchange_data_2, owner_backup), caller)) {
+        revert(0, 0)
+      }
+
+      /* update proposed */
+      sstore(add(exchange_ptr, 3), backup)
+    }
+  }
+
+  function exchange_set_backup(uint32 exchange_id) public {
+    assembly {
+      let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
+      let exchange_data_3 := sload(add(exchange_ptr, 3))
+
+      /* ensure caller is proposed backup */
+      if iszero(eq(attr(Exchange, 3, exchange_data_3, owner_backup_proposed), caller)) {
+        revert(0, 0)
+      }
+
+      /* update backup */
+      sstore(add(exchange_ptr, 2), caller)
+    }
+  }
+
+  #define ERC_20_SEND(TOKEN_ADDRESS, TO_ADDRESS, AMOUNT, REVERT_1, REVERT_2) \
+      mstore(transfer_in_mem, fn_hash("transfer(address,uint256)")) \
+      mstore(add(transfer_in_mem, 4), TO_ADDRESS) \
+      mstore(add(transfer_in_mem, 36), AMOUNT) \
+      \
+      let success := call( \
+        gas, \
+        TOKEN_ADDRESS, \
+        /* don't send any ether */ 0, \
+        transfer_in_mem, \
+        /* transfer_in_mem size (bytes) */ 68, \
+        transfer_out_mem, \
+        /* transfer_out_mem size (bytes) */ 32 \
+      ) \
+      \
+      if iszero(success) { \
+        REVERT(REVERT_1) \
+      } \
+      \
+      let result := mload(transfer_out_mem) \
+      if iszero(result) { \
+        REVERT(REVERT_2) \
+      } \
+
+  function exchange_withdraw_fees(uint32 exchange_id, address destination, uint64 quantity) public {
+    uint256[1] memory revert_reason;
+    uint256[3] memory transfer_in_mem;
+    uint256[1] memory transfer_out_mem;
+
+    assembly {
+      let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
+      let exchange_data_0 := sload(exchange_ptr)
+      let owner := attr(Exchange, 0, exchange_data_0, owner)
+      let quote_asset_id := attr(Exchange, 0, exchange_data_0, quote_asset_id)
+
+      /* ensure caller is owner */
+      if iszero(eq(owner, caller)) {
+        REVERT(1)
+      }
+
+      let asset_data := sload(pointer(Asset, assets_slot, quote_asset_id))
+      let unit_scale := attr(Asset, 0, asset_data, unit_scale)
+      let asset_address := attr(Asset, 0, asset_data, contract_address)
+
+      let total_fees := attr(Exchange, 1, sload(add(exchange_ptr, 1)), fee_balance)
+      if gt(quantity, total_fees) {
+        REVERT(2)
+      }
+      sstore(add(exchange_ptr, 1), sub(total_fees, quantity))
+
+      let withdraw := mul(quantity, unit_scale)
+
+      ERC_20_SEND(
+        /* TOKEN_ADDRESS */ asset_address,
+        /* TO_ADDRESS */ destination,
+        /* AMOUNT */ withdraw,
+        /* REVERT_1 */ 3,
+        /* REVERT_2 */ 4
+      )
+    }
+  }
+
   function security_lock() public {
     uint256[1] memory revert_reason;
 
@@ -382,7 +505,6 @@ contract DCN {
     }
   }
 
-
   function add_exchange(string memory name, uint32 quote_asset_id, address addr) public {
     uint256[1] memory revert_reason;
 
@@ -421,6 +543,7 @@ contract DCN {
       let name_data := mload(add(name, 32))
       let exchange_data := or(name_data, build(Exchange, /* word */ 0, /* symbol */ 0, quote_asset_id, addr))
       sstore(exchange_ptr, exchange_data)
+      sstore(add(exchange_ptr, 2), addr)
       sstore(exchange_count_slot, add(exchange_count, 1))
     }
   }
@@ -503,33 +626,18 @@ contract DCN {
         REVERT(1)
       }
 
-      mstore(transfer_in_mem, fn_hash("transfer(address,uint256)"))
-      mstore(add(transfer_in_mem, 4), destination)
-      mstore(add(transfer_in_mem, 36), amount)
+      sstore(asset_ptr, sub(current_balance, amount))
 
       let asset_data := sload(pointer(Asset, assets_slot, asset_id))
       let asset_address := attr(Asset, 0, asset_data, contract_address)
 
-      let success := call(
-        gas,
-        asset_address,
-        /* don't send any ether */ 0,
-        transfer_in_mem,
-        /* transfer_in_mem size (bytes) */ 68,
-        transfer_out_mem,
-        /* transfer_out_mem size (bytes) */ 32
+      ERC_20_SEND(
+        /* TOKEN_ADDRESS */ asset_address,
+        /* TO_ADDRESS */ destination,
+        /* AMOUNT */ amount,
+        /* REVERT_1 */ 2,
+        /* REVERT_2 */ 3
       )
-
-      if iszero(success) {
-        REVERT(2)
-      }
-
-      let result := mload(transfer_out_mem)
-      if iszero(result) {
-        REVERT(3)
-      }
-
-      sstore(asset_ptr, sub(current_balance, amount))
     }
   }
 
@@ -875,31 +983,15 @@ contract DCN {
       let asset_address := attr(Asset, 0, asset_data, contract_address)
 
       /* apply unit scale */
-      let credit := mul(amount, unit_scale)
+      let withdraw := mul(amount, unit_scale)
 
-      /* send funds via ERC-20 contract */
-      mstore(transfer_in_mem, fn_hash("transfer(address,uint256)"))
-      mstore(add(transfer_in_mem, 4), user)
-      mstore(add(transfer_in_mem, 36), credit)
-
-      let success := call(
-        gas,
-        asset_address,
-        /* don't send any ether */ 0,
-        transfer_in_mem,
-        /* transfer_in_mem size (bytes) */ 68,
-        transfer_out_mem,
-        /* transfer_out_mem size (bytes) */ 32
+      ERC_20_SEND(
+        /* TOKEN_ADDRESS */ asset_address,
+        /* TO_ADDRESS */ user,
+        /* AMOUNT */ withdraw,
+        /* REVERT_1 */ 3,
+        /* REVERT_2 */ 4
       )
-
-      if iszero(success) {
-        REVERT(2)
-      }
-
-      let result := mload(transfer_out_mem)
-      if iszero(result) {
-        REVERT(3)
-      }
     }
   }
 

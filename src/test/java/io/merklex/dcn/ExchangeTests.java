@@ -21,8 +21,11 @@ public class ExchangeTests {
         StaticNetwork.DescribeCheckpoint();
 
         EtherTransactions creator = Accounts.getTx(0);
-        EtherTransactions bob = Accounts.getTx(1);
-        EtherTransactions henry = Accounts.getTx(2);
+        EtherTransactions exchangeOwner0 = Accounts.getTx(1);
+        EtherTransactions exchangeOwner1 = Accounts.getTx(2);
+        EtherTransactions newOwner = Accounts.getTx(3);
+        EtherTransactions newBackup = Accounts.getTx(4);
+        EtherTransactions newOwner2 = Accounts.getTx(5);
 
         describe("add exchange", () -> {
             it("initial exchange count should be zero", () -> {
@@ -38,7 +41,7 @@ public class ExchangeTests {
             it("should not be able to add exchange with invalid quote asset", () -> {
                 EthSendTransaction tx = creator.sendCall(
                         StaticNetwork.DCN(),
-                        DCN.add_exchange("merklex ", 0, bob.credentials().getAddress())
+                        DCN.add_exchange("merklex ", 0, exchangeOwner0.credentials().getAddress())
                 );
                 Assert.assertEquals("0x03", RevertCodeExtractor.Get(tx.getError()));
                 Assert.assertEquals("0x0", creator.waitForResult(tx).getStatus());
@@ -49,7 +52,7 @@ public class ExchangeTests {
 
                 TransactionReceipt receipt = creator.call(
                         StaticNetwork.DCN(),
-                        DCN.add_exchange("merklex ", 0, bob.credentials().getAddress())
+                        DCN.add_exchange("merklex ", 0, exchangeOwner0.credentials().getAddress())
                 );
                 assertEquals("0x1", receipt.getStatus());
 
@@ -67,19 +70,21 @@ public class ExchangeTests {
                 );
 
                 assertEquals(0, exchange.fee_balance);
-                assertEquals(bob.credentials().getAddress(), exchange.addr);
+                assertEquals(exchangeOwner0.credentials().getAddress(), exchange.addr);
                 assertEquals("merklex ", exchange.name);
+                assertEquals(exchangeOwner0.credentials().getAddress(), exchange.owner_backup);
+                assertEquals("0x0000000000000000000000000000000000000000", exchange.owner_backup_proposed);
             });
 
             it("non creator should fail to add exchange", () -> {
-                EthSendTransaction tx = bob.sendCall(
+                EthSendTransaction tx = exchangeOwner0.sendCall(
                         StaticNetwork.DCN(),
-                        DCN.add_exchange("bobs network", 0, bob.credentials().getAddress())
+                        DCN.add_exchange("bobs network", 0, exchangeOwner0.credentials().getAddress())
                 );
                 Assert.assertTrue(tx.hasError());
                 Assert.assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
 
-                TransactionReceipt receipt = bob.waitForResult(tx);
+                TransactionReceipt receipt = exchangeOwner0.waitForResult(tx);
                 assertEquals("0x0", receipt.getStatus());
 
                 int count = DCN.query_get_exchange_count(
@@ -94,7 +99,7 @@ public class ExchangeTests {
             it("should not be able to create exchange with 5 char name", () -> {
                 TransactionReceipt receipt = creator.call(
                         StaticNetwork.DCN(),
-                        DCN.add_exchange("12345", 0, bob.credentials().getAddress())
+                        DCN.add_exchange("12345", 0, exchangeOwner0.credentials().getAddress())
                 );
                 assertEquals("0x0", receipt.getStatus());
             });
@@ -102,7 +107,7 @@ public class ExchangeTests {
             it("should not be able to create exchange with 15 char name", () -> {
                 TransactionReceipt receipt = creator.call(
                         StaticNetwork.DCN(),
-                        DCN.add_exchange("boby network :)", 0, bob.credentials().getAddress())
+                        DCN.add_exchange("boby network :)", 0, exchangeOwner0.credentials().getAddress())
                 );
                 assertEquals("0x0", receipt.getStatus());
             });
@@ -110,7 +115,7 @@ public class ExchangeTests {
             it("second exchange should not effect first", () -> {
                 TransactionReceipt receipt = creator.call(
                         StaticNetwork.DCN(),
-                        DCN.add_exchange("12345678", 0, henry.credentials().getAddress())
+                        DCN.add_exchange("12345678", 0, exchangeOwner1.credentials().getAddress())
                 );
                 assertEquals("0x1", receipt.getStatus());
 
@@ -128,7 +133,7 @@ public class ExchangeTests {
                 );
 
                 assertEquals(0, exchange.fee_balance);
-                assertEquals(bob.credentials().getAddress(), exchange.addr);
+                assertEquals(exchangeOwner0.credentials().getAddress(), exchange.addr);
                 assertEquals("merklex ", exchange.name);
 
                 exchange = DCN.query_get_exchange(
@@ -137,14 +142,14 @@ public class ExchangeTests {
                 );
 
                 assertEquals(0, exchange.fee_balance);
-                assertEquals(henry.credentials().getAddress(), exchange.addr);
+                assertEquals(exchangeOwner1.credentials().getAddress(), exchange.addr);
                 assertEquals("12345678", exchange.name);
             });
 
             it("should not be able to add exchange with invalid quote_asset", () -> {
                 TransactionReceipt receipt = creator.call(
                         StaticNetwork.DCN(),
-                        DCN.add_exchange("12 45 78", 1, bob.credentials().getAddress())
+                        DCN.add_exchange("12 45 78", 1, exchangeOwner0.credentials().getAddress())
                 );
                 assertEquals("0x0", receipt.getStatus());
             });
@@ -155,9 +160,78 @@ public class ExchangeTests {
 
                 TransactionReceipt receipt = creator.call(
                         StaticNetwork.DCN(),
-                        DCN.add_exchange("12 45 78", 1, bob.credentials().getAddress())
+                        DCN.add_exchange("12 45 78", 1, exchangeOwner0.credentials().getAddress())
                 );
                 assertEquals("0x1", receipt.getStatus());
+            });
+
+            it("non owner should not be able to update owner", () -> {
+                TransactionReceipt tx = creator.call(StaticNetwork.DCN(),
+                        DCN.exchange_update_owner(0, newOwner.getAddress()));
+                assertEquals("0x0", tx.getStatus());
+            });
+
+            it("should be able to update owner", () -> {
+                TransactionReceipt tx = exchangeOwner0.call(StaticNetwork.DCN(),
+                        DCN.exchange_update_owner(0, newOwner.getAddress()));
+                assertEquals("0x1", tx.getStatus());
+
+                DCN.GetExchangeReturnValue exchange = DCN.query_get_exchange(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_exchange(0)
+                );
+
+                Assert.assertEquals(newOwner.getAddress(), exchange.addr);
+            });
+
+            it("non owner should not be able to proposed backup", () -> {
+                TransactionReceipt tx = creator.call(StaticNetwork.DCN(),
+                        DCN.exchange_propose_backup(0, newBackup.getAddress()));
+                assertEquals("0x0", tx.getStatus());
+            });
+
+            it("should be able to proposed backup", () -> {
+                TransactionReceipt tx = exchangeOwner0.call(StaticNetwork.DCN(),
+                        DCN.exchange_propose_backup(0, newBackup.getAddress()));
+                assertEquals("0x1", tx.getStatus());
+
+                DCN.GetExchangeReturnValue exchange = DCN.query_get_exchange(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_exchange(0)
+                );
+
+                Assert.assertEquals(newOwner.getAddress(), exchange.addr);
+                Assert.assertEquals(exchangeOwner0.getAddress(), exchange.owner_backup);
+                Assert.assertEquals(newBackup.getAddress(), exchange.owner_backup_proposed);
+            });
+
+            it("non proposed backup should not be able to set proposed", () -> {
+                TransactionReceipt tx = exchangeOwner0.call(StaticNetwork.DCN(),
+                        DCN.exchange_set_backup(0));
+                assertEquals("0x0", tx.getStatus());
+
+                tx = newOwner.call(StaticNetwork.DCN(),
+                        DCN.exchange_set_backup(0));
+                assertEquals("0x0", tx.getStatus());
+
+                tx = creator.call(StaticNetwork.DCN(),
+                        DCN.exchange_set_backup(0));
+                assertEquals("0x0", tx.getStatus());
+            });
+
+            it("should be able to set backup", () -> {
+                TransactionReceipt tx = newBackup.call(StaticNetwork.DCN(),
+                        DCN.exchange_set_backup(0));
+                assertEquals("0x1", tx.getStatus());
+
+                DCN.GetExchangeReturnValue exchange = DCN.query_get_exchange(
+                        StaticNetwork.DCN(), StaticNetwork.Web3(),
+                        DCN.get_exchange(0)
+                );
+
+                Assert.assertEquals(newOwner.getAddress(), exchange.addr);
+                Assert.assertEquals(newBackup.getAddress(), exchange.owner_backup);
+                Assert.assertEquals(newBackup.getAddress(), exchange.owner_backup_proposed);
             });
         });
     }
