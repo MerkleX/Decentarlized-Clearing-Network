@@ -1,25 +1,31 @@
 pragma solidity ^0.5.0;
 
+/* Signal for transpiler to run */
 #define TRANSPILE
 
-#define WORD_1 32
-#define WORD_2 64
-#define WORD_3 96
-#define WORD_4 128
-#define WORD_5 160
-#define WORD_6 192
-#define WORD_7 224
-#define WORD_8 256
-#define WORD_9 288
-#define WORD_10 320
+#define WORD_1 32   /* 32*1 = 32 */
+#define WORD_2 64   /* 32*2 = 64 */
+#define WORD_3 96   /* 32*3 = 96 */
+#define WORD_4 128  /* 32*4 = 128 */
+#define WORD_5 160  /* 32*5 = 160 */
+#define WORD_6 192  /* 32*6 = 192 */
+#define WORD_7 224  /* 32*7 = 224 */
+#define WORD_8 256  /* 32*8 = 256 */
+#define WORD_9 288  /* 32*9 = 288 */
+#define WORD_10 320 /* 32*10 = 320 */
 
 #define U64_MASK 0xFFFFFFFFFFFFFFFF
 
-#define CHAIN_ID 1111
-#define VERSION  1
-
 #define PRICE_UNITS 100000000
 
+/*
+ * Resolves to 1 if number cannot fit in i64.
+ *
+ * Valid range for i64 [-2^63, 2^64-1]
+ * = [ -9,223,372,036,854,775,808, 9,223,372,036,854,775,807 ]
+ * = (64 bit) [ 0x8000000000000000, 0x7fffffffffffffff ]
+ * = (256 bit) = [ 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000, 0x7fffffffffffffff ]
+ */
 #define INVALID_I64(variable) \
   or(slt(variable, 0xffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000), sgt(variable, 0x7fffffffffffffff))
 
@@ -27,36 +33,51 @@ contract DCN {
   event SessionUpdated(address user, uint64 exchange_id);
   event PositionUpdated(address user, uint64 exchange_id, uint32 asset_id); 
 
-  /* Contract Constants */
-
+  /* Address allowed to update self and add assets and exchanges. */
   uint256 creator;
+
+  /* Number of exchanges registered */
   uint256 exchange_count;
+
+  /* Number of assets registered */
   uint256 asset_count;
+
+  /* A failsafe timestamp to prevent settlement */
   uint256 locked_timestamp;
 
-  /* Memory Layout */
-
+  /* Maxium values */
   #define EXCHANGE_COUNT (2**32)
   #define ASSET_COUNT (2**32)
   #define USER_COUNT (2**160)
 
   struct Exchange {
+    /* 8 byte name of the exchange */
     uint64 name;
+    /* index of the asset the exchange pairs will all other assets */
     uint32 quote_asset_id;
+    /* address used to manage exchange's markets */
     address owner;
 
+    /* total fee balance in scaled down units */
     uint256 fee_balance;
+    /* backup address to change the owner address */
     uint256 owner_backup;
+    /* a proposed address to change owner_backup */
     uint256 owner_backup_proposed;
   }
 
   struct Asset {
+    /* 4 byte symbol of the asset */
     uint32 symbol;
+    /* used to scale between wallet and state balances */
     uint64 unit_scale;
+    /* address of the ERC-20 Token */
     address contract_address;
   }
 
   struct User {
+    /* list of all possible balance for each asset.
+     * Corresponding asset exists at the same index */
     uint256[ASSET_COUNT] balances;
   }
 
