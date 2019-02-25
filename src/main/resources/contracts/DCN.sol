@@ -35,6 +35,8 @@ contract DCN {
 
   /* Address allowed to update self and add assets and exchanges. */
   uint256 creator;
+  uint256 creator_backup;
+  uint256 creator_backup_proposed;
 
   /* Number of exchanges registered */
   uint256 exchange_count;
@@ -49,21 +51,22 @@ contract DCN {
   #define EXCHANGE_COUNT (2**32)
   #define ASSET_COUNT (2**32)
   #define USER_COUNT (2**160)
+  #define MARKET_COUNT (2**64)
 
   struct Exchange {
-    /* 8 byte name of the exchange */
-    uint64 name;
-    /* index of the asset the exchange pairs will all other assets */
-    uint32 quote_asset_id;
+    /* 12 byte name of the exchange */
+    uint96 name;
     /* address used to manage exchange's markets */
     address owner;
 
-    /* total fee balance in scaled down units */
-    uint256 fee_balance;
     /* backup address to change the owner address */
     uint256 owner_backup;
+
     /* a proposed address to change owner_backup */
     uint256 owner_backup_proposed;
+
+    /* asset balances */
+    uint64[ASSET_COUNT] balances;
   }
 
   struct Asset {
@@ -75,27 +78,38 @@ contract DCN {
     address contract_address;
   }
 
-  struct User {
-    /* list of all possible balance for each asset.
-     * Corresponding asset exists at the same index */
-    uint256[ASSET_COUNT] balances;
-  }
-
-  struct AssetState {
+  struct MarketState {
     int64 quote_qty;
     int64 base_qty;
-    uint64 total_deposit;
-    uint64 asset_balance;
+    uint64 fee_limit;
+    uint64 fee_used;
 
     int64 min_quote;
     int64 min_base;
-    int64 quote_shift;
-    int64 base_shift;
-
-    uint64 padding;
-    uint64 limit_version;
     uint64 long_max_price;
     uint64 short_min_price;
+
+    uint64 limit_version;
+    int96 quote_shift;
+    int96 base_shift;
+  }
+
+  struct ExchangeBalance {
+    uint128 total_deposit;
+    uint64 unsettled_withdraw_total;
+    uint64 asset_balance;
+  }
+
+  struct ExchangeSession {
+    uint256 unlock_at;
+
+    ExchangeBalance[ASSET_COUNT] exchange_balances;
+    MarketState[MARKET_COUNT] market_states;
+  }
+
+  struct User {
+    uint256[ASSET_COUNT] balances;
+    ExchangeSession[EXCHANGE_COUNT] exchange_sessions;
   }
 
   struct QuoteAssetState {
@@ -106,27 +120,17 @@ contract DCN {
 
     uint64 version;
     uint192 unlock_at;
-
-    uint256 padding;
-  }
-
-  struct UserExchangeSession {
-    AssetState[ASSET_COUNT] states;
-  }
-
-  struct UserSessions {
-    UserExchangeSession[EXCHANGE_COUNT] exchange_sessions;
   }
 
   Exchange[EXCHANGE_COUNT] exchanges;
   Asset[ASSET_COUNT] assets;
   User[USER_COUNT] users;
-  UserSessions[USER_COUNT] sessions;
 
   /* Change constants for assembly */
   #define EXCHANGE_COUNT exp(2, 32)
   #define ASSET_COUNT exp(2, 32)
   #define USER_COUNT exp(2, 160)
+  #define EXCHANGE_COUNT exp(2, 64)
 
   #define SESSION_PTR(user_addr, exchange_id) pointer(UserExchangeSession, pointer(UserSessions, sessions_slot, user_addr), exchange_id)
   #define REVERT(code) mstore(revert_reason, code) revert(add(revert_reason, 31), 1)
@@ -134,30 +138,39 @@ contract DCN {
   constructor() public {
     assembly {
       sstore(creator_slot, caller)
+      sstore(creator_backup_slot, caller)
     }
   }
 
   /* View functions */
 
-  function get_creator() public view returns (address dcn_creator) {
-    return address(creator);
+  function get_creator() public view returns (address dcn_creator, address dcn_creator_backup, address dcn_creator_backup) {
+    uint256[3] memory return_value_mem;
+
+    assembly {
+      mstore(return_value_mem, sload(creator_slot))
+      mstore(add(return_value_mem, WORD_1), sload(creator_backup_slot))
+      mstore(add(return_value_mem, WORD_2), sload(creator_backup_proposed_slot))
+      return(return_value_mem, WORD_3)
+    }
   }
 
-  function get_asset(uint32 asset_id) public view
-  returns (string memory symbol, uint64 unit_scale, address contract_address) {
+  #define MSTORE_STR(MSTORE_VAR, CONTENT_DATA, STR_LEN, STR_DATA) \
+    mstore(MSTORE_VAR, CONTENT_DATA) \
+    mstore(add(MSTORE_VAR, CONTENT_DATA), STR_LEN) \
+    mstore(add(MSTORE_VAR, const_add(CONTENT_DATA, WORD_1)), STR_DATA)
+
+  function get_asset(uint32 asset_id) public view returns (string memory symbol, uint64 unit_scale, address contract_address) {
     uint256[5] memory return_value_mem;
 
     assembly {
       let data := sload(pointer(Asset, assets_slot, asset_id))
 
-      mstore(return_value_mem, 96)
-      mstore(add(return_value_mem, 96), 4)
-      mstore(add(return_value_mem, 128), data)
-
+      MSTORE_STR(return_value_mem, WORD_3, 4, data)
       mstore(add(return_value_mem, WORD_1), attr(Asset, 0, data, unit_scale))
       mstore(add(return_value_mem, WORD_2), attr(Asset, 0, data, contract_address))
 
-      return(return_value_mem, 132)
+      return(return_value_mem, const_add(WORD_3, /* string header */ WORD_1 , /* string data */ 4))
     }
   }
 
@@ -171,10 +184,7 @@ contract DCN {
       let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
       let exchange_data := sload(exchange_ptr)
 
-      /* Store name */
-      mstore(return_value_mem, WORD_6)
-      mstore(add(return_value_mem, WORD_6), 8)
-      mstore(add(return_value_mem, WORD_7), exchange_data)
+      MSTORE_STR(return_value_mem, WORD_6, 12, exchange_data)
 
       /* Store quote_asset_id */
       mstore(add(return_value_mem, WORD_1), attr(Exchange, 0, exchange_data, quote_asset_id))
@@ -194,7 +204,7 @@ contract DCN {
       exchange_data := sload(add(exchange_ptr, 3))
       mstore(add(return_value_mem, WORD_5), attr(Exchange, 3, exchange_data, owner_backup_proposed))
 
-      return(return_value_mem, const_add(WORD_7, 8))
+      return(return_value_mem, const_add(WORD_6, /* string header */ WORD_1, /* string data */ 12))
     }
   }
 
@@ -223,48 +233,54 @@ contract DCN {
 
     assembly {
       let user_ptr := pointer(User, users_slot, user)
-      let balance_ptr := pointer(u256, user_ptr, asset_id)
+      let balance_ptr := pointer(
+        uint256, 
+        pointer_attr(User, user_ptr, balances),
+        asset_id
+      )
 
       mstore(return_value_mem, sload(balance_ptr))
       return(return_value_mem, WORD_1)
     }
   }
 
-  function get_session(address user, uint32 exchange_id) public view
-  returns (uint64 version, uint64 unlock_at, uint64 fee_limit, uint64 fee_used) {
-    uint256[4] memory return_value_mem;
+  #define EXCHANGE_PTR(user_ptr, exchange_id) \
+    pointer( \
+      ExchangeSession, \
+      pointer_attr(User, user_ptr, exchange_sessions), \
+      exchange_id)
+
+  function get_unlock_at(address user, uint32 exchange_id) public view
+  returns (uint256 unlock_at) {
+    uint256[1] memory return_value_mem;
 
     assembly {
-      let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
-      let quote_asset_id := attr(Exchange, 0, sload(exchange_ptr), quote_asset_id)
+      let user_ptr := pointer(User, users_slot, user)
+      let exchange_session_ptr := EXCHANGE_PTR(user_ptr, exchange_id)
+      let exchange_session_data_0 := sload(exchange_session_ptr)
 
-      let session_ptr := SESSION_PTR(user, exchange_id)
-      let quote_state_ptr := pointer(AssetState, session_ptr, quote_asset_id)
+      mstore(return_value_mem, attr(
+        ExchangeSession, 0, exchange_data_0, unlock_at
+      ))
 
-      let state_data_0 := sload(quote_state_ptr)
-      let state_data_1 := sload(add(quote_state_ptr, 1))
-
-      mstore(return_value_mem, attr(QuoteAssetState, 1, state_data_1, version))
-      mstore(add(return_value_mem, WORD_1), attr(QuoteAssetState, 1, state_data_1, unlock_at))
-      mstore(add(return_value_mem, WORD_2), attr(QuoteAssetState, 0, state_data_0, fee_limit))
-      mstore(add(return_value_mem, WORD_3), attr(QuoteAssetState, 0, state_data_0, fee_used))
-
-      return(return_value_mem, WORD_4)
+      return(return_value_mem, WORD_1)
     }
   }
 
   function get_session_balance(address user, uint32 exchange_id, uint32 asset_id) public view
-  returns (uint64 total_deposit, uint64 asset_balance) {
+  returns (uint192 total_deposit, uint64 asset_balance) {
     uint256[2] memory return_value_mem;
 
     assembly {
-      let session_ptr := SESSION_PTR(user, exchange_id)
-      let state_ptr := pointer(AssetState, session_ptr, asset_id)
+      let user_ptr := pointer(User, users_slot, user)
+      let exchange_session_ptr := EXCHANGE_PTR(user_ptr, exchange_id)
+      let exchange_balances_ptr := pointer_attr(ExchangeSession, exchange_session_ptr, exchange_balances)
+      let exchange_balance_ptr := pointer(ExchangeBalance, exchange_balances_ptr, asset_id)
 
-      let state_data := sload(state_ptr)
+      let exchange_balance_data_0 := sload(exchange_balances_ptr)
 
-      mstore(return_value_mem, attr(AssetState, 0, state_data, total_deposit))
-      mstore(add(return_value_mem, WORD_1), attr(AssetState, 0, state_data, asset_balance))
+      mstore(return_value_mem, attr(ExchangeBalance, 0, exchange_balance_data_0, total_deposit))
+      mstore(add(return_value_mem, WORD_1), attr(ExchangeBalance, 0, exchange_balance_data_0, asset_balance))
 
       return(return_value_mem, WORD_2)
     }
@@ -278,50 +294,83 @@ contract DCN {
         variable := or(variable, I64_TO_NEG) \
       }
 
-  function get_session_state(address user, uint32 exchange_id, uint32 asset_id) public view
-  returns (int64 quote_qty, int64 base_qty, int64 quote_shift, int64 base_shift,
-           uint64 version, int64 min_quote, int64 min_base, uint64 long_max_price, uint64 short_min_price) {
-    uint256[8] memory return_value_mem;
+  #define MARKET_IDX(quote_asset_id, base_asset_id) \
+    add(mul(quote_asset_id, ASSET_COUNT), base_asset_id)
+
+  function get_market_state(
+    address user, uint32 exchange_id,
+    uint32 quote_asset_id, uint32 base_asset_id
+  ) public view returns (
+    int64 quote_qty, int64 base_qty, uint64 fee_limit, uint64 fee_used,
+    int64 min_quote, int64 min_base, uint64 long_max_price, uint64 short_min_price,
+    uint64 limit_version, int96 quote_shift, int96 base_shift
+  ) {
+    uint256[11] memory return_value_mem;
 
     assembly {
-      let session_ptr := SESSION_PTR(user, exchange_id)
-      let state_ptr := pointer(AssetState, session_ptr, asset_id)
+      let user_ptr := pointer(User, users_slot, user)
+      let exchange_session_ptr := EXCHANGE_PTR(user_ptr, exchange_id)
+      let exchange_states_ptr := pointer_attr(ExchangeSession, exchange_session_ptr, market_states)
+      let exchange_state_ptr := pointer(MarketState, exchange_states_ptr, MARKET_IDX(quote_asset_id, base_asset_id))
 
-      let state_data_0 := sload(state_ptr)
-      let state_data_1 := sload(add(state_ptr, 1))
-      let state_data_2 := sload(add(state_ptr, 2))
+      let state_data_0 := sload(exchange_state_ptr)
+      let state_data_1 := sload(add(exchange_state_ptr, 1))
+      let state_data_2 := sload(add(exchange_state_ptr, 2))
 
-      let value := attr(AssetState, 0, state_data_0, quote_qty)
+      /* quote_qty */
+      let value := attr(MarketState, 0, state_data_0, quote_qty)
       CAST_64_NEG(value) mstore(return_value_mem, value)
 
-      value := attr(AssetState, 0, state_data_0, base_qty)
+      /* base_qty */
+      value := attr(MarketState, 0, state_data_0, base_qty)
       CAST_64_NEG(value) mstore(add(return_value_mem, WORD_1), value)
 
-      value := attr(AssetState, 1, state_data_1, quote_shift)
-      CAST_64_NEG(value) mstore(add(return_value_mem, WORD_2), value)
+      /* fee_limit */
+      value := attr(MarketState, 0, state_data_0, fee_limit)
+      mstore(add(return_value_mem, WORD_2), value)
 
-      value := attr(AssetState, 1, state_data_1, base_shift)
-      CAST_64_NEG(value) mstore(add(return_value_mem, WORD_3), value)
+      /* fee_used */
+      value := attr(MarketState, 0, state_data_0, fee_used)
+      mstore(add(return_value_mem, WORD_3), value)
 
-      mstore(add(return_value_mem, WORD_4), attr(AssetState, 2, state_data_2, limit_version))
+      /* min_quote */
+      value := attr(MarketState, 1, state_data_1, min_quote)
+      CAST_64_NEG(value) mstore(add(return_value_mem, WORD_4), value)
 
-      value := attr(AssetState, 1, state_data_1, min_quote)
+      /* min_base */
+      value := attr(MarketState, 1, state_data_1, min_base)
       CAST_64_NEG(value) mstore(add(return_value_mem, WORD_5), value)
 
-      value := attr(AssetState, 1, state_data_1, min_base)
-      CAST_64_NEG(value) mstore(add(return_value_mem, WORD_6), value)
+      /* long_max_price */
+      value := attr(MarketState, 1, state_data_1, long_max_price)
+      mstore(add(return_value_mem, WORD_6), value)
 
-      mstore(add(return_value_mem, WORD_7), attr(AssetState, 2, state_data_2, long_max_price))
-      mstore(add(return_value_mem, WORD_8), attr(AssetState, 2, state_data_2, short_min_price))
+      /* long_max_price */
+      value := attr(MarketState, 1, state_data_1, short_min_price)
+      mstore(add(return_value_mem, WORD_7), value)
 
-      return(return_value_mem, WORD_9)
+      /* limit_version */
+      value := attr(MarketState, 2, state_data_2, limit_version)
+      mstore(add(return_value_mem, WORD_8), value)
+
+      /* quote_shift */
+      value := attr(MarketState, 2, state_data_2, quote_shift)
+      CAST_64_NEG(value) mstore(add(return_value_mem, WORD_9), value)
+
+      /* base_shift */
+      value := attr(MarketState, 2, state_data_2, base_shift)
+      CAST_64_NEG(value) mstore(add(return_value_mem, WORD_10), value)
+
+      return(return_value_mem, WORD_11)
     }
   }
 
-  function set_creator(address new_creator) public {
+  /* Manage Creator Adddress */
+
+  function creator_update(address new_creator) public {
     assembly {
-      let current_creator := sload(creator_slot)
-      if iszero(eq(current_creator, caller)) {
+      let creator_backup := sload(creator_backup_slot)
+      if iszero(eq(creator_backup, caller)) {
         revert(0, 0)
       }
 
@@ -329,13 +378,37 @@ contract DCN {
     }
   }
 
+  function creator_propose_backup(address backup) public {
+    assembly {
+      let creator_backup := sload(creator_backup_slot)
+      if iszero(eq(creator_backup, caller)) {
+        revert(0, 0)
+      }
+
+      sstore(creator_backup_proposed, new_creator)
+    }
+  }
+
+  function creator_update_backup() public {
+    assembly {
+      let creator_backup_proposed := sload(creator_backup_proposed_slot)
+      if or(iszero(eq(creator_backup_proposed, caller)), iszero(caller)) {
+        revert(0, 0)
+      }
+      sstore(creator_backup_slot, caller)
+    }
+  }
+
+  /* Manage Exchange Address */
+
   function exchange_update_owner(uint32 exchange_id, address new_owner) public {
     assembly {
       let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
-      let exchange_data_2 := sload(add(exchange_ptr, 2))
+      let exchange_data_1 := sload(add(exchange_ptr, 1))
+      let exchange_backup := attr(Exchange, 1, exchange_data_1, owner_backup)
 
       /* ensure caller is backup */
-      if iszero(eq(attr(Exchange, 2, exchange_data_2, owner_backup), caller)) {
+      if iszero(eq(exchange_backup, caller)) {
         revert(0, 0)
       }
 
@@ -350,30 +423,32 @@ contract DCN {
   function exchange_propose_backup(uint32 exchange_id, address backup) public {
     assembly {
       let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
-      let exchange_data_2 := sload(add(exchange_ptr, 2))
+      let exchange_data_1 := sload(add(exchange_ptr, 1))
+      let exchange_backup := attr(Exchange, 1, exchange_data_1, owner_backup)
 
       /* ensure caller is backup */
-      if iszero(eq(attr(Exchange, 2, exchange_data_2, owner_backup), caller)) {
+      if iszero(eq(exchange_backup, caller)) {
         revert(0, 0)
       }
 
       /* update proposed */
-      sstore(add(exchange_ptr, 3), backup)
+      sstore(add(exchange_ptr, 2), backup)
     }
   }
 
   function exchange_set_backup(uint32 exchange_id) public {
     assembly {
       let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
-      let exchange_data_3 := sload(add(exchange_ptr, 3))
+      let exchange_data_2 := sload(add(exchange_ptr, 2))
+      let exchange_backup_proposed := attr(Exchange, 2, exchange_data_2, owner_backup_proposed)
 
       /* ensure caller is proposed backup */
-      if iszero(eq(attr(Exchange, 3, exchange_data_3, owner_backup_proposed), caller)) {
+      if or(iszero(eq(exchange_backup_proposed, caller)), iszero(caller)) {
         revert(0, 0)
       }
 
       /* update backup */
-      sstore(add(exchange_ptr, 2), caller)
+      sstore(add(exchange_ptr, 1), caller)
     }
   }
 
@@ -401,7 +476,10 @@ contract DCN {
         REVERT(REVERT_2) \
       } \
 
-  function exchange_withdraw_fees(uint32 exchange_id, address destination, uint64 quantity) public {
+  /* Manage Exchange Balance */
+
+  function exchange_withdraw(uint32 exchange_id, uint32 asset_id,
+                             address destination, uint64 quantity) public {
     uint256[1] memory revert_reason;
     uint256[3] memory transfer_in_mem;
     uint256[1] memory transfer_out_mem;
@@ -409,23 +487,28 @@ contract DCN {
     assembly {
       let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
       let exchange_data_0 := sload(exchange_ptr)
-      let owner := attr(Exchange, 0, exchange_data_0, owner)
-      let quote_asset_id := attr(Exchange, 0, exchange_data_0, quote_asset_id)
 
       /* ensure caller is owner */
-      if iszero(eq(owner, caller)) {
+      let exchange_owner := attr(Exchange, 0, exchange_data_0, owner)
+      if iszero(eq(exchange_owner, caller)) {
         REVERT(1)
       }
 
-      let asset_data := sload(pointer(Asset, assets_slot, quote_asset_id))
-      let unit_scale := attr(Asset, 0, asset_data, unit_scale)
-      let asset_address := attr(Asset, 0, asset_data, contract_address)
+      let exchange_balances_ptr := pointer_attr(Exchange, exchange_ptr, balances)
+      let exchange_balance_ptr := pointer(uint256, exchange_balances_ptr, asset_id)
+      let exchange_balance := sload(exchange_balance_ptr)
 
-      let total_fees := attr(Exchange, 1, sload(add(exchange_ptr, 1)), fee_balance)
-      if gt(quantity, total_fees) {
+      /* insufficient funds */
+      if gt(quantity, exchange_balance) {
         REVERT(2)
       }
-      sstore(add(exchange_ptr, 1), sub(total_fees, quantity))
+
+      /* decrement balance */
+      sstore(exchange_balance_ptr, sub(exchange_balance, quantity))
+
+      let asset_data_0 := sload(pointer(Asset, assets_slot, quote_asset_id))
+      let unit_scale := attr(Asset, 0, asset_data_0, unit_scale)
+      let asset_address := attr(Asset, 0, asset_data_0, contract_address)
 
       let withdraw := mul(quantity, unit_scale)
 
@@ -439,6 +522,68 @@ contract DCN {
     }
   }
 
+  #define ERC_20_DEPOSIT(TOKEN_ADDRESS, FROM_ADDRESS, TO_ADDRESS AMOUNT, REVERT_1, REVERT_2) \
+      mstore(transfer_in_mem, /* transferFrom(address,address,uint256) */ fn_hash("transferFrom(address,address,uint256)")) \
+      mstore(add(transfer_in_mem, 4), FROM_ADDRESS) \
+      mstore(add(transfer_in_mem, 36), TO_ADDRESS) \
+      mstore(add(transfer_in_mem, 68), AMOUNT) \
+      /* call external contract */ \
+      { \
+        let success := call( \
+          gas, \
+          TOKEN_ADDRESS, \
+          /* don't send any ether */ 0, \
+          transfer_in_mem, \
+          /* transfer_in_mem size (bytes) */ 100, \
+          transfer_out_mem, \
+          /* transfer_out_mem size (bytes) */ 32 \
+        ) \
+        if iszero(success) { \
+          REVERT(REVERT_1) \
+        } \
+        let result := mload(transfer_out_mem) \
+        if iszero(result) { \
+          REVERT(REVERT_2) \
+        } \
+      }
+
+  function exchange_deposit(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
+    uint256[1] memory revert_reason;
+    uint256[3] memory transfer_in_mem;
+    uint256[1] memory transfer_out_mem;
+
+    assembly {
+      let exchange_ptr := pointer(Exchange, exchanges_slot, exchange_id)
+      let exchange_balances_ptr := pointer_attr(Exchange, exchange_ptr, balances)
+      let exchange_balance_ptr := pointer(uint256, exchange_balances_ptr, asset_id)
+      let exchange_balance := sload(exchange_balance_ptr)
+
+      let updated_balance := add(exchange_balance, quantity)
+      if gt(updated_balance, U64_MASK) {
+        REVERT(1)
+      }
+
+      let asset_data_0 := sload(pointer(Asset, assets_slot, quote_asset_id))
+      let unit_scale := attr(Asset, 0, asset_data_0, unit_scale)
+      let asset_address := attr(Asset, 0, asset_data_0, contract_address)
+
+      let deposit := mul(quantity, unit_scale)
+
+      ERC_20_DEPOSIT(
+        /* TOKEN_ADDRESS */ asset_address,
+        /* FROM_ADDRESS */ caller,
+        /* TO_ADDRESS */ address,
+        /* AMOUNT */ deposit,
+        /* REVERT_1 */ 2,
+        /* REVERT_2 */ 3
+      )
+
+      sstore(exchange_balance_ptr, updated_balance)
+    }
+  }
+
+  /* Fail-Safe Lock */
+
   function security_lock() public {
     uint256[1] memory revert_reason;
 
@@ -447,6 +592,7 @@ contract DCN {
       if iszero(eq(creator, caller)) {
         REVERT(1)
       }
+
       /* set lock timestamp to end of time */
       sstore(locked_timestamp_slot, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
     }
@@ -514,11 +660,10 @@ contract DCN {
         REVERT(5)
       }
 
-      let asset_symbol := mload(add(symbol, 32 /* offset as first word is size */))
+      let asset_symbol := mload(add(symbol, WORD_1 /* offset as first word is size */))
 
       /* Note, symbol is already shifted not setting it in build */
-      let asset_data := or(asset_symbol, build(Asset, /* word */ 0, /* symbol */ 0, unit_scale, contract_address))
-
+      let asset_data := or(asset_symbol, build(Asset, 0, /* symbol */ 0, unit_scale, contract_address))
       let asset_ptr := pointer(Asset, assets_slot, asset_id)
 
       sstore(asset_ptr, asset_data)
@@ -537,9 +682,9 @@ contract DCN {
         REVERT(1)
       }
 
-      /* Name must be 8 bytes long */
+      /* Name must be 12 bytes long */
       let name_len := mload(name)
-      if iszero(eq(name_len, 8)) {
+      if iszero(eq(name_len, 12)) {
         REVERT(2)
       }
 
@@ -687,7 +832,7 @@ contract DCN {
       let quote_asset_id := attr(Exchange, 0, sload(exchange_ptr), quote_asset_id)
 
       let session_ptr := SESSION_PTR(caller, exchange_id)
-      let quote_state_ptr := pointer(AssetState, session_ptr, quote_asset_id)
+      let quote_state_ptr := pointer(MarketState, session_ptr, quote_asset_id)
 
       let quote_state := sload(quote_state_ptr)
       let current_fee_limit := attr(QuoteAssetState, 0, quote_state, fee_limit)
@@ -773,11 +918,11 @@ contract DCN {
       /* deposit funds into session */
       let session_ptr := SESSION_PTR(caller, exchange_id)
 
-      let asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
+      let asset_state_ptr := pointer(MarketState, session_ptr, asset_id)
 
       let asset_state_data := sload(asset_state_ptr)
-      let total_deposit := and(add(attr(AssetState, 0, asset_state_data, total_deposit), quantity), U64_MASK)
-      let asset_balance := add(attr(AssetState, 0, asset_state_data, asset_balance), quantity)
+      let total_deposit := and(add(attr(MarketState, 0, asset_state_data, total_deposit), quantity), U64_MASK)
+      let asset_balance := add(attr(MarketState, 0, asset_state_data, asset_balance), quantity)
 
       /* note, allow total_deposit to overflow */
       /* check for asset_balance overflow */
@@ -788,8 +933,8 @@ contract DCN {
       sstore(
         asset_state_ptr,
         or(
-          and(asset_state_data, mask_out(AssetState, 0, total_deposit, asset_balance)),
-          build(AssetState, 0, 0, 0, total_deposit, asset_balance)
+          and(asset_state_data, mask_out(MarketState, 0, total_deposit, asset_balance)),
+          build(MarketState, 0, 0, 0, total_deposit, asset_balance)
         )
       )
 
@@ -826,11 +971,11 @@ contract DCN {
 
       /* Update session asset_balance */
       let session_ptr := SESSION_PTR(caller, exchange_id)
-      let asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
+      let asset_state_ptr := pointer(MarketState, session_ptr, asset_id)
       let asset_state_data := sload(asset_state_ptr)
 
-      let total_deposit := add(attr(AssetState, 0, asset_state_data, total_deposit), quantity)
-      let asset_balance := add(attr(AssetState, 0, asset_state_data, asset_balance), quantity)
+      let total_deposit := add(attr(MarketState, 0, asset_state_data, total_deposit), quantity)
+      let asset_balance := add(attr(MarketState, 0, asset_state_data, asset_balance), quantity)
 
       /* allow overflow in total_deposit */
       total_deposit := and(total_deposit, U64_MASK)
@@ -842,8 +987,8 @@ contract DCN {
 
       /* Update balances */
       sstore(asset_state_ptr, or(
-        and(asset_state_data, mask_out(AssetState, 0, total_deposit, asset_balance)),
-        build(AssetState, 0, 0, 0, total_deposit, asset_balance)
+        and(asset_state_data, mask_out(MarketState, 0, total_deposit, asset_balance)),
+        build(MarketState, 0, 0, 0, total_deposit, asset_balance)
       ))
 
       log_event(PositionUpdated, log_data_mem, caller, exchange_id, asset_id)
@@ -861,7 +1006,7 @@ contract DCN {
       let session_ptr := SESSION_PTR(caller, exchange_id)
 
       {
-        let quote_state_ptr := pointer(AssetState, session_ptr, quote_asset_id)
+        let quote_state_ptr := pointer(MarketState, session_ptr, quote_asset_id)
         let unlock_at := attr(QuoteAssetState, 1, sload(add(quote_state_ptr, 1)), unlock_at)
 
         /* revert if locked */
@@ -872,11 +1017,11 @@ contract DCN {
 
       /* subtract from session */
       {
-        let asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
+        let asset_state_ptr := pointer(MarketState, session_ptr, asset_id)
         let asset_state_data := sload(asset_state_ptr)
 
         /* trying to withdraw too much */
-        let asset_balance := attr(AssetState, 0, asset_state_data, asset_balance)
+        let asset_balance := attr(MarketState, 0, asset_state_data, asset_balance)
         if gt(quantity, asset_balance) {
           REVERT(2)
         }
@@ -884,8 +1029,8 @@ contract DCN {
         asset_balance := sub(asset_balance, quantity)
 
         sstore(asset_state_ptr, or(
-          and(asset_state_data, mask_out(AssetState, 0, asset_balance)),
-          build(AssetState, 0, 0, 0, 0, asset_balance)
+          and(asset_state_data, mask_out(MarketState, 0, asset_balance)),
+          build(MarketState, 0, 0, 0, 0, asset_balance)
         ))
       }
 
@@ -931,9 +1076,9 @@ contract DCN {
       }
 
       let session_ptr := SESSION_PTR(user, exchange_id)
-      let asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
+      let asset_state_ptr := pointer(MarketState, session_ptr, asset_id)
       let asset_state_data := sload(asset_state_ptr)
-      let asset_balance := attr(AssetState, 0, asset_state_data, asset_balance)
+      let asset_balance := attr(MarketState, 0, asset_state_data, asset_balance)
 
       /* cannot withdraw more than available */
       if gt(amount, asset_balance) {
@@ -945,8 +1090,8 @@ contract DCN {
       sstore(
         asset_state_ptr,
         or(
-          and(asset_state_data, mask_out(AssetState, 0, asset_balance)),
-          build(AssetState, 0, 0, 0, 0, asset_balance)
+          and(asset_state_data, mask_out(MarketState, 0, asset_balance)),
+          build(MarketState, 0, 0, 0, 0, asset_balance)
         )
       )
 
@@ -980,9 +1125,9 @@ contract DCN {
       }
 
       let session_ptr := SESSION_PTR(user, exchange_id)
-      let asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
+      let asset_state_ptr := pointer(MarketState, session_ptr, asset_id)
       let asset_state_data := sload(asset_state_ptr)
-      let asset_balance := attr(AssetState, 0, asset_state_data, asset_balance)
+      let asset_balance := attr(MarketState, 0, asset_state_data, asset_balance)
 
       /* cannot withdraw more than available */
       if gt(amount, asset_balance) {
@@ -994,8 +1139,8 @@ contract DCN {
       sstore(
         asset_state_ptr,
         or(
-          and(asset_state_data, mask_out(AssetState, 0, asset_balance)),
-          build(AssetState, 0, 0, 0, 0, asset_balance)
+          and(asset_state_data, mask_out(MarketState, 0, asset_balance)),
+          build(MarketState, 0, 0, 0, 0, asset_balance)
         )
       )
 
@@ -1100,7 +1245,7 @@ contract DCN {
             mstore(add(hash_buffer_mem, WORD_3), version)
 
             let session_ptr := SESSION_PTR(user_addr, exchange_id)
-            asset_state_ptr := pointer(AssetState, session_ptr, asset_id)
+            asset_state_ptr := pointer(MarketState, session_ptr, asset_id)
 
             /* exchange address must be caller and asset_id cannot be quote */
             {
@@ -1118,7 +1263,7 @@ contract DCN {
               }
             }
 
-            let current_version := attr(AssetState, 2, sload(add(asset_state_ptr, 2)), limit_version)
+            let current_version := attr(MarketState, 2, sload(add(asset_state_ptr, 2)), limit_version)
 
             /* version must be greater than */
             if iszero(gt(version, current_version)) {
@@ -1133,7 +1278,7 @@ contract DCN {
             let short_min_price := attr(UpdateLimit, 0, update_data, short_min_price)
             mstore(add(hash_buffer_mem, WORD_5), short_min_price)
 
-            sstore(add(asset_state_ptr, 2), build(AssetState, 2,
+            sstore(add(asset_state_ptr, 2), build(MarketState, 2,
                                                   /* padding */ 0,
                                                   version,
                                                   long_max_price,
@@ -1150,25 +1295,25 @@ contract DCN {
 
         {
           let min_quote_qty := attr(UpdateLimit, 1, update_data, min_quote_qty)
-          state_data_1 := build(AssetState, 1, min_quote_qty)
+          state_data_1 := build(MarketState, 1, min_quote_qty)
           CAST_64_NEG(min_quote_qty)
           mstore(add(hash_buffer_mem, WORD_6), min_quote_qty)
         }
 
         {
           let min_base_qty := attr(UpdateLimit, 1, update_data, min_base_qty)
-          state_data_1 := or(state_data_1, build(AssetState, 1, 0, min_base_qty))
+          state_data_1 := or(state_data_1, build(MarketState, 1, 0, min_base_qty))
           CAST_64_NEG(min_base_qty)
           mstore(add(hash_buffer_mem, WORD_7), min_base_qty)
         }
 
         let quote_shift := attr(UpdateLimit, 1, update_data, quote_shift)
-        state_data_1 := or(state_data_1, build(AssetState, 1, 0, 0, quote_shift))
+        state_data_1 := or(state_data_1, build(MarketState, 1, 0, 0, quote_shift))
         CAST_64_NEG(quote_shift)
         mstore(add(hash_buffer_mem, WORD_8), quote_shift)
 
         let base_shift := attr(UpdateLimit, 1, update_data, base_shift)
-        state_data_1 := or(state_data_1, build(AssetState, 1, 0, 0, 0, base_shift))
+        state_data_1 := or(state_data_1, build(MarketState, 1, 0, 0, 0, base_shift))
         CAST_64_NEG(base_shift)
         mstore(add(hash_buffer_mem, WORD_9), base_shift)
 
@@ -1179,29 +1324,29 @@ contract DCN {
           let current_state_data := sload(add(asset_state_ptr, 1))
 
           {
-            let current_quote_shift := attr(AssetState, 1, current_state_data, quote_shift)
+            let current_quote_shift := attr(MarketState, 1, current_state_data, quote_shift)
             CAST_64_NEG(current_quote_shift)
             quote_shift := sub(quote_shift, current_quote_shift)
           }
 
           {
-            let current_base_shift := attr(AssetState, 1, current_state_data, base_shift)
+            let current_base_shift := attr(MarketState, 1, current_state_data, base_shift)
             CAST_64_NEG(current_base_shift)
             base_shift := sub(base_shift, current_base_shift)
           }
         }
 
         let state_data_0 := sload(asset_state_ptr)
-        let quote_qty := add(quote_shift, attr(AssetState, 0, state_data_0, quote_qty))
-        let base_qty := add(base_shift, attr(AssetState, 0, state_data_0, base_qty))
+        let quote_qty := add(quote_shift, attr(MarketState, 0, state_data_0, quote_qty))
+        let base_qty := add(base_shift, attr(MarketState, 0, state_data_0, base_qty))
 
         if or(INVALID_I64(quote_qty), INVALID_I64(base_qty)) {
           REVERT(4)
         }
 
         sstore(asset_state_ptr, or(
-          and(state_data_0, mask_out(AssetState, 0, quote_qty, base_qty)),
-          build(AssetState, 1, and(quote_qty, U64_MASK), and(base_qty, U64_MASK))
+          and(state_data_0, mask_out(MarketState, 0, quote_qty, base_qty)),
+          build(MarketState, 1, and(quote_qty, U64_MASK), and(base_qty, U64_MASK))
         ))
 
         let hash := keccak256(hash_buffer_mem, WORD_10)
@@ -1372,8 +1517,8 @@ contract DCN {
           quote_net := add(quote_net, quote_delta)
           base_net := add(base_net, base_delta)
 
-          let quote_state_ptr := pointer(AssetState, session_ptr, mload(QUOTE_ASSET_ID_MEM))
-          let base_state_ptr := pointer(AssetState, session_ptr, base_asset_id)
+          let quote_state_ptr := pointer(MarketState, session_ptr, mload(QUOTE_ASSET_ID_MEM))
+          let base_state_ptr := pointer(MarketState, session_ptr, base_asset_id)
 
           /* ensure we're within expire time */
           {
@@ -1421,17 +1566,17 @@ contract DCN {
           let quote_qty := 0
           let base_qty := 0
           {
-            let state_ptr := pointer(AssetState, session_ptr, base_asset_id)
+            let state_ptr := pointer(MarketState, session_ptr, base_asset_id)
             let state_data_0 := sload(state_ptr)
-            let asset_balance := attr(AssetState, 0, state_data_0, asset_balance)
+            let asset_balance := attr(MarketState, 0, state_data_0, asset_balance)
 
             asset_balance := add(asset_balance, base_delta)
             if gt(asset_balance, U64_MASK) {
               SMART_REVERT(7)
             }
 
-            quote_qty := attr(AssetState, 0, state_data_0, quote_qty)
-            base_qty := attr(AssetState, 0, state_data_0, base_qty)
+            quote_qty := attr(MarketState, 0, state_data_0, quote_qty)
+            base_qty := attr(MarketState, 0, state_data_0, base_qty)
 
             CAST_64_NEG(quote_qty)
             CAST_64_NEG(base_qty)
@@ -1444,8 +1589,8 @@ contract DCN {
             }
 
             sstore(state_ptr, or(
-              and(state_data_0, mask_out(AssetState, 0, quote_qty, base_qty, asset_balance)),
-              build(AssetState, 0, quote_qty, base_qty, 0, asset_balance)
+              and(state_data_0, mask_out(MarketState, 0, quote_qty, base_qty, asset_balance)),
+              build(MarketState, 0, quote_qty, base_qty, 0, asset_balance)
             ))
           }
 
@@ -1453,8 +1598,8 @@ contract DCN {
           {
             let state_data_1 := sload(add(base_state_ptr, 1))
 
-            let min_quote := attr(AssetState, 1, state_data_1, min_quote)
-            let min_base := attr(AssetState, 1, state_data_1, min_base)
+            let min_quote := attr(MarketState, 1, state_data_1, min_quote)
+            let min_base := attr(MarketState, 1, state_data_1, min_base)
 
             CAST_64_NEG(min_quote)
             CAST_64_NEG(min_base)
@@ -1486,7 +1631,7 @@ contract DCN {
               }
 
               let current_price := div(mul(sub(0, quote_qty), PRICE_UNITS), base_qty)
-              if gt(current_price, attr(AssetState, 2, state_data_2, long_max_price)) {
+              if gt(current_price, attr(MarketState, 2, state_data_2, long_max_price)) {
                 SMART_REVERT(12)
               }
             }
@@ -1497,7 +1642,7 @@ contract DCN {
               }
 
               let current_price := div(mul(quote_qty, PRICE_UNITS), sub(0, base_qty))
-              if lt(current_price, attr(AssetState, 2, state_data_2, short_min_price)) {
+              if lt(current_price, attr(MarketState, 2, state_data_2, short_min_price)) {
                 SMART_REVERT(14)
               }
             }
