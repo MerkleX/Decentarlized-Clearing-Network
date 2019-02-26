@@ -17,8 +17,8 @@ struct UpdateLimit {
     u32 base_shift_major;
     u64 base_shift;
 
-    u8 user_address[20];
     u8 sig_r[32];
     u8 sig_s[32];
     u8 sig_v;
+    u8 user_address[20];
 };

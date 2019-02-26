@@ -99,15 +99,18 @@ public class UpdateLimit extends UpdateLimitMessage.UpdateLimit {
     }
 
     private static final byte[] TYPE_HASH = KeccakHash.Hash(("UpdateLimit(" +
+            "uint96 dcn_id," +
             "uint32 exchange_id," +
-            "uint32 asset_id," +
-            "uint64 version," +
-            "uint64 max_long_price," +
-            "uint64 min_short_price," +
+            "uint32 quote_asset_id," +
+            "uint32 base_asset_id," +
+            "uint64 fee_limit," +
             "int64 min_quote_qty," +
             "int64 min_base_qty," +
-            "int64 quote_shift," +
-            "int64 base_shift" +
+            "uint64 long_max_price," +
+            "uint64 short_min_price," +
+            "uint64 limit_version," +
+            "int96 quote_shift," +
+            "int96 base_shift" +
             ")").getBytes()
     );
 

@@ -60,6 +60,7 @@ contract DCN {
   #define FEATURE_TRANSFER_TO_SESSION 0x10
   #define FEATURE_DEPOSIT_ASSET_TO_SESSION 0x20
   #define FEATURE_EXCHANGE_TRANSFER_FROM_LOCKED 0x40
+  #define FEATURE_EXCHANGE_SET_LIMIT 0x80
 
   /* Maxium values */
   #define EXCHANGE_COUNT (2**32)
@@ -248,11 +249,8 @@ contract DCN {
     }
   }
 
-  #define EXCHANGE_PTR(user_ptr, exchange_id) \
-    pointer( \
-      ExchangeSession, \
-      pointer_attr(User, user_ptr, exchange_sessions), \
-      exchange_id)
+  #define EXCHANGE_SESSION_PTR(USER_PTR, EXCHANGE_ID) \
+    pointer(Exchange, pointer_attr(User, USER_PTR, exchange_sessions), EXCHANGE_ID)
 
   function get_unlock_at(address user, uint32 exchange_id) public view
   returns (uint256 unlock_at) {
@@ -260,7 +258,7 @@ contract DCN {
 
     assembly {
       let user_ptr := pointer(User, users_slot, user)
-      let exchange_session_ptr := EXCHANGE_PTR(user_ptr, exchange_id)
+      let exchange_session_ptr := EXCHANGE_SESSION_PTR(user_ptr, exchange_id)
       let exchange_session_data_0 := sload(exchange_session_ptr)
 
       mstore(return_value_mem, attr(
@@ -277,7 +275,7 @@ contract DCN {
 
     assembly {
       let user_ptr := pointer(User, users_slot, user)
-      let exchange_session_ptr := EXCHANGE_PTR(user_ptr, exchange_id)
+      let exchange_session_ptr := EXCHANGE_SESSION_PTR(user_ptr, exchange_id)
       let exchange_balances_ptr := pointer_attr(ExchangeSession, exchange_session_ptr, exchange_balances)
       let exchange_balance_ptr := pointer(ExchangeBalance, exchange_balances_ptr, asset_id)
 
@@ -322,7 +320,7 @@ contract DCN {
 
     assembly {
       let user_ptr := pointer(User, users_slot, user)
-      let exchange_session_ptr := EXCHANGE_PTR(user_ptr, exchange_id)
+      let exchange_session_ptr := EXCHANGE_SESSION_PTR(user_ptr, exchange_id)
       let exchange_states_ptr := pointer_attr(ExchangeSession, exchange_session_ptr, market_states)
       let exchange_state_ptr := pointer(MarketState, exchange_states_ptr, MARKET_IDX(quote_asset_id, base_asset_id))
 
@@ -1273,6 +1271,8 @@ contract DCN {
      * Ensure caller is exchange and setup cursors.
      */
     assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_SET_LIMIT, 0)
+
       let data_size := mload(data)
       cursor := add(data, WORD_1)
       cursor_end := add(cursor, data_size)
@@ -1286,7 +1286,7 @@ contract DCN {
       }
 
       exchange_id := attr(SetLimitsHeader, 0, set_limits_header_0, exchange_id)
-      let exchange_data_0 := sload(EXCHANGE_PTR(exchange_id))
+      let exchange_data_0 := sload(pointer(Exchange, exchange_slots, exchange_id))
       let exchange_owner := attr(Exchange, 0, exchange_data_0, owner)
 
       /* ensure caller is the exchange owner */
@@ -1299,9 +1299,9 @@ contract DCN {
      * Iterate through each limit to validate and apply
      */
     while (true) {
-      uint256 market_state_0;
-      uint256 market_state_1;
-      uint256 market_state_2;
+      uint256 update_limit_0;
+      uint256 update_limit_1;
+      uint256 update_limit_2;
 
       uint256 limit_hash;
 
@@ -1312,9 +1312,9 @@ contract DCN {
           return(0, 0)
         }
 
-        market_state_0 := mload(cursor)
-        market_state_1 := mload(add(cursor, WORD_1))
-        market_state_2 := mload(add(cursor, WORD_2))
+        update_limit_0 := mload(cursor)
+        update_limit_1 := mload(add(cursor, WORD_1))
+        update_limit_2 := mload(add(cursor, WORD_2))
         cursor := add(cursor, WORD_3)
 
         /* ensure there is space */
@@ -1324,7 +1324,7 @@ contract DCN {
 
         /* macro to make life easier */
         #define DATA_SELECT(INDEX) \
-          const_select(INDEX, market_state_0, market_state_1, market_state_2)
+          const_select(INDEX, update_limit_0, update_limit_1, update_limit_2)
 
         #define ATTR_GET(INDEX, ATTR_NAME) \
           attr(UpdateLimit, INDEX, DATA_SELECT(INDEX), ATTR_NAME)
@@ -1369,9 +1369,10 @@ contract DCN {
         limit_hash := keccak256(to_hash_mem, 66)
       }
 
+      address user_address;
+
       /* verify signature */
       {
-        address user_address;
         bytes32 sig_r;
         bytes32 sig_s;
         uint8 sig_v;
@@ -1383,6 +1384,11 @@ contract DCN {
           let signature_2 := sload(add(cursor, 2))
           sig_v := attr(Signature, 2, signature_2, sig_v)
           user_address := attr(Signature, 2, signature_2, user_address)
+
+          cursor := add(cursor, sizeof(Settlement))
+          if gt(cursor, cursor_end) {
+            REVERT(4)
+          }
         }
 
         uint256 recover_address = uint256(ecrecover(
@@ -1397,6 +1403,20 @@ contract DCN {
             REVERT(5)
           }
         }
+      }
+
+      /* validate and apply new limit */
+      assembly {
+        /* limit's exchange id should match */
+        {
+          let limit_exchange_id := attr(UpdateLimit, 0, update_limit_0, exchange_id)
+          if iszero(eq(limit_exchange_id, exchange_id)) {
+            REVERT(6)
+          }
+        }
+
+        let user_ptr := USER_PTR(user_address)
+        let session_ptr := EXCHANGE_SESSION_PTR(user_ptr, exchange_id)
       }
     }
   }

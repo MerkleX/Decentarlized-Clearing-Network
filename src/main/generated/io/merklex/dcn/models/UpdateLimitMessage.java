@@ -51,20 +51,20 @@ public class UpdateLimitMessage {
         public static final int BASE_SHIFT_MAJOR_LENGTH = 4;
         public static final int BASE_SHIFT_OFFSET = 172;
         public static final int BASE_SHIFT_LENGTH = 8;
-        public static final int USER_ADDRESS_OFFSET = 180;
-        public static final int USER_ADDRESS_COUNT = 20;
-        public static final int USER_ADDRESS_LENGTH = 20;
-        public static final int USER_ADDRESS_ITEM_LENGTH = 1;
-        public static final int SIG_R_OFFSET = 200;
+        public static final int SIG_R_OFFSET = 180;
         public static final int SIG_R_COUNT = 32;
         public static final int SIG_R_LENGTH = 32;
         public static final int SIG_R_ITEM_LENGTH = 1;
-        public static final int SIG_S_OFFSET = 232;
+        public static final int SIG_S_OFFSET = 212;
         public static final int SIG_S_COUNT = 32;
         public static final int SIG_S_LENGTH = 32;
         public static final int SIG_S_ITEM_LENGTH = 1;
-        public static final int SIG_V_OFFSET = 264;
+        public static final int SIG_V_OFFSET = 244;
         public static final int SIG_V_LENGTH = 1;
+        public static final int USER_ADDRESS_OFFSET = 245;
+        public static final int USER_ADDRESS_COUNT = 20;
+        public static final int USER_ADDRESS_LENGTH = 20;
+        public static final int USER_ADDRESS_ITEM_LENGTH = 1;
         public static final int BYTES = 265;
         public UpdateLimit wrap(MutableDirectBuffer buffer, int offset) {
             this.buffer = buffer;
@@ -193,31 +193,6 @@ public class UpdateLimitMessage {
             this.buffer.putLong(this.offset + BASE_SHIFT_OFFSET, value, ByteOrder.BIG_ENDIAN);
             return this;
         }
-        public UpdateLimit userAddress(int pos, byte value) {
-            assert(pos >= 0 && pos < USER_ADDRESS_COUNT);
-            buffer.putByte(this.offset + USER_ADDRESS_OFFSET + USER_ADDRESS_ITEM_LENGTH * pos, value);
-            return this;
-        }
-        public byte userAddress(int pos) {
-            assert(pos >= 0 && pos < USER_ADDRESS_COUNT);
-            return buffer.getByte(this.offset + USER_ADDRESS_OFFSET + USER_ADDRESS_ITEM_LENGTH * pos);
-        }
-        public UpdateLimit getUserAddress(byte[] value, int pos) {
-            buffer.getBytes(this.offset + USER_ADDRESS_OFFSET, value, pos, 20);
-            return this;
-        }
-        public UpdateLimit getUserAddress(byte[] value) {
-            buffer.getBytes(this.offset + USER_ADDRESS_OFFSET, value, 0, 20);
-            return this;
-        }
-        public UpdateLimit setUserAddress(byte[] value, int pos) {
-            buffer.putBytes(this.offset + USER_ADDRESS_OFFSET, value, pos, 20);
-            return this;
-        }
-        public UpdateLimit setUserAddress(byte[] value) {
-            buffer.putBytes(this.offset + USER_ADDRESS_OFFSET, value, 0, 20);
-            return this;
-        }
         public UpdateLimit sigR(int pos, byte value) {
             assert(pos >= 0 && pos < SIG_R_COUNT);
             buffer.putByte(this.offset + SIG_R_OFFSET + SIG_R_ITEM_LENGTH * pos, value);
@@ -273,6 +248,31 @@ public class UpdateLimitMessage {
         }
         public UpdateLimit sigV(byte value) {
             this.buffer.putByte(this.offset + SIG_V_OFFSET, value);
+            return this;
+        }
+        public UpdateLimit userAddress(int pos, byte value) {
+            assert(pos >= 0 && pos < USER_ADDRESS_COUNT);
+            buffer.putByte(this.offset + USER_ADDRESS_OFFSET + USER_ADDRESS_ITEM_LENGTH * pos, value);
+            return this;
+        }
+        public byte userAddress(int pos) {
+            assert(pos >= 0 && pos < USER_ADDRESS_COUNT);
+            return buffer.getByte(this.offset + USER_ADDRESS_OFFSET + USER_ADDRESS_ITEM_LENGTH * pos);
+        }
+        public UpdateLimit getUserAddress(byte[] value, int pos) {
+            buffer.getBytes(this.offset + USER_ADDRESS_OFFSET, value, pos, 20);
+            return this;
+        }
+        public UpdateLimit getUserAddress(byte[] value) {
+            buffer.getBytes(this.offset + USER_ADDRESS_OFFSET, value, 0, 20);
+            return this;
+        }
+        public UpdateLimit setUserAddress(byte[] value, int pos) {
+            buffer.putBytes(this.offset + USER_ADDRESS_OFFSET, value, pos, 20);
+            return this;
+        }
+        public UpdateLimit setUserAddress(byte[] value) {
+            buffer.putBytes(this.offset + USER_ADDRESS_OFFSET, value, 0, 20);
             return this;
         }
         public String toString() {
@@ -338,15 +338,6 @@ public class UpdateLimitMessage {
             sb.append(Integer.toUnsignedString(baseShiftMajor()));
             sb.append(", base_shift: ");
             sb.append(Long.toUnsignedString(baseShift()));
-            sb.append(", user_address: ");
-            sb.append("[").append(userAddress(0)).append(", ").append(userAddress(1)).append(", ").append(userAddress(2)).append(", ")
-                    .append(userAddress(3)).append(", ").append(userAddress(4)).append(", ").append(userAddress(5)).append(", ")
-                    .append(userAddress(6)).append(", ").append(userAddress(7)).append(", ").append(userAddress(8)).append(", ")
-                    .append(userAddress(9)).append(", ").append(userAddress(10)).append(", ").append(userAddress(11)).append(", ")
-                    .append(userAddress(12)).append(", ").append(userAddress(13)).append(", ").append(userAddress(14)).append(", ")
-                    .append(userAddress(15)).append(", ").append(userAddress(16)).append(", ").append(userAddress(17)).append(", ")
-                    .append(userAddress(18)).append(", ").append(userAddress(19))
-                    .append("]");
             sb.append(", sig_r: ");
             sb.append("[").append(sigR(0)).append(", ").append(sigR(1)).append(", ").append(sigR(2)).append(", ")
                     .append(sigR(3)).append(", ").append(sigR(4)).append(", ").append(sigR(5)).append(", ")
@@ -375,6 +366,15 @@ public class UpdateLimitMessage {
                     .append("]");
             sb.append(", sig_v: ");
             sb.append(Byte.toUnsignedInt(sigV()));
+            sb.append(", user_address: ");
+            sb.append("[").append(userAddress(0)).append(", ").append(userAddress(1)).append(", ").append(userAddress(2)).append(", ")
+                    .append(userAddress(3)).append(", ").append(userAddress(4)).append(", ").append(userAddress(5)).append(", ")
+                    .append(userAddress(6)).append(", ").append(userAddress(7)).append(", ").append(userAddress(8)).append(", ")
+                    .append(userAddress(9)).append(", ").append(userAddress(10)).append(", ").append(userAddress(11)).append(", ")
+                    .append(userAddress(12)).append(", ").append(userAddress(13)).append(", ").append(userAddress(14)).append(", ")
+                    .append(userAddress(15)).append(", ").append(userAddress(16)).append(", ").append(userAddress(17)).append(", ")
+                    .append(userAddress(18)).append(", ").append(userAddress(19))
+                    .append("]");
             sb.append(" }");
             return sb.toString();
         }
