@@ -60,7 +60,7 @@ contract DCN {
   #define FEATURE_TRANSFER_TO_SESSION 0x10
   #define FEATURE_DEPOSIT_ASSET_TO_SESSION 0x20
   #define FEATURE_EXCHANGE_TRANSFER_FROM_LOCKED 0x40
-  #define FEATURE_EXCHANGE_SET_LIMIT 0x80
+  #define FEATURE_EXCHANGE_SET_LIMITS 0x80
 
   /* Maxium values */
   #define EXCHANGE_COUNT (2**32)
@@ -308,6 +308,9 @@ contract DCN {
   #define MARKET_IDX(quote_asset_id, base_asset_id) \
     add(mul(quote_asset_id, ASSET_COUNT), base_asset_id)
 
+  #define MARKET_STATE_PTR(session_ptr, quote_asset_id, base_asset_id) \
+    pointer(MarketState, pointer_attr(ExchangeSession, session_ptr, market_states), MARKET_IDX(quote_asset_id, base_asset_id))
+
   function get_market_state(
     address user, uint32 exchange_id,
     uint32 quote_asset_id, uint32 base_asset_id
@@ -321,8 +324,7 @@ contract DCN {
     assembly {
       let user_ptr := pointer(User, users_slot, user)
       let exchange_session_ptr := EXCHANGE_SESSION_PTR(user_ptr, exchange_id)
-      let exchange_states_ptr := pointer_attr(ExchangeSession, exchange_session_ptr, market_states)
-      let exchange_state_ptr := pointer(MarketState, exchange_states_ptr, MARKET_IDX(quote_asset_id, base_asset_id))
+      let exchange_state_ptr := MARKET_STATE_PTR(exchange_session_ptr, quote_asset_id, base_asset_id)
 
       let state_data_0 := sload(exchange_state_ptr)
       let state_data_1 := sload(add(exchange_state_ptr, 1))
@@ -1271,7 +1273,7 @@ contract DCN {
      * Ensure caller is exchange and setup cursors.
      */
     assembly {
-      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_SET_LIMIT, 0)
+      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_SET_LIMITS, 0)
 
       let data_size := mload(data)
       cursor := add(data, WORD_1)
@@ -1417,6 +1419,23 @@ contract DCN {
 
         let user_ptr := USER_PTR(user_address)
         let session_ptr := EXCHANGE_SESSION_PTR(user_ptr, exchange_id)
+        let market_state_ptr := MARKET_STATE_PTR(
+          session_ptr,
+          attr(UpdateLimit, 0, update_limit_0, quote_asset_id),
+          attr(UpdateLimit, 0, update_limit_0, base_asset_id)
+        )
+
+        let market_data_2 := sload(add(market_state_ptr, 2))
+
+        /* verify limit version is greater */
+        {
+          let current_limit_version := attr(UpdateLimit, 2, update_limit_2, limit_version)
+          let proposed_limit_version := attr(MarketState, 2, market_data_2, limit_version)
+
+          if iszero(gt(proposed_limit_version, current_limit_version)) {
+            REVERT(7)
+          }
+        }
       }
     }
   }
