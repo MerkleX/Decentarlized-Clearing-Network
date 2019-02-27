@@ -1152,7 +1152,7 @@ contract DCN {
       let unit_scale := attr(Asset, 0, sload(asset_ptr), unit_scale)
       let scaled_quantity := mul(quantity, unit_scale)
 
-      let user_ptr := USER_PTR(user_id)
+      let user_ptr := USER_PTR_(user_id)
 
       /* ensure caller is withdraw_address as funds are moving out of DCN account */
       {
@@ -1162,7 +1162,7 @@ contract DCN {
         }
       }
 
-      let user_balance_ptr := USER_BALANCE_PTR(user_ptr, asset_id)
+      let user_balance_ptr := USER_BALANCE_PTR_(user_ptr, asset_id)
       let user_balance := sload(user_balance_ptr)
 
       /* insufficient funds */
@@ -1261,7 +1261,7 @@ contract DCN {
       let unit_scale := attr(Asset, 0, sload(asset_ptr), unit_scale)
       let scaled_quantity := mul(quantity, unit_scale)
 
-      let user_balance_ptr := USER_BALANCE_PTR(user_ptr, asset_id)
+      let user_balance_ptr := USER_BALANCE_PTR_(user_ptr, asset_id)
       let user_balance := sload(user_balance_ptr)
 
       let updated_user_balance := add(user_balance, scaled_quantity)
@@ -1290,8 +1290,7 @@ contract DCN {
         stop()
       }
 
-      let session_ptr := SESSION_PTR_(USER_PTR(user_id), exchange_id)
-      let session_balance_ptr := SESSION_BALANCE_PTR_(session_ptr, asset_id)
+      let session_balance_ptr := SESSION_BALANCE_PTR_(SESSION_PTR_(USER_PTR_(user_id), exchange_id), asset_id)
       let session_balance_0 := sload(session_balance_ptr)
 
       let updated_exchange_balance := add(attr(SessionBalance, 0, session_balance_0, asset_balance), quantity)
@@ -1328,177 +1327,169 @@ contract DCN {
       log_event(ExchangeDeposit, log_data_mem, user_id, exchange_id, asset_id)
     }
   }
-//
-//  struct ExchangeTransfersHeader {
-//    uint32 exchange_id;
-//  }
-//
-//  struct ExchangeTransferGroup {
-//    uint32 asset_id;
-//    uint8 allow_overdraft;
-//    uint8 transfer_count;
-//  }
-//
-//  struct ExchangeTransfer {
-//    address user_address;
-//    uint64 quantity;
-//  }
-//
-//  function exchange_transfer_from_locked(bytes memory data) public {
-//    uint256[1] memory revert_reason;
-//
-//    assembly {
-//      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_TRANSFER_FROM_LOCKED, 0)
-//
-//      let data_len := mload(data)
-//      let cursor := add(data, WORD_1)
-//      let cursor_end := add(cursor, data_len)
-//
-//      /* ensure there's enough space for the header */
-//      if lt(data_len, sizeof(ExchangeTransfersHeader)) {
-//        REVERT(1)
-//      }
-//
-//      let exchange_transfer_header_0 := mload(cursor)
-//      cursor := add(cursor, sizeof(ExchangeTransfersHeader))
-//
-//      let exchange_id := attr(ExchangeTransfersHeader, 0, exchange_transfer_header_0, exchange_id)
-//      VALID_EXCHANGE_ID(exchange_id)
-//
-//      /* ensure exchange is caller */
-//      {
-//        let exchange_data := sload(EXCHANGE_PTR_(exchange_id))
-//        if iszero(eq(caller, attr(Exchange, 0, exchange_data, owner))) {
-//          REVERT(3)
-//        }
-//      }
-//
-//      let asset_count := sload(asset_count_slot)
-//
-//      for {} lt(cursor, cursor_end) {} {
-//        load := mload(cursor)
-//        cursor := add(cursor, sizeof(ExchangeTransferGroup))
-//
-//        /* ensure there is enough space for ExchangeTransferGroup */
-//        if gt(cursor, cursor_end) {
-//          REVERT(4)
-//        }
-//
-//        let asset_id := attr(ExchangeTransferGroup, 0, load, asset_id)
-//
-//        /* Validate asset id */
-//        if iszero(lt(asset_id, asset_count)) {
-//          REVERT(5)
-//        }
-//
-//        let disallow_overdraft := iszero(attr(ExchangeTransferGroup, 0, load, allow_overdraft))
-//        let cursor_group_end := add(cursor, mul(
-//          attr(ExchangeTransferGroup, 0, load, transfer_count),
-//          sizeof(ExchangeTransfer)
-//        ))
-//
-//        /* ensure data fits in input */
-//        if gt(cursor_group_end, cursor_end) {
-//          REVERT(6)
-//        }
-//
-//        let exchange_balance_ptr := EXCHANGE_BALANCE_PTR_(EXCHANGE_PTR_(exchange_id), asset_id)
-//        let exchange_balance_remaining := sload(exchange_balance_ptr)
-//
-//        let unit_scale := attr(Asset, 0, sload(ASSET_PTR_(asset_id)), unit_scale)
-//        
-//        for {} lt(cursor, cursor_group_end) { cursor := add(cursor, sizeof(ExchangeTransfer)) } {
-//          load := mload(cursor)
-//
-//          let user_ptr := USER_PTR(attr(ExchangeTransfer, 0, load, user_address))
-//          let quantity := attr(ExchangeTransfer, 0, load, quantity)
-//
-//          let exchange_balance_used := 0
-//
-//          let user_exchange_balance_ptr := USER_EXCHANGE_BALANCE_PTR(EXCHANGE_SESSION_PTR(user_ptr, exchange_id), asset_id)
-//          let user_exchange_balance_data_0 := sload(user_exchange_balance_ptr)
-//          let user_exchange_balance := attr(SessionBalance, 0, user_exchange_balance_data_0, asset_balance)
-//
-//          let user_exchange_balance_updated := sub(user_exchange_balance, quantity)
-//
-//          /*
-//           * check for underflow (quantity > user_exchange_balance),
-//           * then need to dip into exchange_balance_remaining if user_exchange_balance isn't enough
-//           */
-//          if gt(user_exchange_balance_updated, user_exchange_balance) {
-//            if disallow_overdraft {
-//              REVERT(7)
-//            }
-//
-//            exchange_balance_used := sub(quantity, user_exchange_balance)
-//            user_exchange_balance_updated := 0
-//
-//            if gt(exchange_balance_used, exchange_balance_remaining) {
-//              REVERT(8)
-//            }
-//
-//            exchange_balance_remaining := sub(exchange_balance_remaining, exchange_balance_used)
-//          }
-//
-//          let quantity_scaled := mul(quantity, unit_scale)
-//
-//          let user_balance_ptr := USER_BALANCE_PTR(user_ptr, asset_id)
-//          let user_balance := sload(user_balance_ptr)
-//
-//          let updated_user_balance := add(user_balance, quantity_scaled)
-//          /* prevent overflow */
-//          if gt(user_balance, updated_user_balance) {
-//            REVERT(9)
-//          }
-//
-//          let updated_unsettled_withdraw_total := add(
-//            attr(SessionBalance, 0, user_exchange_balance_data_0, unsettled_withdraw_total),
-//            exchange_balance_used
-//          ) 
-//
-//          sstore(user_exchange_balances_ptr, or(
-//            and(mask_out(SessionBalance, 0, unsettled_withdraw_total, asset_balance), user_exchange_balance_data_0),
-//            build(SessionBalance, 0,
-//                  /* total_deposit */ 0,
-//                  /* unsettled_withdraw_total */ updated_unsettled_withdraw_total,
-//                  /* asset_balance */ user_exchange_balance_updated)
-//          ))
-//
-//          sstore(user_balance_ptr, updated_user_balance)
-//        }
-//
-//        sstore(exchange_balance_ptr, exchange_balance_remaining)
-//      }
-//    }
-//  }
-//
-//  struct SetLimitsHeader {
-//    uint32 exchange_id;
-//  }
-//
-//  struct Signature {
-//    uint256 sig_r;
-//    uint256 sig_s;
-//    uint8 sig_v;
-//    address user_address;
-//  }
-//
-//  struct UpdateLimit {
-//    uint96 dcn_id;
-//    uint32 exchange_id;
-//    uint32 quote_asset_id;
-//    uint32 base_asset_id;
-//    uint64 fee_limit;
-//
-//    int64 min_quote_qty;
-//    int64 min_base_qty;
-//    uint64 long_max_price;
-//    uint64 short_min_price;
-//
-//    uint64 limit_version;
-//    uint96 quote_shift;
-//    uint96 base_shift;
-//  }
+
+  struct ExchangeTransfersHeader {
+    uint32 exchange_id;
+  }
+
+  struct ExchangeTransferGroup {
+    uint32 asset_id;
+    uint8 allow_overdraft;
+    uint8 transfer_count;
+  }
+
+  struct ExchangeTransfer {
+    uint64 user_id;
+    uint64 quantity;
+  }
+
+  #define CURSOR_LOAD(TYPE, REVERT_1) \
+    mload(cursor) \
+    cursor := add(cursor, sizeof(TYPE)) \
+    if gt(cursor, cursor_end) { \
+      REVERT(REVERT_1) \
+    }
+
+  function exchange_transfer_from_locked(bytes memory data) public {
+    assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_TRANSFER_FROM_LOCKED, 0)
+
+      let data_len := mload(data)
+      let cursor := add(data, WORD_1)
+      let cursor_end := add(cursor, data_len)
+
+      /* load exchange_id */
+      let header_0 := CURSOR_LOAD(ExchangeTransfersHeader, 1)
+      let exchange_id := attr(ExchangeTransfersHeader, 0, header_0, exchange_id)
+      VALID_EXCHANGE_ID(exchange_id, 2)
+
+      /* ensure exchange is caller */
+      {
+        let exchange_data := sload(EXCHANGE_PTR_(exchange_id))
+        if iszero(eq(caller, attr(Exchange, 0, exchange_data, owner))) {
+          REVERT(3)
+        }
+      }
+
+      let asset_count := sload(asset_count_slot)
+
+      for {} lt(cursor, cursor_end) {} {
+        let group_0 := CURSOR_LOAD(ExchangeTransferGroup, 4)
+        let asset_id := attr(ExchangeTransferGroup, 0, group_0, asset_id)
+
+        /* Validate asset id */
+        if iszero(lt(asset_id, asset_count)) {
+          REVERT(5)
+        }
+
+        let disallow_overdraft := iszero(attr(ExchangeTransferGroup, 0, group_0, allow_overdraft))
+        let cursor_group_end := add(cursor, mul(
+          attr(ExchangeTransferGroup, 0, group_0, transfer_count),
+          sizeof(ExchangeTransfer)
+        ))
+
+        /* ensure data fits in input */
+        if gt(cursor_group_end, cursor_end) {
+          REVERT(6)
+        }
+
+        let exchange_balance_ptr := EXCHANGE_BALANCE_PTR_(EXCHANGE_PTR_(exchange_id), asset_id)
+        let exchange_balance_remaining := sload(exchange_balance_ptr)
+
+        let unit_scale := attr(Asset, 0, sload(ASSET_PTR_(asset_id)), unit_scale)
+        
+        for {} lt(cursor, cursor_group_end) { cursor := add(cursor, sizeof(ExchangeTransfer)) } {
+          let transfer_0 := mload(cursor)
+
+          let user_ptr := USER_PTR_(attr(ExchangeTransfer, 0, transfer_0, user_id))
+          let quantity := attr(ExchangeTransfer, 0, transfer_0, quantity)
+
+          let exchange_balance_used := 0
+
+          let session_balance_ptr := SESSION_BALANCE_PTR_(SESSION_PTR_(user_ptr, exchange_id), asset_id)
+          let session_balance_0 := sload(session_balance_ptr)
+          let session_balance := attr(SessionBalance, 0, session_balance_0, asset_balance)
+
+          let session_balance_updated := sub(session_balance, quantity)
+
+          /*
+           * check for underflow (quantity > user_exchange_balance),
+           * then need to dip into exchange_balance_remaining if user_exchange_balance isn't enough
+           */
+          if gt(session_balance_updated, session_balance) {
+            if disallow_overdraft {
+              REVERT(7)
+            }
+
+            exchange_balance_used := sub(quantity, session_balance)
+            session_balance_updated := 0
+
+            if gt(exchange_balance_used, exchange_balance_remaining) {
+              REVERT(8)
+            }
+
+            exchange_balance_remaining := sub(exchange_balance_remaining, exchange_balance_used)
+          }
+
+          let quantity_scaled := mul(quantity, unit_scale)
+
+          let user_balance_ptr := USER_BALANCE_PTR_(user_ptr, asset_id)
+          let user_balance := sload(user_balance_ptr)
+
+          let updated_user_balance := add(user_balance, quantity_scaled)
+          /* prevent overflow */
+          if gt(user_balance, updated_user_balance) {
+            REVERT(9)
+          }
+
+          let unsettled_withdraw_total_updated := add(
+            attr(SessionBalance, 0, session_balance_0, unsettled_withdraw_total),
+            exchange_balance_used
+          )
+
+          sstore(session_balance_ptr, or(
+            and(mask_out(SessionBalance, 0, unsettled_withdraw_total, asset_balance), session_balance_0),
+            build(SessionBalance, 0,
+                  /* total_deposit */ 0,
+                  /* unsettled_withdraw_total */ unsettled_withdraw_total_updated,
+                  /* asset_balance */ session_balance_updated)
+          ))
+
+          sstore(user_balance_ptr, updated_user_balance)
+        }
+
+        sstore(exchange_balance_ptr, exchange_balance_remaining)
+      }
+    }
+  }
+
+  struct SetLimitsHeader {
+    uint32 exchange_id;
+  }
+
+  struct Signature {
+    uint256 sig_r;
+    uint256 sig_s;
+    uint8 sig_v;
+  }
+
+  struct UpdateLimit {
+    uint64 user_id;
+    uint32 dcn_id;
+    uint32 exchange_id;
+    uint32 quote_asset_id;
+    uint32 base_asset_id;
+    uint64 fee_limit;
+
+    int64 min_quote_qty;
+    int64 min_base_qty;
+    uint64 long_max_price;
+    uint64 short_min_price;
+
+    uint64 limit_version;
+    uint96 quote_shift;
+    uint96 base_shift;
+  }
 //
 //  #define UPDATE_LIMIT_BYTES const_add(sizeof(UpdateLimit), sizeof(Signature))
 //  #define SIG_HASH_HEADER 0x1901000000000000000000000000000000000000000000000000000000000000
