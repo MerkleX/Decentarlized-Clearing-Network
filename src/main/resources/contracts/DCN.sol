@@ -37,13 +37,17 @@ pragma solidity ^0.5.0;
  */
 
 contract DCN {
-  event UnlockAtUpdated(address user, uint64 exchange_id);
-  event ExchangeDeposit(address user, uint64 exchange_id, uint32 asset_id);
+  event UserCreated(uint64 user_id);
+  event UnlockAtUpdated(uint64 user_id, uint64 exchange_id);
+  event ExchangeDeposit(uint64 user_id, uint64 exchange_id, uint32 asset_id);
 
   /* address allowed to update self and add assets and exchanges */
   uint256 creator;
-  uint256 creator_backup;
-  uint256 creator_backup_proposed;
+  uint256 creator_recovery;
+  uint256 creator_recovery_proposed;
+
+  /* number of users */
+  uint256 user_count;
 
   /* number of exchanges registered */
   uint256 exchange_count;
@@ -59,7 +63,7 @@ contract DCN {
   /* maximum values */
   #define EXCHANGE_COUNT (2**32) /* 2^32 */
   #define ASSET_COUNT (2**32)    /* 2^32 */
-  #define USER_COUNT (2**160)    /* 2^160 (all possible addresses) */
+  #define USER_COUNT (2**64)    /* 2^64 */
   #define MARKET_COUNT (2**64)   /* 2^64 (2^32 * 2^32 every asset combination) */
 
   struct Exchange {
@@ -69,10 +73,10 @@ contract DCN {
     address owner;
 
     /* backup address to change the owner address */
-    uint256 owner_backup;
+    uint256 recovery_address;
 
-    /* a proposed address to change owner_backup */
-    uint256 owner_backup_proposed;
+    /* a proposed address to change recovery_address */
+    uint256 recovery_address_proposed;
 
     /* asset balances (scaled) */
     uint256[ASSET_COUNT] balances;
@@ -138,6 +142,24 @@ contract DCN {
   }
 
   struct User {
+    /* address used to sign trading limits */
+    uint256 trade_address;
+
+    /* proposed address to update trade_address */
+    uint256 trade_address_proposed;
+
+    /* a timeout to update trade address with proposed to ensure settlements can't be blocked */
+    uint256 trade_address_proposed_unlock_at;
+
+    /* address used to withdraw funds */
+    uint256 withdraw_address;
+
+    /* address used to update trade_address / withdraw_address */
+    uint256 recovery_address;
+
+    /* proposed address to update recover_address */
+    uint256 recovery_address_proposed;
+
     /* balances under the user's control */
     uint256[ASSET_COUNT] balances;
 
@@ -152,13 +174,13 @@ contract DCN {
   /* Change constants for assembly */
   #define EXCHANGE_COUNT exp(2, 32)
   #define ASSET_COUNT exp(2, 32)
-  #define USER_COUNT exp(2, 160)
+  #define USER_COUNT exp(2, 64)
   #define EXCHANGE_COUNT exp(2, 64)
 
   constructor() public {
     assembly {
       sstore(creator_slot, caller)
-      sstore(creator_backup_slot, caller)
+      sstore(creator_recovery_slot, caller)
     }
   }
 
@@ -233,8 +255,8 @@ contract DCN {
   #define EXCHANGE_BALANCE_PTR_(EXCHANGE_PTR, ASSET_ID) \
       pointer(u256, pointer_attr(Exchange, EXCHANGE_PTR, balances), asset_id)
 
-  #define USER_PTR_(USER_ADDR) \
-    pointer(User, users_slot, USER_ADDR)
+  #define USER_PTR_(USER_ID) \
+    pointer(User, users_slot, USER_ID)
 
   #define USER_BALANCE_PTR_(USER_PTR, ASSET_ID) \
     pointer(u256, pointer_attr(User, USER_PTR, balances), ASSET_ID)
@@ -264,9 +286,10 @@ contract DCN {
   #define FEATURE_EXCHANGE_SET_LIMITS 0x80
   #define FEATURE_APPLY_SETTLEMENT_GROUPS 0x100
   #define FEATURE_EXCHANGE_UPDATE_OWNER 0x200
-  #define FEATURE_EXCHANGE_PROPOSE_BACKUP 0x400
-  #define FEATURE_EXCHANGE_SET_BACKUP 0x800
-  #define FEATURE_ALL u256_MAX
+  #define FEATURE_EXCHANGE_PROPOSE_RECOVERY 0x400
+  #define FEATURE_EXCHANGE_SET_RECOVERY 0x800
+  #define FEATURE_CREATE_USER 0x1000
+  #define FEATURE_ALL U256_MAX
 
   #define SECURITY_FEATURE_CHECK(FEATURE, REVERT_1) \
     { \
@@ -339,13 +362,13 @@ contract DCN {
   }
 
   function get_creator() public view
-  returns (address dcn_creator, address dcn_creator_backup, address dcn_creator_backup_proposed) {
+  returns (address dcn_creator, address dcn_creator_recovery, address dcn_creator_recovery_proposed) {
     uint256[3] memory return_value_mem;
 
     assembly {
       RETURN_0(sload(creator_slot))
-      RETURN(WORD_1, sload(creator_backup_slot))
-      RETURN(WORD_2, sload(creator_backup_proposed_slot))
+      RETURN(WORD_1, sload(creator_recovery_slot))
+      RETURN(WORD_2, sload(creator_recovery_proposed_slot))
       return(return_value_mem, WORD_3)
     }
   }
@@ -369,8 +392,8 @@ contract DCN {
   }
 
   function get_exchange(uint32 exchange_id) public view returns (string memory name, address owner,
-                                                                 address owner_backup, address owner_backup_proposed) {
-    /* [ name_offset, owner, owner_backup, owner_backup_proposed, name_len, name_data(12) ] */
+                                                                 address recovery_address, address recovery_address_proposed) {
+    /* [ name_offset, owner, recovery_address, recovery_address_proposed, name_len, name_data(12) ] */
     uint256[6] memory return_value_mem;
 
     assembly {
@@ -381,8 +404,8 @@ contract DCN {
 
       MSTORE_STR(return_value_mem, WORD_6, 12, exchange_0)
       RETURN(WORD_1, attr(Exchange, 0, exchange_0, owner))
-      RETURN(WORD_2, attr(Exchange, 1, exchange_1, owner_backup))
-      RETURN(WORD_3, attr(Exchange, 2, exchange_2, owner_backup_proposed))
+      RETURN(WORD_2, attr(Exchange, 1, exchange_1, recovery_address))
+      RETURN(WORD_3, attr(Exchange, 2, exchange_2, recovery_address_proposed))
 
       return(return_value_mem, const_add(WORD_4, /* string header */ WORD_1, /* string data */ 12))
     }
@@ -400,312 +423,369 @@ contract DCN {
     }
   }
 
-//  function get_exchange_count() public view returns (uint32 count) {
-//    uint256[1] memory return_value_mem;
-//
-//    assembly {
-//      RETURN_0(sload(exchange_count_slot))
-//      return(return_value_mem, WORD_1)
-//    }
-//  }
-//
-//  function get_asset_count() public view returns (uint32 count) {
-//    uint256[1] memory return_value_mem;
-//
-//    assembly {
-//      RETURN_0(sload(asset_count_slot))
-//      return(return_value_mem, WORD_1)
-//    }
-//  }
-//
-//  function get_balance(address user, uint32 asset_id) public view returns (uint256 return_balance) {
-//    uint256[1] memory return_value_mem;
-//
-//    assembly {
-//      let user_ptr := USER_PTR_(user)
-//      let user_balance_ptr := USER_BALANCE_PTR_(user_ptr, asset_id)
-//
-//      RETURN_0(sload(user_balance_ptr))
-//      return(return_value_mem, WORD_1)
-//    }
-//  }
-//
-//  function get_unlock_at(address user, uint32 exchange_id) public view
-//  returns (uint256 unlock_at) {
-//    uint256[1] memory return_value_mem;
-//
-//    assembly {
-//      let user_ptr := USER_PTR_(user)
-//      let session_ptr := SESSION_PTR_(user_ptr, exchange_id)
-//      let session_0 := sload(exchange_session_ptr)
-//
-//      RETURN_0(attr(ExchangeSession, 0, session_0, unlock_at))
-//      return(return_value_mem, WORD_1)
-//    }
-//  }
-//
-//  function get_session_balance(address user, uint32 exchange_id, uint32 asset_id) public view
-//  returns (uint192 total_deposit, uint64 asset_balance) {
-//    uint256[2] memory return_value_mem;
-//
-//    assembly {
-//      let user_ptr := USER_PTR_(user)
-//      let session_ptr := SESSION_PTR_(user_ptr, exchange_id)
-//      let session_balance_ptr := SESSION_BALANCE_PTR_(session_ptr, asset_id)
-//      let session_balance_0 := sload(session_balance_ptr)
-//
-//      RETURN_0(attr(SessionBalance, 0, session_balance_0, total_deposit))
-//      RETURN(WORD_1, attr(SessionBalance, 0, session_balance_0, asset_balance))
-//
-//      return(return_value_mem, WORD_2)
-//    }
-//  }
-//
-//  function get_market_state(
-//    address user, uint32 exchange_id,
-//    uint32 quote_asset_id, uint32 base_asset_id
-//  ) public view returns (
-//    int64 quote_qty, int64 base_qty, uint64 fee_used, uint64 fee_limit,
-//    int64 min_quote_qty, int64 min_base_qty, uint64 long_max_price, uint64 short_min_price,
-//    uint64 limit_version, int96 quote_shift, int96 base_shift
-//  ) {
-//    uint256[11] memory return_value_mem;
-//
-//    assembly {
-//      let user_ptr := USER_PTR_(user)
-//      let exchange_session_ptr := EXCHANGE_SESSION_PTR_(user_ptr, exchange_id)
-//      let exchange_state_ptr := MARKET_STATE_PTR_(exchange_session_ptr, quote_asset_id, base_asset_id)
-//
-//      let state_data_0 := sload(exchange_state_ptr)
-//      let state_data_1 := sload(add(exchange_state_ptr, 1))
-//      let state_data_2 := sload(add(exchange_state_ptr, 2))
-//
-//      #define RETURN_64NEG(WORD, VALUE) \
-//        { \
-//          let tmp := VALUE \
-//          CAST_64_NEG(tmp) \
-//          RETURN(WORD, tmp) \
-//        }
-//
-//      #define RETURN_96NEG(WORD, VALUE) \
-//        { \
-//          let tmp := VALUE \
-//          CAST_96_NEG(tmp) \
-//          RETURN(WORD, tmp) \
-//        }
-//
-//      RETURN_64NEG(WORD_0,  attr(MarketState, 0, state_data_0, quote_qty))
-//      RETURN_64NEG(WORD_1,  attr(MarketState, 0, state_data_0, base_qty))
-//            RETURN(WORD_2,  attr(MarketState, 0, state_data_0, fee_used))
-//            RETURN(WORD_3,  attr(MarketState, 0, state_data_0, fee_limit))
-//
-//      RETURN_64NEG(WORD_4,  attr(MarketState, 1, state_data_1, min_quote_qty))
-//      RETURN_64NEG(WORD_5,  attr(MarketState, 1, state_data_1, min_base_qty))
-//            RETURN(WORD_6,  attr(MarketState, 1, state_data_1, long_max_price))
-//            RETURN(WORD_7,  attr(MarketState, 1, state_data_1, short_min_price))
-//
-//            RETURN(WORD_8,  attr(MarketState, 2, state_data_2, limit_version))
-//      RETURN_96NEG(WORD_9,  attr(MarketState, 2, state_data_2, quote_shift))
-//      RETURN_96NEG(WORD_10, attr(MarketState, 2, state_data_2, base_shift))
-//
-//      return(return_value_mem, WORD_11)
-//    }
-//  }
-//
-//  /* Manage Creator Adddress */
-//
-//  function creator_update(address new_creator) public {
-//    assembly {
-//      let creator_backup := sload(creator_backup_slot)
-//      if iszero(eq(creator_backup, caller)) {
-//        REVERT(1)
-//      }
-//
-//      sstore(creator_slot, new_creator)
-//    }
-//  }
-//
-//  function creator_propose_backup(address backup) public {
-//    assembly {
-//      let creator_backup := sload(creator_backup_slot)
-//      if iszero(eq(creator_backup, caller)) {
-//        REVERT(1)
-//      }
-//
-//      sstore(creator_backup_proposed, new_creator)
-//    }
-//  }
-//
-//  function creator_update_backup() public {
-//    assembly {
-//      let creator_backup_proposed := sload(creator_backup_proposed_slot)
-//      if or(iszero(eq(creator_backup_proposed, caller)), iszero(caller)) {
-//        REVERT(1)
-//      }
-//      sstore(creator_backup_slot, caller)
-//    }
-//  }
-//
-//  /* Security Feature Lock Management */
-//
-//  #define CREATOR_REQUIRED(REVERT_1) \
-//    { \
-//      let creator := sload(creator_slot) \
-//      if iszero(eq(creator, caller)) { \
-//        REVERT(REVERT_1) \
-//      } \
-//    }
-//
-//  function security_lock(uint256 lock_features) public {
-//    assembly {
-//      CREATOR_REQUIRED(1)
-//
-//      let locked_features := sload(security_locked_features_slot)
-//      sstore(security_locked_features_slot, or(locked_features, lock_features))
-//      sstore(security_locked_features_proposed_slot, FEATURE_ALL)
-//    }
-//  }
-//
-//  #define DAYS_2 172800 /* 2 days in seconds */
-//
-//  function security_propose(uint256 proposed_locked_features) public {
-//    assembly {
-//      CREATOR_REQUIRED(1)
-//
-//      /*
-//       * only update security_proposed_unlock_timestamp if
-//       * proposed_locked_features unlocks a new features
-//       */
-//
-//      let current_proposal := sload(security_locked_features_proposed_slot)
-//      let proposed_differences := xor(current_proposal, proposed_locked_features)
-//
-//      /*
-//       * proposed_differences will have "1" in feature positions that have changed.
-//       * Want to see if those positions have proposed_locked_features as "0", meaning
-//       * that those features will be unlocked.
-//       */
-//      
-//      let does_unlocks_features := and(proposed_differences, not(proposed_locked_features))
-//
-//      /* update unlock_timestamp */
-//      if does_unlocks_features {
-//        sstore(security_proposed_unlock_timestamp_slot, add(timestamp, DAYS_2))
-//      }
-//
-//      sstore(security_locked_features_proposed_slot, proposed_locked_features)
-//    }
-//  }
-//
-//  function security_set_proposed() public {
-//    assembly {
-//      CREATOR_REQUIRED(1)
-//
-//      let unlock_timestamp := sload(security_proposed_unlock_timestamp_slot) 
-//      if lt(unlock_timestamp, timestamp) {
-//        REVERT(2)
-//      }
-//
-//      sstore(security_locked_features_slot, sload(security_locked_features_proposed))
-//    }
-//  }
-//
-//  /* Manage Exchange Address */
-//
-//  function exchange_update_owner(uint32 exchange_id, address new_owner) public {
-//    assembly {
-//      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_UPDATE_OWNER, 0)
-//
-//      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-//      let exchange_backup := attr(Exchange, 1, sload(add(exchange_ptr, 1)), owner_backup)
-//
-//      /* ensure caller is backup */
-//      if iszero(eq(exchange_backup, caller)) {
-//        REVERT(1)
-//      }
-//
-//      let exchange_0 := sload(exchange_ptr)
-//      sstore(exchange_ptr, or(
-//        and(exchange_0, mask_out(Exchange, 0, owner)),
-//        build(Exchange, 0, /* name */ 0, /* quote_asset_id */ 0, /* owner */ new_owner)
-//      ))
-//    }
-//  }
-//
-//  function exchange_propose_backup(uint32 exchange_id, address backup) public {
-//    assembly {
-//      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_PROPOSE_BACKUP, 0)
-//
-//      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-//      let exchange_backup := attr(Exchange, 1, sload(add(exchange_ptr, 1)), owner_backup)
-//
-//      /* ensure caller is backup */
-//      if iszero(eq(exchange_backup, caller)) {
-//        REVERT(1)
-//      }
-//
-//      /* update proposed */
-//      sstore(add(exchange_ptr, 2), backup)
-//    }
-//  }
-//
-//  function exchange_set_backup(uint32 exchange_id) public {
-//    assembly {
-//      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_SET_BACKUP, 0)
-//
-//      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-//      let exchange_backup_proposed := attr(Exchange, 2, sload(add(exchange_ptr, 2)), owner_backup_proposed)
-//
-//      /* ensure caller is proposed backup */
-//      if or(iszero(eq(exchange_backup_proposed, caller)), iszero(caller)) {
-//        REVERT(1)
-//      }
-//
-//      /* update backup */
-//      sstore(add(exchange_ptr, 1), caller)
-//    }
-//  }
-//
-//  /* Manage Registered Entities */
-//
-//  function add_asset(string memory symbol, uint64 unit_scale, address contract_address) public {
-//    uint256[1] memory revert_reason;
-//
-//    assembly {
-//      SECURITY_FEATURE_CHECK(FEATURE_ADD_ASSET, 0)
-//      CREATOR_REQUIRED(1)
-//
-//      /* do not want to overflow assets array */
-//      let asset_id := sload(asset_count_slot)
-//      if iszero(lt(asset_id, ASSET_COUNT)) {
-//        REVERT(2)
-//      }
-//
-//      /* Symbol must be 4 characters */
-//      let symbol_len := mload(symbol)
-//      if iszero(eq(symbol_len, 4)) {
-//        REVERT(3)
-//      }
-//
-//      /* Unit scale must be non zero */
-//      if iszero(unit_scale) {
-//        REVERT(4)
-//      }
-//
-//      if iszero(contract_address) {
-//        REVERT(5)
-//      }
-//
-//      let asset_symbol := mload(add(symbol, WORD_1 /* offset as first word is size */))
-//
-//      /* Note, symbol is already shifted not setting it in build */
-//      let asset_data := or(asset_symbol, build(Asset, 0, /* symbol */ 0, unit_scale, contract_address))
-//      let asset_ptr := ASSET_PTR_(asset_id)
-//
-//      sstore(asset_ptr, asset_data)
-//      sstore(asset_count_slot, add(asset_id, 1))
-//    }
-//  }
+  function get_exchange_count() public view returns (uint32 count) {
+    uint256[1] memory return_value_mem;
+
+    assembly {
+      RETURN_0(sload(exchange_count_slot))
+      return(return_value_mem, WORD_1)
+    }
+  }
+
+  function get_asset_count() public view returns (uint32 count) {
+    uint256[1] memory return_value_mem;
+
+    assembly {
+      RETURN_0(sload(asset_count_slot))
+      return(return_value_mem, WORD_1)
+    }
+  }
+
+  function get_user(uint64 user_id) public view
+  returns (
+    address trade_address, address trade_address_proposed, uint256 trade_address_proposed_unlock_at,
+    address withdraw_address, address recovery_address, address recovery_address_proposed
+  ) {
+    uint256[6] memory return_value_mem;
+
+    assembly {
+      let user_ptr := USER_PTR_(user_id)
+
+      RETURN_0(      sload(pointer_attr(User, user_ptr, trade_address)))
+      RETURN(WORD_1, sload(pointer_attr(User, user_ptr, trade_address_proposed)))
+      RETURN(WORD_2, sload(pointer_attr(User, user_ptr, trade_address_proposed_unlock_at)))
+      RETURN(WORD_3, sload(pointer_attr(User, user_ptr, withdraw_address)))
+      RETURN(WORD_4, sload(pointer_attr(User, user_ptr, recovery_address)))
+      RETURN(WORD_5, sload(pointer_attr(User, user_ptr, recovery_address_proposed)))
+
+      return(return_value_mem, WORD_6)
+    }
+  }
+
+  function get_balance(uint64 user_id, uint32 asset_id) public view returns (uint256 return_balance) {
+    uint256[1] memory return_value_mem;
+
+    assembly {
+      let user_ptr := USER_PTR_(user_id)
+      let user_balance_ptr := USER_BALANCE_PTR_(user_ptr, asset_id)
+
+      RETURN_0(sload(user_balance_ptr))
+      return(return_value_mem, WORD_1)
+    }
+  }
+
+  function get_unlock_at(uint64 user_id, uint32 exchange_id) public view
+  returns (uint256 unlock_at) {
+    uint256[1] memory return_value_mem;
+
+    assembly {
+      let user_ptr := USER_PTR_(user_id)
+      let session_ptr := SESSION_PTR_(user_ptr, exchange_id)
+      let session_0 := sload(session_ptr)
+
+      RETURN_0(attr(ExchangeSession, 0, session_0, unlock_at))
+      return(return_value_mem, WORD_1)
+    }
+  }
+
+  function get_session_balance(uint64 user_id, uint32 exchange_id, uint32 asset_id) public view
+  returns (uint192 total_deposit, uint64 asset_balance) {
+    uint256[2] memory return_value_mem;
+
+    assembly {
+      let user_ptr := USER_PTR_(user_id)
+      let session_ptr := SESSION_PTR_(user_ptr, exchange_id)
+      let session_balance_ptr := SESSION_BALANCE_PTR_(session_ptr, asset_id)
+      let session_balance_0 := sload(session_balance_ptr)
+
+      RETURN_0(attr(SessionBalance, 0, session_balance_0, total_deposit))
+      RETURN(WORD_1, attr(SessionBalance, 0, session_balance_0, asset_balance))
+
+      return(return_value_mem, WORD_2)
+    }
+  }
+
+  function get_market_state(
+    uint64 user_id, uint32 exchange_id,
+    uint32 quote_asset_id, uint32 base_asset_id
+  ) public view returns (
+    int64 quote_qty, int64 base_qty, uint64 fee_used, uint64 fee_limit,
+    int64 min_quote_qty, int64 min_base_qty, uint64 long_max_price, uint64 short_min_price,
+    uint64 limit_version, int96 quote_shift, int96 base_shift
+  ) {
+    uint256[11] memory return_value_mem;
+
+    assembly {
+      /* hack to get around stack depth issues in Solidity */
+      base_shift := base_asset_id
+      quote_shift := quote_asset_id
+
+      let user_ptr := USER_PTR_(user_id)
+      let exchange_session_ptr := SESSION_PTR_(user_ptr, exchange_id)
+      let exchange_state_ptr := MARKET_STATE_PTR_(exchange_session_ptr, base_shift, quote_shift)
+
+      let state_data_0 := sload(exchange_state_ptr)
+      let state_data_1 := sload(add(exchange_state_ptr, 1))
+      let state_data_2 := sload(add(exchange_state_ptr, 2))
+
+      #define RETURN_64NEG(WORD, VALUE) \
+        { \
+          let tmp := VALUE \
+          CAST_64_NEG(tmp) \
+          RETURN(WORD, tmp) \
+        }
+
+      #define RETURN_96NEG(WORD, VALUE) \
+        { \
+          let tmp := VALUE \
+          CAST_96_NEG(tmp) \
+          RETURN(WORD, tmp) \
+        }
+
+      RETURN_64NEG(WORD_0,  attr(MarketState, 0, state_data_0, quote_qty))
+      RETURN_64NEG(WORD_1,  attr(MarketState, 0, state_data_0, base_qty))
+            RETURN(WORD_2,  attr(MarketState, 0, state_data_0, fee_used))
+            RETURN(WORD_3,  attr(MarketState, 0, state_data_0, fee_limit))
+
+      RETURN_64NEG(WORD_4,  attr(MarketState, 1, state_data_1, min_quote_qty))
+      RETURN_64NEG(WORD_5,  attr(MarketState, 1, state_data_1, min_base_qty))
+            RETURN(WORD_6,  attr(MarketState, 1, state_data_1, long_max_price))
+            RETURN(WORD_7,  attr(MarketState, 1, state_data_1, short_min_price))
+
+            RETURN(WORD_8,  attr(MarketState, 2, state_data_2, limit_version))
+      RETURN_96NEG(WORD_9,  attr(MarketState, 2, state_data_2, quote_shift))
+      RETURN_96NEG(WORD_10, attr(MarketState, 2, state_data_2, base_shift))
+
+      return(return_value_mem, WORD_11)
+    }
+  }
+
+  /* Security Feature Lock Management */
+
+  #define CREATOR_REQUIRED(REVERT_1) \
+    { \
+      let creator := sload(creator_slot) \
+      if iszero(eq(creator, caller)) { \
+        REVERT(REVERT_1) \
+      } \
+    }
+
+  function security_lock(uint256 lock_features) public {
+    assembly {
+      CREATOR_REQUIRED(1)
+
+      let locked_features := sload(security_locked_features_slot)
+      sstore(security_locked_features_slot, or(locked_features, lock_features))
+      sstore(security_locked_features_proposed_slot, FEATURE_ALL)
+    }
+  }
+
+  #define DAYS_2 172800 /* 2 days in seconds */
+
+  function security_propose(uint256 proposed_locked_features) public {
+    assembly {
+      CREATOR_REQUIRED(1)
+
+      /*
+       * only update security_proposed_unlock_timestamp if
+       * proposed_locked_features unlocks a new features
+       */
+
+      let current_proposal := sload(security_locked_features_proposed_slot)
+      let proposed_differences := xor(current_proposal, proposed_locked_features)
+
+      /*
+       * proposed_differences will have "1" in feature positions that have changed.
+       * Want to see if those positions have proposed_locked_features as "0", meaning
+       * that those features will be unlocked.
+       */
+      
+      let does_unlocks_features := and(proposed_differences, not(proposed_locked_features))
+
+      /* update unlock_timestamp */
+      if does_unlocks_features {
+        sstore(security_proposed_unlock_timestamp_slot, add(timestamp, DAYS_2))
+      }
+
+      sstore(security_locked_features_proposed_slot, proposed_locked_features)
+    }
+  }
+
+  function security_set_proposed() public {
+    assembly {
+      CREATOR_REQUIRED(1)
+
+      let unlock_timestamp := sload(security_proposed_unlock_timestamp_slot) 
+      if lt(unlock_timestamp, timestamp) {
+        REVERT(2)
+      }
+
+      sstore(security_locked_features_slot, sload(security_locked_features_proposed_slot))
+    }
+  }
+
+  /* Creator Management */
+
+  function creator_update(address new_creator) public {
+    assembly {
+      let creator_recovery := sload(creator_recovery_slot)
+      if iszero(eq(creator_recovery, caller)) {
+        REVERT(1)
+      }
+
+      sstore(creator_slot, new_creator)
+    }
+  }
+
+  function creator_propose_recovery(address recovery) public {
+    assembly {
+      let creator_recovery := sload(creator_recovery_slot)
+      if iszero(eq(creator_recovery, caller)) {
+        REVERT(1)
+      }
+
+      sstore(creator_recovery_proposed_slot, recovery)
+    }
+  }
+
+  function creator_update_recovery() public {
+    assembly {
+      let creator_recovery_proposed := sload(creator_recovery_proposed_slot)
+      if or(iszero(eq(creator_recovery_proposed, caller)), iszero(caller)) {
+        REVERT(1)
+      }
+      sstore(creator_recovery_slot, caller)
+    }
+  }
+
+  /* User Management */
+
+  function user_create() public {
+    uint256[2] memory log_data_mem;
+
+    assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_CREATE_USER, 0)
+
+      let user_id := sload(user_count_slot)
+      if iszero(lt(user_id, USER_COUNT)) {
+        REVERT(1)
+      }
+
+      /* increase user count */
+      sstore(user_count_slot, add(user_id, 1))
+
+      /* set management addresses */
+      let user_ptr := USER_PTR_(user_id)
+      sstore(pointer_attr(User, user_ptr, trade_address), caller)
+      sstore(pointer_attr(User, user_ptr, withdraw_address), caller)
+      sstore(pointer_attr(User, user_ptr, recovery_address), caller)
+
+      log_event(UserCreated, log_data_mem, user_id)
+    }
+  }
+
+  function user_trade_address_propose(uint64 user_id, address trade_address) public {
+    assembly {
+      let user_ptr := USER_PTR_(user_id)
+    }
+  }
+
+  /* Exchange Management */
+
+  function exchange_update_owner(uint32 exchange_id, address new_owner) public {
+    assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_UPDATE_OWNER, 0)
+
+      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
+      let exchange_backup := attr(Exchange, 1, sload(add(exchange_ptr, 1)), recovery_address)
+
+      /* ensure caller is backup */
+      if iszero(eq(exchange_backup, caller)) {
+        REVERT(1)
+      }
+
+      let exchange_0 := sload(exchange_ptr)
+      sstore(exchange_ptr, or(
+        and(exchange_0, mask_out(Exchange, 0, owner)),
+        build(Exchange, 0, /* name */ 0, /* quote_asset_id */ 0, /* owner */ new_owner)
+      ))
+    }
+  }
+
+  function exchange_propose_backup(uint32 exchange_id, address backup) public {
+    assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_PROPOSE_RECOVERY, 0)
+
+      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
+      let exchange_backup := attr(Exchange, 1, sload(add(exchange_ptr, 1)), recovery_address)
+
+      /* ensure caller is backup */
+      if iszero(eq(exchange_backup, caller)) {
+        REVERT(1)
+      }
+
+      /* update proposed */
+      sstore(add(exchange_ptr, 2), backup)
+    }
+  }
+
+  function exchange_set_backup(uint32 exchange_id) public {
+    assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_SET_RECOVERY, 0)
+
+      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
+      let exchange_backup_proposed := attr(Exchange, 2, sload(add(exchange_ptr, 2)), recovery_address_proposed)
+
+      /* ensure caller is proposed backup */
+      if or(iszero(eq(exchange_backup_proposed, caller)), iszero(caller)) {
+        REVERT(1)
+      }
+
+      /* update backup */
+      sstore(add(exchange_ptr, 1), caller)
+    }
+  }
+
+  /* Manage Registered Entities */
+
+  function add_asset(string memory symbol, uint64 unit_scale, address contract_address) public {
+    uint256[1] memory revert_reason;
+
+    assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_ADD_ASSET, 0)
+      CREATOR_REQUIRED(1)
+
+      /* do not want to overflow assets array */
+      let asset_id := sload(asset_count_slot)
+      if iszero(lt(asset_id, ASSET_COUNT)) {
+        REVERT(2)
+      }
+
+      /* Symbol must be 4 characters */
+      let symbol_len := mload(symbol)
+      if iszero(eq(symbol_len, 4)) {
+        REVERT(3)
+      }
+
+      /* Unit scale must be non zero */
+      if iszero(unit_scale) {
+        REVERT(4)
+      }
+
+      if iszero(contract_address) {
+        REVERT(5)
+      }
+
+      let asset_symbol := mload(add(symbol, WORD_1 /* offset as first word is size */))
+
+      /* Note, symbol is already shifted not setting it in build */
+      let asset_data := or(asset_symbol, build(Asset, 0, /* symbol */ 0, unit_scale, contract_address))
+      let asset_ptr := ASSET_PTR_(asset_id)
+
+      sstore(asset_ptr, asset_data)
+      sstore(asset_count_slot, add(asset_id, 1))
+    }
+  }
 //
 //  function add_exchange(string memory name, address addr) public {
 //    uint256[1] memory revert_reason;

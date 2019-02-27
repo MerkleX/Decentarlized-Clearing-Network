@@ -100,17 +100,30 @@ module.exports = function(raw) {
         const pre = `\n${tab}${TAB}`;
         const data = `struct ${node.name} {${pre}${node.members.map(mem => {
           if (mem.typeName.type === 'ArrayTypeName') {
-            const { components } = mem.typeName.length;
-            if (components.length > 1) {
-              throw new Error('Only supports one dimentional arrays');
-            }
+            const array_length = mem.typeName.length;
 
             const type = mem.typeName.baseTypeName.name || mem.typeName.baseTypeName.namePath;
-            if (!type) {
-              throw new Error('type missing');
+            let length;
+
+            const { components } = array_length;
+            if (components) {
+              if (components.length > 1) {
+                throw new Error('Only supports one dimentional arrays');
+              }
+
+              if (!type) {
+                throw new Error('type missing');
+              }
+
+              length = evaluate(components[0]);
+            }
+            else if (array_length.type === 'NumberLiteral') {
+              length = BigInt(array_length.number);
+            }
+            else {
+              throw new Error('Unable to parse array length');
             }
 
-            const length = evaluate(components[0]);
 
             struct.push({ name: mem.name, type, length });
             return `${type}[${length}] ${mem.name};`;
