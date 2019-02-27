@@ -221,6 +221,41 @@ module.exports = function(raw) {
           return `add(${offset}, mul(${words.toString()}, ${index}))`;
         }
 
+        if (node.functionName === 'pointer_attr') {
+          const [ struct_type, pointer, attr_name ] = node.arguments.map(print);
+
+
+          const struct = structs[struct_type];
+          if (!struct) {
+            throw new Error('Cannot build struct for ' + struct_type);
+          }
+
+          let total_size = 0n;
+          let found = false;
+
+          let i;
+          for (i = 0; i < struct.members.length; ++i) {
+            const member = struct.members[i];
+
+            if (member.name === attr_name) {
+              found = true;
+              break;
+            }
+
+            total_size += typeSize(member.type) * (member.length || 1n);
+          }
+
+          if (!found) {
+            throw new Error('failed to find ' + attr_name + ' in ' + struct_type);
+          }
+
+          if ((total_size % 32n) !== 0n) {
+            throw new Error('not on a word multiple');
+          }
+
+          return `add(${pointer}, ${total_size / 32n})`;
+        }
+
         if (node.functionName === 'build') {
           const args = node.arguments.map(print);
 
