@@ -73,8 +73,10 @@ contract DCN {
   #define MARKET_COUNT (2**64)   /* 2^64 (2^32 * 2^32 every asset combination) */
 
   struct Exchange {
-    /* 12 byte name of the exchange */
-    uint96 name;
+    /* 11 byte name of the exchange */
+    uint88 name;
+    /* prevents exchange from applying settlement groups */
+    uint8 locked;
     /* address used to manage exchange */
     address owner;
 
@@ -397,10 +399,13 @@ contract DCN {
     }
   }
 
-  function get_exchange(uint32 exchange_id) public view returns (string memory name, address owner,
-                                                                 address recovery_address, address recovery_address_proposed) {
+  function get_exchange(uint32 exchange_id) public view
+  returns (
+    string memory name, bool locked, address owner,
+    address recovery_address, address recovery_address_proposed
+  ) {
     /* [ name_offset, owner, recovery_address, recovery_address_proposed, name_len, name_data(12) ] */
-    uint256[6] memory return_value_mem;
+    uint256[7] memory return_value_mem;
 
     assembly {
       let exchange_ptr := EXCHANGE_PTR_(exchange_id)
@@ -409,11 +414,12 @@ contract DCN {
       let exchange_2 := sload(add(exchange_ptr, 2))
 
       MSTORE_STR(return_value_mem, WORD_6, 12, exchange_0)
-      RETURN(WORD_1, attr(Exchange, 0, exchange_0, owner))
-      RETURN(WORD_2, attr(Exchange, 1, exchange_1, recovery_address))
-      RETURN(WORD_3, attr(Exchange, 2, exchange_2, recovery_address_proposed))
+      RETURN(WORD_1, attr(Exchange, 0, exchange_0, locked))
+      RETURN(WORD_2, attr(Exchange, 0, exchange_0, owner))
+      RETURN(WORD_3, attr(Exchange, 1, exchange_1, recovery_address))
+      RETURN(WORD_4, attr(Exchange, 2, exchange_2, recovery_address_proposed))
 
-      return(return_value_mem, const_add(WORD_4, /* string header */ WORD_1, /* string data */ 12))
+      return(return_value_mem, const_add(WORD_5, /* string header */ WORD_1, /* string data */ 12))
     }
   }
 
@@ -662,6 +668,19 @@ contract DCN {
     }
   }
 
+  function set_exchange_locked(uint32 exchange_id, bool locked) public {
+    assembly {
+      CREATOR_REQUIRED(1)
+
+      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
+      let exchange_0 := sload(exchange_ptr)
+      sstore(exchange_ptr, or(
+        and(mask_out(Exchange, 0, locked), exchange_0),
+        build(Exchange, 0, /* name */ 0, /* locked */ locked)
+      ))
+    }
+  }
+
   /* User Management */
 
   function user_create() public {
@@ -893,7 +912,7 @@ contract DCN {
 
       /* Name must be 12 bytes long */
       let name_len := mload(name)
-      if iszero(eq(name_len, 12)) {
+      if iszero(eq(name_len, 11)) {
         REVERT(2)
       }
 
@@ -911,7 +930,7 @@ contract DCN {
        */
 
       let name_data := mload(add(name, 32))
-      let exchange_data := or(name_data, build(Exchange, 0, /* space for name */ 0, addr))
+      let exchange_data := or(name_data, build(Exchange, 0, /* space for name */ 0, /* locked */ 0, addr))
       sstore(exchange_ptr, exchange_data)
 
       /* Store owner backup */
@@ -1116,183 +1135,199 @@ contract DCN {
     }
   }
 
-//  function transfer_to_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
-//    uint256[1] memory revert_reason;
-//    uint256[4] memory log_data_mem;
-//
-//    assembly {
-//      if iszero(quantity) {
-//        stop()
-//      }
-//
-//      SECURITY_FEATURE_CHECK(FEATURE_TRANSFER_TO_SESSION, 0)
-//      VALID_EXCHANGE_ID(exchange_id, 1)
-//      VALID_ASSET_ID(asset_id, 2)
-//
-//      let asset_ptr := ASSET_PTR_(asset_id)
-//      let unit_scale := attr(Asset, 0, sload(asset_ptr), unit_scale)
-//      let scaled_quantity := mul(quantity, unit_scale)
-//
-//      /* load user balance */
-//      let user_ptr := USER_PTR(caller)
-//      let user_balance_ptr := USER_BALANCE_PTR(user_ptr, asset_id)
-//      let user_balance := sload(user_balance_ptr)
-//
-//      /* insufficient funds */
-//      if lt(user_balance, scaled_quantity) {
-//        REVERT(3)
-//      }
-//
-//      /* load exchange balance */
-//      let session_ptr := EXCHANGE_SESSION_PTR(user_ptr, exchange_id)
-//      let exchange_balance_ptr := USER_EXCHANGE_BALANCE_PTR(session_ptr, asset_id)
-//      let exchange_balance_data_0 := sload(exchange_balance_ptr)
-//
-//      let updated_exchange_balance := add(attr(SessionBalance, 0, asset_balance), quantity)
-//      if U64_OVERFLOW(updated_exchange_balance) {
-//        REVERT(4)
-//      }
-//
-//      /* don't care about overflow for total_deposit, is used by exchange to detect updated */
-//      let updated_total_deposit := add(attr(SessionBalance, 0, exchange_balance_data_0, total_deposit), quantity)
-//
-//      /* update user balance */
-//      sstore(user_balance_ptr, sub(user_balance, scaled_quantity))
-//
-//      /* update exchange balance */
-//      sstore(exchange_balance_ptr, or(
-//        and(mask_out(SessionBalance, 0, total_deposit, asset_balance), exchange_balance_data_0),
-//        build(SessionBalance, 0,
-//              /* total_deposit */ updated_total_deposit,
-//              /* unsettled_withdraw_total */ 0,
-//              /* asset_balance */ updated_exchange_balance)
-//      ))
-//
-//      log_event(ExchangeDeposit, log_data_mem, caller, exchange_id, asset_id)
-//    }
-//  }
-//
-//  function transfer_from_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
-//    uint256[1] memory revert_reason;
-//    uint256[4] memory log_data_mem;
-//
-//    assembly {
-//      if iszero(quantity) {
-//        stop()
-//      }
-//
-//      VALID_EXCHANGE_ID(exchange_id, 1)
-//      VALID_ASSET_ID(asset_id, 2)
-//
-//      let user_ptr := USER_PTR(caller)
-//      let session_ptr := EXCHANGE_SESSION_PTR(user_ptr, exchange_id)
-//
-//      /* ensure session in unlocked */
-//      {
-//        let exchange_session_data_0 := sload(session_ptr)
-//        let unlock_at := attr(ExchangeSession, 0, exchange_balance_data_0, unlock_at)
-//
-//        if gt(unlock_at, timestamp) {
-//          REVERT(3)
-//        }
-//      }
-//
-//      /* load exchange balance */
-//      let exchange_balance_ptr := EUSER_XCHANGE_BALANCE_PTR(session_ptr, asset_id)
-//      let exchange_balance_data_0 := sload(exchange_balance_ptr)
-//      let exchange_balance := attr(SessionBalance, 0, exchange_balance_data_0, asset_balance)
-//
-//      /* insufficient funds */
-//      if gt(quantity, exchange_balance) {
-//        REVERT(4)
-//      }
-//
-//      let updated_exchange_balance := sub(exchange_balance, quantity)
-//      let unsettled_withdraw_total := attr(SessionBalance, 0, exchange_balance_data_0, unsettled_withdraw_total)
-//
-//      /* do not let user withdraw money owed to the exchange */
-//      if lt(updated_exchange_balance, unsettled_withdraw_total) {
-//        REVERT(5)
-//      }
-//
-//      sstore(exchange_balance_ptr, or(
-//        and(mask_out(SessionBalance, 0, asset_balance), exchange_balance_data_0),
-//        build(SessionBalance, 0,
-//              /* total_deposit */ 0,
-//              /* unsettled_withdraw_total */ 0,
-//              /* asset_balance */ updated_exchange_balance)
-//      ))
-//
-//      let asset_ptr := ASSET_PTR_(asset_id)
-//      let unit_scale := attr(Asset, 0, sload(asset_ptr), unit_scale)
-//      let scaled_quantity := mul(quantity, unit_scale)
-//
-//      let user_balance_ptr := USER_BALANCE_PTR(user_ptr, asset_id)
-//      let user_balance := sload(user_balance_ptr)
-//
-//      let updated_user_balance := add(user_balance, scaled_quantity)
-//      /* protect against addition overflow */
-//      if lt(updated_user_balance, user_balance) {
-//        REVERT(6)
-//      }
-//
-//      sstore(user_balance_ptr, updated_user_balance)
-//    }
-//  }
-//
-//  function deposit_asset_to_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
-//    uint256[1] memory revert_reason;
-//    uint256[4] memory transfer_in_mem;
-//    uint256[1] memory transfer_out_mem;
-//    uint256[3] memory log_data_mem;
-//
-//    assembly {
-//      SECURITY_FEATURE_CHECK(FEATURE_DEPOSIT_ASSET_TO_SESSION, 0)
-//
-//      VALID_EXCHANGE_ID(exchange_id, 1)
-//      VALID_ASSET_ID(asset_id, 2)
-//
-//      if iszero(quantity) {
-//        stop()
-//      }
-//
-//      let session_ptr := EXCHANGE_SESSION_PTR(USER_PTR(caller), exchange_id)
-//      let exchange_balance_ptr := USER_EXCHANGE_BALANCE_PTR(session_ptr, asset_id)
-//      let exchange_balance_data_0 := sload(exchange_balance_ptr)
-//
-//      let updated_exchange_balance := add(attr(SessionBalance, 0, asset_balance), quantity)
-//      if U64_OVERFLOW(updated_exchange_balance) {
-//        REVERT(3)
-//      }
-//
-//      let asset_0 := sload(ASSET_PTR_(asset_id))
-//      let asset_address := attr(Asset, 0, asset_0, contract_address)
-//      let unit_scale := attr(Asset, 0, asset_0, unit_scale)
-//
-//      let scaled_quantity := mul(quantity, unit_scale)
-//
-//      ERC_20_DEPOSIT(
-//        /* TOKEN_ADDRESS */ asset_address,
-//        /* FROM_ADDRESS */ caller,
-//        /* TO_ADDRESS */ address,
-//        /* AMOUNT */ scaled_quantity,
-//        /* REVERT_1 */ 4,
-//        /* REVERT_2 */ 5
-//      )
-//
-//      let updated_total_deposit := add(attr(SessionBalance, 0, exchange_balance_data_0, total_deposit), quantity)
-//      /* update exchange balance */
-//      sstore(exchange_balance_ptr, or(
-//        and(mask_out(SessionBalance, 0, total_deposit, asset_balance), exchange_balance_data_0),
-//        build(SessionBalance, 0,
-//              /* total_deposit */ updated_total_deposit,
-//              /* unsettled_withdraw_total */ 0,
-//              /* asset_balance */ updated_exchange_balance)
-//      ))
-//
-//      log_event(ExchangeDeposit, log_data_mem, caller, exchange_id, asset_id)
-//    }
-//  }
+  function transfer_to_session(uint64 user_id, uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
+    uint256[1] memory revert_reason;
+    uint256[4] memory log_data_mem;
+
+    assembly {
+      if iszero(quantity) {
+        stop()
+      }
+
+      SECURITY_FEATURE_CHECK(FEATURE_TRANSFER_TO_SESSION, 0)
+      VALID_EXCHANGE_ID(exchange_id, 1)
+      VALID_ASSET_ID(asset_id, 2)
+
+      let asset_ptr := ASSET_PTR_(asset_id)
+      let unit_scale := attr(Asset, 0, sload(asset_ptr), unit_scale)
+      let scaled_quantity := mul(quantity, unit_scale)
+
+      let user_ptr := USER_PTR(user_id)
+
+      /* ensure caller is withdraw_address as funds are moving out of DCN account */
+      {
+        let withdraw_address := sload(pointer_attr(User, user_ptr, withdraw_address))
+        if iszero(eq(caller, withdraw_address)) {
+          REVERT(3)
+        }
+      }
+
+      let user_balance_ptr := USER_BALANCE_PTR(user_ptr, asset_id)
+      let user_balance := sload(user_balance_ptr)
+
+      /* insufficient funds */
+      if lt(user_balance, scaled_quantity) {
+        REVERT(4)
+      }
+
+      /* load exchange balance */
+      let session_balance_ptr := SESSION_BALANCE_PTR_(SESSION_PTR_(user_ptr, exchange_id), asset_id)
+      let session_balance_0 := sload(session_balance_ptr)
+
+      let updated_exchange_balance := add(attr(SessionBalance, 0, session_balance_0, asset_balance), quantity)
+      if U64_OVERFLOW(updated_exchange_balance) {
+        REVERT(5)
+      }
+
+      /* don't care about overflow for total_deposit, is used by exchange to detect updated */
+      let updated_total_deposit := add(attr(SessionBalance, 0, session_balance_0, total_deposit), quantity)
+
+      /* update user balance */
+      sstore(user_balance_ptr, sub(user_balance, scaled_quantity))
+
+      /* update exchange balance */
+      sstore(session_balance_ptr, or(
+        and(mask_out(SessionBalance, 0, total_deposit, asset_balance), session_balance_0),
+        build(SessionBalance, 0,
+              /* total_deposit */ updated_total_deposit,
+              /* unsettled_withdraw_total */ 0,
+              /* asset_balance */ updated_exchange_balance)
+      ))
+
+      log_event(ExchangeDeposit, log_data_mem, user_id, exchange_id, asset_id)
+    }
+  }
+
+  function transfer_from_session(uint64 user_id, uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
+    uint256[1] memory revert_reason;
+    uint256[4] memory log_data_mem;
+
+    assembly {
+      if iszero(quantity) {
+        stop()
+      }
+
+      VALID_EXCHANGE_ID(exchange_id, 1)
+      VALID_ASSET_ID(asset_id, 2)
+
+      let user_ptr := USER_PTR_(user_id)
+
+      {
+        let trade_address := sload(pointer_attr(User, user_ptr, trade_address))
+        if iszero(eq(caller, trade_address)) {
+          REVERT(3)
+        }
+      }
+
+      let session_ptr := SESSION_PTR_(user_ptr, exchange_id)
+
+      /* ensure session in unlocked */
+      {
+        let session_0 := sload(session_ptr)
+        let unlock_at := attr(ExchangeSession, 0, session_0, unlock_at)
+
+        if gt(unlock_at, timestamp) {
+          REVERT(4)
+        }
+      }
+
+      /* load exchange balance */
+      let session_balance_ptr := SESSION_BALANCE_PTR_(session_ptr, asset_id)
+      let session_balance_0 := sload(session_balance_ptr)
+      let session_balance := attr(SessionBalance, 0, session_balance_0, asset_balance)
+
+      /* insufficient funds */
+      if gt(quantity, session_balance) {
+        REVERT(5)
+      }
+
+      let updated_exchange_balance := sub(session_balance, quantity)
+      let unsettled_withdraw_total := attr(SessionBalance, 0, session_balance_0, unsettled_withdraw_total)
+
+      /* do not let user withdraw money owed to the exchange */
+      if lt(updated_exchange_balance, unsettled_withdraw_total) {
+        REVERT(5)
+      }
+
+      sstore(session_balance_ptr, or(
+        and(mask_out(SessionBalance, 0, asset_balance), session_balance_0),
+        build(SessionBalance, 0,
+              /* total_deposit */ 0,
+              /* unsettled_withdraw_total */ 0,
+              /* asset_balance */ updated_exchange_balance)
+      ))
+
+      let asset_ptr := ASSET_PTR_(asset_id)
+      let unit_scale := attr(Asset, 0, sload(asset_ptr), unit_scale)
+      let scaled_quantity := mul(quantity, unit_scale)
+
+      let user_balance_ptr := USER_BALANCE_PTR(user_ptr, asset_id)
+      let user_balance := sload(user_balance_ptr)
+
+      let updated_user_balance := add(user_balance, scaled_quantity)
+      /* protect against addition overflow */
+      if lt(updated_user_balance, user_balance) {
+        REVERT(6)
+      }
+
+      sstore(user_balance_ptr, updated_user_balance)
+    }
+  }
+
+  function deposit_asset_to_session(uint64 user_id, uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
+    uint256[1] memory revert_reason;
+    uint256[4] memory transfer_in_mem;
+    uint256[1] memory transfer_out_mem;
+    uint256[3] memory log_data_mem;
+
+    assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_DEPOSIT_ASSET_TO_SESSION, 0)
+
+      VALID_EXCHANGE_ID(exchange_id, 1)
+      VALID_ASSET_ID(asset_id, 2)
+
+      if iszero(quantity) {
+        stop()
+      }
+
+      let session_ptr := SESSION_PTR_(USER_PTR(user_id), exchange_id)
+      let session_balance_ptr := SESSION_BALANCE_PTR_(session_ptr, asset_id)
+      let session_balance_0 := sload(session_balance_ptr)
+
+      let updated_exchange_balance := add(attr(SessionBalance, 0, session_balance_0, asset_balance), quantity)
+      if U64_OVERFLOW(updated_exchange_balance) {
+        REVERT(3)
+      }
+
+      let asset_0 := sload(ASSET_PTR_(asset_id))
+      let asset_address := attr(Asset, 0, asset_0, contract_address)
+      let unit_scale := attr(Asset, 0, asset_0, unit_scale)
+
+      let scaled_quantity := mul(quantity, unit_scale)
+
+      ERC_20_DEPOSIT(
+        /* TOKEN_ADDRESS */ asset_address,
+        /* FROM_ADDRESS */ caller,
+        /* TO_ADDRESS */ address,
+        /* AMOUNT */ scaled_quantity,
+        /* REVERT_1 */ 4,
+        /* REVERT_2 */ 5
+      )
+
+      let updated_total_deposit := add(attr(SessionBalance, 0, session_balance_0, total_deposit), quantity)
+
+      /* update exchange balance */
+      sstore(session_balance_ptr, or(
+        and(mask_out(SessionBalance, 0, total_deposit, asset_balance), session_balance_0),
+        build(SessionBalance, 0,
+              /* total_deposit */ updated_total_deposit,
+              /* unsettled_withdraw_total */ 0,
+              /* asset_balance */ updated_exchange_balance)
+      ))
+
+      log_event(ExchangeDeposit, log_data_mem, user_id, exchange_id, asset_id)
+    }
+  }
 //
 //  struct ExchangeTransfersHeader {
 //    uint32 exchange_id;
