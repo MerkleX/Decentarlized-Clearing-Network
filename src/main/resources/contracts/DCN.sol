@@ -25,6 +25,12 @@ pragma solidity ^0.5.0;
 #define I64_MIN  0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF8000000000000000
 #define U256_MAX 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
+
+#define MIN_UNLOCK_AT 28800 /* 8 hours in seconds */
+#define MAX_UNLOCK_AT 1209600 /* 14 days in seconds */
+#define TWO_HOURS 7200 /* 2 hours in seconds */
+#define TWO_DAYS 172800 /* 2 days in seconds */
+
 #define PRICE_UNITS 100000000
 
 /*
@@ -323,7 +329,7 @@ contract DCN {
         REVERT(REVERT_2) \
       } \
 
-  #define ERC_20_DEPOSIT(TOKEN_ADDRESS, FROM_ADDRESS, TO_ADDRESS AMOUNT, REVERT_1, REVERT_2) \
+  #define ERC_20_DEPOSIT(TOKEN_ADDRESS, FROM_ADDRESS, TO_ADDRESS, AMOUNT, REVERT_1, REVERT_2) \
       mstore(transfer_in_mem, /* transferFrom(address,address,uint256) */ fn_hash("transferFrom(address,address,uint256)")) \
       mstore(add(transfer_in_mem, 4), FROM_ADDRESS) \
       mstore(add(transfer_in_mem, 36), TO_ADDRESS) \
@@ -580,8 +586,6 @@ contract DCN {
     }
   }
 
-  #define DAYS_2 172800 /* 2 days in seconds */
-
   function security_propose(uint256 proposed_locked_features) public {
     assembly {
       CREATOR_REQUIRED(1)
@@ -604,7 +608,7 @@ contract DCN {
 
       /* update unlock_timestamp */
       if does_unlocks_features {
-        sstore(security_proposed_unlock_timestamp_slot, add(timestamp, DAYS_2))
+        sstore(security_proposed_unlock_timestamp_slot, add(timestamp, TWO_DAYS))
       }
 
       sstore(security_locked_features_proposed_slot, proposed_locked_features)
@@ -687,6 +691,103 @@ contract DCN {
   function user_trade_address_propose(uint64 user_id, address trade_address) public {
     assembly {
       let user_ptr := USER_PTR_(user_id)
+
+      let recovery_address := sload(pointer_attr(User, user_ptr, recovery_address))
+      if iszero(eq(caller, recovery_address)) {
+        REVERT(1)
+      }
+
+      sstore(pointer_attr(User, user_ptr, trade_address_proposed), trade_address)
+
+      let unlock_at_ptr := pointer_attr(User, user_ptr, trade_address_proposed_unlock_at)
+      let current_unlock_at := sload(unlock_at_ptr)
+
+      /*
+       * Set lock to max unlock_at + 2 hours. Because a proposed trade address
+       * change prevents set_unlock_at from running, there will be no open trade
+       * sessions when the address changes.
+       */
+      if iszero(current_unlock_at) {
+        let unlock_at := add(timestamp, const_add(MAX_UNLOCK_AT, TWO_HOURS))
+        sstore(unlock_at_ptr, unlock_at)
+      }
+    }
+  }
+
+  function user_trade_address_propose_clear(uint64 user_id) public {
+    assembly {
+      let user_ptr := USER_PTR_(user_id)
+
+      let recovery_address := sload(pointer_attr(User, user_ptr, recovery_address))
+      if iszero(eq(caller, recovery_address)) {
+        REVERT(1)
+      }
+
+      sstore(pointer_attr(User, user_ptr, trade_address_proposed), 0)
+      sstore(pointer_attr(User, user_ptr, trade_address_proposed_unlock_at), 0)
+    }
+  }
+
+  function user_trade_address_update(uint64 user_id) public {
+    assembly {
+      let user_ptr := USER_PTR_(user_id)
+
+      let proposed_ptr :=  pointer_attr(User, user_ptr, trade_address_proposed)
+      let unlock_at_ptr := pointer_attr(User, user_ptr, trade_address_proposed_unlock_at)
+
+      let trade_address_proposed := sload(proposed_ptr)
+      if iszero(eq(caller, trade_address_proposed)) {
+        REVERT(1)
+      }
+
+      if gt(unlock_at_ptr, timestamp) {
+        REVERT(2)
+      }
+
+      sstore(proposed_ptr, 0)
+      sstore(unlock_at_ptr, 0)
+      sstore(pointer_attr(User, user_ptr, trade_address), trade_address_proposed)
+    }
+  }
+
+  function user_withdraw_address_update(uint64 user_id, address withdraw_address) public {
+    assembly {
+      let user_ptr := USER_PTR_(user_id)
+
+      let recovery_address := sload(pointer_attr(User, user_ptr, recovery_address))
+      if iszero(eq(caller, recovery_address)) {
+        REVERT(1)
+      }
+
+      sstore(pointer_attr(User, user_ptr, withdraw_address), withdraw_address)
+    }
+  }
+
+  function user_recovery_address_propose(uint64 user_id, address proposed) public {
+    assembly {
+      let user_ptr := USER_PTR_(user_id)
+
+      let recovery_address := sload(pointer_attr(User, user_ptr, recovery_address))
+      if iszero(eq(caller, recovery_address)) {
+        REVERT(1)
+      }
+
+      sstore(pointer_attr(User, user_ptr, recovery_address_proposed), proposed)
+    }
+  }
+
+  function user_recovery_address_update(uint64 user_id) public {
+    assembly {
+      let user_ptr := USER_PTR_(user_id)
+
+      let proposed_ptr := pointer_attr(User, user_ptr, recovery_address_proposed)
+      let recovery_address_proposed := sload(proposed_ptr)
+      if iszero(eq(caller, recovery_address_proposed)) {
+        REVERT(1)
+      }
+
+      sstore(proposed_ptr, 0)
+      sstore(pointer_attr(User, user_ptr, recovery_address), recovery_address_proposed)
     }
   }
 
@@ -749,8 +850,6 @@ contract DCN {
   /* Manage Registered Entities */
 
   function add_asset(string memory symbol, uint64 unit_scale, address contract_address) public {
-    uint256[1] memory revert_reason;
-
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_ADD_ASSET, 0)
       CREATOR_REQUIRED(1)
@@ -786,227 +885,237 @@ contract DCN {
       sstore(asset_count_slot, add(asset_id, 1))
     }
   }
-//
-//  function add_exchange(string memory name, address addr) public {
-//    uint256[1] memory revert_reason;
-//
-//    assembly {
-//      SECURITY_FEATURE_CHECK(FEATURE_ADD_EXCHANGE, 0)
-//      CREATOR_REQUIRED(1)
-//
-//      /* Name must be 12 bytes long */
-//      let name_len := mload(name)
-//      if iszero(eq(name_len, 12)) {
-//        REVERT(2)
-//      }
-//
-//      /* Do not overflow exchanges */
-//      let exchange_id := sload(exchange_count_slot)
-//      if iszero(lt(exchange_id, EXCHANGE_COUNT)) {
-//        REVERT(4)
-//      }
-//
-//      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-//
-//      /* 
-//       * name is at start of the word. After loading it is already shifted
-//       * so use or to add it rather than shifting twice with build
-//       */
-//
-//      let name_data := mload(add(name, 32))
-//      let exchange_data := or(name_data, build(Exchange, 0, /* space for name */ 0, addr))
-//      sstore(exchange_ptr, exchange_data)
-//
-//      /* Store owner backup */
-//      sstore(add(exchange_ptr, 2), addr)
-//
-//      /* Update exchange count */
-//      sstore(exchange_count_slot, add(exchange_id, 1))
-//    }
-//  }
-//
-//  /* Manage Exchange Balance */
-//
-//  function exchange_withdraw(uint32 exchange_id, uint32 asset_id,
-//                             address destination, uint64 quantity) public {
-//    uint256[1] memory revert_reason;
-//    uint256[3] memory transfer_in_mem;
-//    uint256[1] memory transfer_out_mem;
-//
-//    assembly {
-//      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-//      let exchange_0 := sload(exchange_ptr)
-//
-//      /* ensure caller is owner */
-//      let exchange_owner := attr(Exchange, 0, exchange_0, owner)
-//      if iszero(eq(exchange_owner, caller)) {
-//        REVERT(1)
-//      }
-//
-//      let exchange_balance_ptr := EXCHANGE_BALANCE_PTR_(exchange_ptr, asset_id)
-//      let exchange_balance := sload(exchange_balance_ptr)
-//
-//      /* insufficient funds */
-//      if gt(quantity, exchange_balance) {
-//        REVERT(2)
-//      }
-//
-//      /* decrement balance */
-//      sstore(exchange_balance_ptr, sub(exchange_balance, quantity))
-//
-//      let asset_0 := sload(ASSET_PTR_(quote_asset_id))
-//      let unit_scale := attr(Asset, 0, asset_0, unit_scale)
-//      let asset_address := attr(Asset, 0, asset_0, contract_address)
-//
-//      let withdraw := mul(quantity, unit_scale)
-//
-//      ERC_20_SEND(
-//        /* TOKEN_ADDRESS */ asset_address,
-//        /* TO_ADDRESS */ destination,
-//        /* AMOUNT */ withdraw,
-//        /* REVERT_1 */ 3,
-//        /* REVERT_2 */ 4
-//      )
-//    }
-//  }
-//
-//  function exchange_deposit(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
-//    uint256[1] memory revert_reason;
-//    uint256[3] memory transfer_in_mem;
-//    uint256[1] memory transfer_out_mem;
-//
-//    assembly {
-//      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_DEPOSIT, 0)
-//
-//      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-//      let exchange_balance_ptr := EXCHANGE_BALANCE_PTR_(exchange_ptr, asset_id)
-//      let exchange_balance := sload(exchange_balance_ptr)
-//
-//      let updated_balance := add(exchange_balance, quantity)
-//      if U64_OVERFLOW(updated_balance) {
-//        REVERT(1)
-//      }
-//
-//      let asset_0 := sload(ASSET_PTR_(quote_asset_id))
-//      let unit_scale := attr(Asset, 0, asset_0, unit_scale)
-//      let asset_address := attr(Asset, 0, asset_0, contract_address)
-//
-//      let deposit := mul(quantity, unit_scale)
-//
-//      ERC_20_DEPOSIT(
-//        /* TOKEN_ADDRESS */ asset_address,
-//        /* FROM_ADDRESS */ caller,
-//        /* TO_ADDRESS */ address,
-//        /* AMOUNT */ deposit,
-//        /* REVERT_1 */ 2,
-//        /* REVERT_2 */ 3
-//      )
-//
-//      sstore(exchange_balance_ptr, updated_balance)
-//    }
-//  }
-//
-//  function deposit(uint32 asset_id, uint256 amount) public {
-//    uint256[1] memory revert_reason;
-//    uint256[4] memory transfer_in_mem;
-//    uint256[1] memory transfer_out_mem;
-//
-//    assembly {
-//      SECURITY_FEATURE_CHECK(FEATURE_DEPOSIT, 0)
-//      VALID_ASSET_ID(asset_id, 1)
-//
-//      if iszero(amount) {
-//        stop()
-//      }
-//
-//      let balance_ptr := USER_BALANCE_PTR(USER_PTR(caller), asset_id)
-//      let current_balance := sload(balance_ptr)
-//
-//      let proposed_balance := add(current_balance, amount)
-//
-//      /* Prevent overflow */
-//      if lt(proposed_balance, current_balance) {
-//        REVERT(2)
-//      }
-//
-//      let asset_0 := sload(ASSET_PTR_(asset_id))
-//      let asset_address := attr(Asset, 0, asset_0, contract_address)
-//
-//      ERC_20_DEPOSIT(
-//        /* TOKEN_ADDRESS */ asset_address,
-//        /* FROM_ADDRESS */ caller,
-//        /* TO_ADDRESS */ address,
-//        /* AMOUNT */ amount,
-//        /* REVERT_1 */ 3,
-//        /* REVERT_2 */ 4
-//      )
-//
-//      sstore(balance_ptr, proposed_balance)
-//    }
-//  }
-//
-//  function withdraw(uint32 asset_id, address destination, uint256 amount) public {
-//    uint256[1] memory revert_reason;
-//    uint256[3] memory transfer_in_mem;
-//    uint256[1] memory transfer_out_mem;
-//
-//    assembly {
-//      if iszero(amount) {
-//        stop()
-//      }
-//
-//      VALID_ASSET_ID(asset_id, 1)
-//
-//      let balance_ptr := USER_BALANCE_PTR(USER_PTR(caller), asset_id)
-//      let current_balance := sload(balance_ptr)
-//
-//      /* insufficient funds */
-//      if lt(current_balance, amount) {
-//        REVERT(1)
-//      }
-//
-//      sstore(asset_ptr, sub(current_balance, amount))
-//
-//      let asset_data := sload(ASSET_PTR_(asset_id))
-//      let asset_address := attr(Asset, 0, asset_data, contract_address)
-//
-//      ERC_20_SEND(
-//        /* TOKEN_ADDRESS */ asset_address,
-//        /* TO_ADDRESS */ destination,
-//        /* AMOUNT */ amount,
-//        /* REVERT_1 */ 2,
-//        /* REVERT_2 */ 3
-//      )
-//    }
-//  }
-//
-//  #define MIN_EXPIRE_TIME 28800 /* 8 hours in seconds */
-//  #define MAX_EXPIRE_TIME 1209600 /* 14 days in seconds */
-//
-//  function set_unlock(uint32 exchange_id, uint256 unlock_at) public {
-//    uint256[1] memory revert_reason;
-//    uint256[3] memory log_data_mem;
-//
-//    assembly {
-//      /* validate time range of unlock_at */
-//      { 
-//        let fails_min_time := lt(unlock_at, add(timestamp, MIN_EXPIRE_TIME))
-//        let fails_max_time := gt(unlock_at, add(timestamp, MAX_EXPIRE_TIME))
-//
-//        if or(fails_min_time, fails_max_time) {
-//          REVERT(1)
-//        }
-//      }
-//
-//      VALID_EXCHANGE_ID(exchange_id, 2)
-//
-//      let user_ptr := USER_PTR_(caller)
-//      sstore(user_ptr, unlock_at)
-//
-//      log_event(UnlockAtUpdated, log_data_mem, caller, exchange_id)
-//    }
-//  }
-//
+
+  function add_exchange(string memory name, address addr) public {
+    assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_ADD_EXCHANGE, 0)
+      CREATOR_REQUIRED(1)
+
+      /* Name must be 12 bytes long */
+      let name_len := mload(name)
+      if iszero(eq(name_len, 12)) {
+        REVERT(2)
+      }
+
+      /* Do not overflow exchanges */
+      let exchange_id := sload(exchange_count_slot)
+      if iszero(lt(exchange_id, EXCHANGE_COUNT)) {
+        REVERT(4)
+      }
+
+      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
+
+      /* 
+       * name is at start of the word. After loading it is already shifted
+       * so use or to add it rather than shifting twice with build
+       */
+
+      let name_data := mload(add(name, 32))
+      let exchange_data := or(name_data, build(Exchange, 0, /* space for name */ 0, addr))
+      sstore(exchange_ptr, exchange_data)
+
+      /* Store owner backup */
+      sstore(add(exchange_ptr, 2), addr)
+
+      /* Update exchange count */
+      sstore(exchange_count_slot, add(exchange_id, 1))
+    }
+  }
+
+  /* Manage Exchange Balance */
+
+  function exchange_withdraw(uint32 exchange_id, uint32 asset_id,
+                             address destination, uint64 quantity) public {
+    uint256[3] memory transfer_in_mem;
+    uint256[1] memory transfer_out_mem;
+
+    assembly {
+      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
+      let exchange_0 := sload(exchange_ptr)
+
+      /* ensure caller is owner */
+      let exchange_owner := attr(Exchange, 0, exchange_0, owner)
+      if iszero(eq(exchange_owner, caller)) {
+        REVERT(1)
+      }
+
+      let exchange_balance_ptr := EXCHANGE_BALANCE_PTR_(exchange_ptr, asset_id)
+      let exchange_balance := sload(exchange_balance_ptr)
+
+      /* insufficient funds */
+      if gt(quantity, exchange_balance) {
+        REVERT(2)
+      }
+
+      /* decrement balance */
+      sstore(exchange_balance_ptr, sub(exchange_balance, quantity))
+
+      let asset_0 := sload(ASSET_PTR_(asset_id))
+      let unit_scale := attr(Asset, 0, asset_0, unit_scale)
+      let asset_address := attr(Asset, 0, asset_0, contract_address)
+
+      let withdraw := mul(quantity, unit_scale)
+
+      ERC_20_SEND(
+        /* TOKEN_ADDRESS */ asset_address,
+        /* TO_ADDRESS */ destination,
+        /* AMOUNT */ withdraw,
+        /* REVERT_1 */ 3,
+        /* REVERT_2 */ 4
+      )
+    }
+  }
+
+  function exchange_deposit(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
+    uint256[3] memory transfer_in_mem;
+    uint256[1] memory transfer_out_mem;
+
+    assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_DEPOSIT, 0)
+
+      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
+      let exchange_balance_ptr := EXCHANGE_BALANCE_PTR_(exchange_ptr, asset_id)
+      let exchange_balance := sload(exchange_balance_ptr)
+
+      let updated_balance := add(exchange_balance, quantity)
+      if U64_OVERFLOW(updated_balance) {
+        REVERT(1)
+      }
+
+      let asset_0 := sload(ASSET_PTR_(asset_id))
+      let unit_scale := attr(Asset, 0, asset_0, unit_scale)
+      let asset_address := attr(Asset, 0, asset_0, contract_address)
+
+      let deposit := mul(quantity, unit_scale)
+
+      ERC_20_DEPOSIT(
+        /* TOKEN_ADDRESS */ asset_address,
+        /* FROM_ADDRESS */ caller,
+        /* TO_ADDRESS */ address,
+        /* AMOUNT */ deposit,
+        /* REVERT_1 */ 2,
+        /* REVERT_2 */ 3
+      )
+
+      sstore(exchange_balance_ptr, updated_balance)
+    }
+  }
+
+  function user_deposit(uint64 user_id, uint32 asset_id, uint256 amount) public {
+    uint256[4] memory transfer_in_mem;
+    uint256[1] memory transfer_out_mem;
+
+    assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_DEPOSIT, 0)
+      VALID_ASSET_ID(asset_id, 1)
+
+      if iszero(amount) {
+        stop()
+      }
+
+      let balance_ptr := USER_BALANCE_PTR_(USER_PTR_(user_id), asset_id)
+      let current_balance := sload(balance_ptr)
+
+      let proposed_balance := add(current_balance, amount)
+
+      /* Prevent overflow */
+      if lt(proposed_balance, current_balance) {
+        REVERT(2)
+      }
+
+      let asset_0 := sload(ASSET_PTR_(asset_id))
+      let asset_address := attr(Asset, 0, asset_0, contract_address)
+
+      ERC_20_DEPOSIT(
+        /* TOKEN_ADDRESS */ asset_address,
+        /* FROM_ADDRESS */ caller,
+        /* TO_ADDRESS */ address,
+        /* AMOUNT */ amount,
+        /* REVERT_1 */ 3,
+        /* REVERT_2 */ 4
+      )
+
+      sstore(balance_ptr, proposed_balance)
+    }
+  }
+
+  function user_withdraw(uint64 user_id, uint32 asset_id, address destination, uint256 amount) public {
+    uint256[3] memory transfer_in_mem;
+    uint256[1] memory transfer_out_mem;
+
+    assembly {
+      if iszero(amount) {
+        stop()
+      }
+
+      VALID_ASSET_ID(asset_id, 1)
+
+      let user_ptr := USER_PTR_(user_id)
+      let withdraw_address := sload(pointer_attr(User, user_ptr, withdraw_address))
+
+      if iszero(eq(caller, withdraw_address)) {
+        REVERT(1)
+      }
+
+      let balance_ptr := USER_BALANCE_PTR_(user_ptr, asset_id)
+      let current_balance := sload(balance_ptr)
+
+      /* insufficient funds */
+      if lt(current_balance, amount) {
+        REVERT(2)
+      }
+
+      sstore(balance_ptr, sub(current_balance, amount))
+
+      let asset_data := sload(ASSET_PTR_(asset_id))
+      let asset_address := attr(Asset, 0, asset_data, contract_address)
+
+      ERC_20_SEND(
+        /* TOKEN_ADDRESS */ asset_address,
+        /* TO_ADDRESS */ destination,
+        /* AMOUNT */ amount,
+        /* REVERT_1 */ 2,
+        /* REVERT_2 */ 3
+      )
+    }
+  }
+
+  function user_set_session_unlock_at(uint64 user_id, uint32 exchange_id, uint256 unlock_at) public {
+    uint256[3] memory log_data_mem;
+
+    assembly {
+      VALID_EXCHANGE_ID(exchange_id, 1)
+
+      let user_ptr := USER_PTR_(user_id)
+      let trade_address := sload(pointer_attr(User, user_ptr, trade_address))
+
+      if iszero(eq(caller, trade_address)) {
+        REVERT(2)
+      }
+
+      /* cannot set unlock_at if trade_address is going to change */
+      let proposed_addr := sload(pointer_attr(User, user_ptr, trade_address_proposed))
+      if proposed_addr {
+        REVERT(3)
+      }
+
+      /* validate time range of unlock_at */
+      { 
+        let fails_min_time := lt(unlock_at, add(timestamp, MIN_UNLOCK_AT))
+        let fails_max_time := gt(unlock_at, add(timestamp, MAX_UNLOCK_AT))
+
+        if or(fails_min_time, fails_max_time) {
+          REVERT(4)
+        }
+      }
+
+      let session_ptr := SESSION_PTR_(user_ptr, exchange_id)
+      sstore(pointer_attr(ExchangeSession, session_ptr, unlock_at), unlock_at)
+
+      log_event(UnlockAtUpdated, log_data_mem, caller, exchange_id)
+    }
+  }
+
 //  function transfer_to_session(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
 //    uint256[1] memory revert_reason;
 //    uint256[4] memory log_data_mem;
