@@ -1741,24 +1741,6 @@ contract DCN {
   function exchange_apply_settlement_groups(bytes memory data) public {
     uint256[6] memory variables;
     
-    /*
-    #define VARIABLES_END         msize
-    #define VARIABLES_START       sub(VARIABLES_END, WORD_6)
-
-    #define QUOTE_ASSET_ID_MEM    sub(VARIABLES_END, WORD_6)
-    #define DATA_END_MEM          sub(VARIABLES_END, WORD_5)
-    #define EXCHANGE_FEES_MEM     sub(VARIABLES_END, WORD_4)
-    #define EXCHANGE_ID_MEM       sub(VARIABLES_END, WORD_3)
-    #define GROUP_END_MEM         sub(VARIABLES_END, WORD_2)
-    #define REVERT_REASON_MEM     sub(VARIABLES_END, WORD_1)
-
-    #define REVERT(code)    mstore(REVERT_REASON_MEM, code) \
-                                  revert(add(REVERT_REASON_MEM, 31), 1)
-    
-    #define DEBUG(code)           mstore(REVERT_REASON_MEM, code) \
-                                  revert(REVERT_REASON_MEM, 32)
-                                  */
-
     assembly {
       /* Check security lock */
       SECURITY_FEATURE_CHECK(FEATURE_APPLY_SETTLEMENT_GROUPS, 0)
@@ -1813,15 +1795,14 @@ contract DCN {
         let exchange_balance := sload(exchange_balance_ptr)
 
         /* loop through each settlement */
-        for {} lt(cursor, group_end) {} {
+        for {} lt(cursor, group_end) { cursor := add(cursor, sizeof(Settlement)) } {
           let settlement_0 := mload(cursor)
-          cursor := add(cursor, sizeof(Settlement))
-
           let user_ptr := USER_PTR_(attr(Settlement, 0, settlement_0, user_id))
 
           /* Stage user's quote/base/fee update and test against limit */
+          let session_ptr := SESSION_PTR_(user_ptr, exchange_id)
           let market_state_ptr := MARKET_STATE_PTR_(
-            SESSION_PTR_(user_ptr, exchange_id),
+            session_ptr,
             quote_asset_id, base_asset_id
           )
 
@@ -1835,12 +1816,12 @@ contract DCN {
           base_net := add(base_net, base_delta)
 
           let fees := attr(Settlement, 0, settlement_0, fees)
+          exchange_balance := add(exchange_balance, fees)
 
           let market_state_0 := sload(market_state_ptr)
 
           /* Validate Limit */
           {
-
             let quote_qty := attr(MarketState, 0, market_state_0, quote_qty)
             CAST_64_NEG(quote_qty)
 
@@ -1855,21 +1836,19 @@ contract DCN {
             }
 
             let fee_used := add(attr(MarketState, 0, market_state_0, fee_used), fees)
+            let fee_limit := attr(MarketState, 0, market_state_0, fee_limit)
 
-            {
-              let fee_limit := attr(MarketState, 0, market_state_0, fee_limit)
-              if gt(fee_used, fee_limit) {
-                REVERT(8)
-              }
-
-              market_state_0 := build(
-                MarketState, 0,
-                /* quote_qty */ quote_qty,
-                /* base_qty */ base_qty,
-                /* fee_used */ fee_used,
-                /* fee_limit */ fee_limit
-              )
+            if gt(fee_used, fee_limit) {
+              REVERT(8)
             }
+
+            market_state_0 := build(
+              MarketState, 0,
+              /* quote_qty */ quote_qty,
+              /* base_qty */ base_qty,
+              /* fee_used */ fee_used,
+              /* fee_limit */ fee_limit
+            )
 
             let market_state_1 := sload(add(market_state_ptr, 1))
 
@@ -1919,113 +1898,50 @@ contract DCN {
               }
             }
           }
-//
-//
-//          let session_ptr := SESSION_PTR(attr(UserAddress, 0, tmp_data, user_address), mload(EXCHANGE_ID_MEM))
-//
-//          tmp_data /* SettlementData */ := mload(cursor)
-//          cursor := add(cursor, sizeof(Settlement))
-//
-//          let quote_delta := attr(Settlement, 0, tmp_data, quote_delta)
-//          let base_delta := attr(Settlement, 0, tmp_data, base_delta)
-//          let fees := attr(Settlement, 0, tmp_data, fees)
-//
-//          CAST_64_NEG(quote_delta)
-//          CAST_64_NEG(base_delta)
-//
-//          quote_net := add(quote_net, quote_delta)
-//          base_net := add(base_net, base_delta)
-//
-//          let quote_state_ptr := pointer(MarketState, session_ptr, mload(QUOTE_ASSET_ID_MEM))
-//          let base_state_ptr := pointer(MarketState, session_ptr, base_asset_id)
-//
-//          /* ensure we're within expire time */
-//          {
-//            let state_data_1 := sload(add(quote_state_ptr, 1))
-//            let unlock_at := attr(QuoteAssetState, 1, state_data_1, unlock_at)
-//
-//            if gt(timestamp, unlock_at) {
-//              REVERT(4)
-//            }
-//          }
-//
-//          /* update quote balance */
-//          {
-//            let state_data_0 := sload(quote_state_ptr)
-//
-//            let asset_balance := attr(QuoteAssetState, 0, state_data_0, asset_balance)
-//            asset_balance := add(asset_balance, quote_delta)
-//            asset_balance := sub(asset_balance, fees)
-//
-//            /* make sure quote balance is positive and doesn't overflow */
-//            if gt(asset_balance, U64_MASK) {
-//              REVERT(5)
-//            }
-//
-//            let fee_used := attr(QuoteAssetState, 0, state_data_0, fee_used)
-//            fee_used := add(fee_used, fees)
-//
-//            let exchange_fees_mem := EXCHANGE_FEES_MEM
-//            mstore(exchange_fees_mem, add(mload(exchange_fees_mem), fees))
-//
-//            let fee_limit := attr(QuoteAssetState, 0, state_data_0, fee_limit)
-//
-//            /* ensure don't over spend fee */
-//            /* note, also provides overflow check */
-//            if gt(fee_used, fee_limit) {
-//              REVERT(6)
-//            }
-//
-//            sstore(quote_state_ptr, or(
-//              and(state_data_0, mask_out(QuoteAssetState, 0, fee_used, asset_balance)),
-//              build(QuoteAssetState, 0, 0, fee_used, 0, asset_balance)
-//            ))
-//          }
-//
-//          let quote_qty := 0
-//          let base_qty := 0
-//          {
-//            let state_ptr := pointer(MarketState, session_ptr, base_asset_id)
-//            let state_data_0 := sload(state_ptr)
-//            let asset_balance := attr(MarketState, 0, state_data_0, asset_balance)
-//
-//            asset_balance := add(asset_balance, base_delta)
-//            if gt(asset_balance, U64_MASK) {
-//              REVERT(7)
-//            }
-//
-//            quote_qty := attr(MarketState, 0, state_data_0, quote_qty)
-//            base_qty := attr(MarketState, 0, state_data_0, base_qty)
-//
-//            CAST_64_NEG(quote_qty)
-//            CAST_64_NEG(base_qty)
-//
-//            quote_qty := add(quote_qty, quote_delta)
-//            base_qty := add(base_qty, base_delta)
-//
-//            if or(INVALID_I64(quote_qty), INVALID_I64(base_qty)) {
-//              REVERT(8)
-//            }
-//
-//            sstore(state_ptr, or(
-//              and(state_data_0, mask_out(MarketState, 0, quote_qty, base_qty, asset_balance)),
-//              build(MarketState, 0, quote_qty, base_qty, 0, asset_balance)
-//            ))
-//          }
-//
-        }
-//
-//        /* ensure net balance is 0 for settlement group */
-//        if or(quote_net, base_net) {
-//          REVERT(15)
-//        }
-      }
 
-//      let exchange_fees := mload(EXCHANGE_FEES_MEM)
-//
-//      let exchange_id := mload(EXCHANGE_ID_MEM)
-//      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-//      sstore(add(exchange_ptr, 1), exchange_fees)
+          let quote_session_balance_ptr := SESSION_BALANCE_PTR_(session_ptr, quote_asset_id)
+          let base_session_balance_ptr := SESSION_BALANCE_PTR_(session_ptr, base_asset_id)
+
+          let quote_session_balance_0 := sload(quote_session_balance_ptr)
+          let base_session_balance_0 := sload(base_session_balance_ptr)
+
+          let quote_balance := attr(SessionBalance, 0, quote_session_balance_0, asset_balance)
+          quote_balance := add(quote_balance, quote_delta)
+          if U64_OVERFLOW(quote_balance) {
+            REVERT(12)
+          }
+
+          let base_balance := attr(SessionBalance, 0, base_session_balance_0, asset_balance)
+          base_balance := add(base_balance, base_delta)
+          if U64_OVERFLOW(base_balance) {
+            REVERT(13)
+          }
+
+          sstore(market_state_ptr, market_state_0)
+          sstore(quote_session_balance_ptr, or(
+            and(mask_out(SessionBalance, 0, asset_balance), quote_session_balance_0),
+            build(
+              SessionBalance, 0,
+              /* total_deposit */ 0,
+              /* unsettled_withdraw_total */ 0,
+              /* asset_balance */ quote_balance)
+          ))
+          sstore(base_session_balance_ptr, or(
+            and(mask_out(SessionBalance, 0, asset_balance), base_session_balance_0),
+            build(
+              SessionBalance, 0,
+              /* total_deposit */ 0,
+              /* unsettled_withdraw_total */ 0,
+              /* asset_balance */ base_balance)
+          ))
+        }
+
+        if or(quote_net, base_net) {
+          REVERT(14)
+        }
+
+        sstore(exchange_balance_ptr, exchange_balance)
+      }
     }
   }
 }
