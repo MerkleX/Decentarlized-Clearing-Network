@@ -1836,9 +1836,10 @@ contract DCN {
 
           let fees := attr(Settlement, 0, settlement_0, fees)
 
+          let market_state_0 := sload(market_state_ptr)
+
           /* Validate Limit */
           {
-            let market_state_0 := sload(market_state_ptr)
 
             let quote_qty := attr(MarketState, 0, market_state_0, quote_qty)
             CAST_64_NEG(quote_qty)
@@ -1851,6 +1852,23 @@ contract DCN {
 
             if or(INVALID_I64(quote_qty), INVALID_I64(base_qty)) {
               REVERT(7)
+            }
+
+            let fee_used := add(attr(MarketState, 0, market_state_0, fee_used), fees)
+
+            {
+              let fee_limit := attr(MarketState, 0, market_state_0, fee_limit)
+              if gt(fee_used, fee_limit) {
+                REVERT(8)
+              }
+
+              market_state_0 := build(
+                MarketState, 0,
+                /* quote_qty */ quote_qty,
+                /* base_qty */ base_qty,
+                /* fee_used */ fee_used,
+                /* fee_limit */ fee_limit
+              )
             }
 
             let market_state_1 := sload(add(market_state_ptr, 1))
@@ -1901,11 +1919,6 @@ contract DCN {
               }
             }
           }
-//
-//
-//
-//
-//
 //
 //
 //          let session_ptr := SESSION_PTR(attr(UserAddress, 0, tmp_data, user_address), mload(EXCHANGE_ID_MEM))
