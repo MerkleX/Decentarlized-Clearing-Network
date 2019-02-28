@@ -262,7 +262,7 @@ contract DCN {
     pointer(Exchange, exchanges_slot, EXCHANGE_ID)
 
   #define EXCHANGE_BALANCE_PTR_(EXCHANGE_PTR, ASSET_ID) \
-      pointer(u256, pointer_attr(Exchange, EXCHANGE_PTR, balances), asset_id)
+      pointer(u256, pointer_attr(Exchange, EXCHANGE_PTR, balances), ASSET_ID)
 
   #define USER_PTR_(USER_ID) \
     pointer(User, users_slot, USER_ID)
@@ -1720,203 +1720,187 @@ contract DCN {
       }
     }
   }
-//
-//  struct GroupsHeader {
-//    uint32 exchange_id;
-//  }
-//
-//  struct GroupHeader {
-//    uint32 quote_asset_id;
-//    uint32 base_asset_id;
-//    uint8 user_count;
-//  }
-//
-//  struct UserAddress {
-//    address user_address;
-//  }
-//
-//  struct Settlement {
-//    int64 quote_delta;
-//    int64 base_delta;
-//    uint64 fees;
-//  }
-//
-//  function exchange_apply_settlement_groups(bytes memory data) public {
-//    uint256[6] memory variables;
-//    
-//    /*
-//    #define VARIABLES_END         msize
-//    #define VARIABLES_START       sub(VARIABLES_END, WORD_6)
-//
-//    #define QUOTE_ASSET_ID_MEM    sub(VARIABLES_END, WORD_6)
-//    #define DATA_END_MEM          sub(VARIABLES_END, WORD_5)
-//    #define EXCHANGE_FEES_MEM     sub(VARIABLES_END, WORD_4)
-//    #define EXCHANGE_ID_MEM       sub(VARIABLES_END, WORD_3)
-//    #define GROUP_END_MEM         sub(VARIABLES_END, WORD_2)
-//    #define REVERT_REASON_MEM     sub(VARIABLES_END, WORD_1)
-//
-//    #define REVERT(code)    mstore(REVERT_REASON_MEM, code) \
-//                                  revert(add(REVERT_REASON_MEM, 31), 1)
-//    
-//    #define DEBUG(code)           mstore(REVERT_REASON_MEM, code) \
-//                                  revert(REVERT_REASON_MEM, 32)
-//                                  */
-//
-//    assembly {
-//      /* Check security lock */
-//      SECURITY_FEATURE_CHECK(FEATURE_APPLY_SETTLEMENT_GROUPS, 0)
-//
-//      let data_len := mload(data)
-//      let cursor := add(data, WORD_1)
-//      let cursor_end := add(cursor, data_len)
-//
-//      let m_load /* GroupsHeader */ := mload(cursor)
-//      cursor := add(cursor, sizeof(GroupsHeader))
-//      if gt(cursor, cursor_end) {
-//        REVERT(0)
-//      }
-//
-//      let exchange_id := attr(GroupsHeader, 0, m_load /* GroupsHeader */, exchange_id)
-//      VALID_EXCHANGE_ID(1)
-//
-//      /* caller must be exchange owner */
-//      {
-//        let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-//        let exchange_0 := sload(exchange_ptr)
-//
-//        if iszero(eq(caller, attr(Exchange, 0, exchange_0, owner))) {
-//          REVERT(2)
-//        }
-//      }
-//
-//      /* keep looping while there is space for a GroupHeader */
-//      for {} lt(cursor, cursor_end), sizeof(GroupHeader))) {} {
-//        m_load /* GroupHeader */ := mload(cursor)
-//        cursor := add(cursor, sizeof(GroupHeader))
-//        if gt(cursor, cursor_end) {
-//          REVERT(3)
-//        }
-//
-//        let quote_asset_id := attr(GroupHeader, 0, m_load /* GroupHeader */, quote_asset_id)
-//        let base_asset_id := attr(GroupHeader, 0, m_load /* GroupHeader */, base_asset_id)
-//        let group_end := add(cursor, mul(
-//          attr(GroupHeader, 0, m_load /* GroupHeader */, user_count),
-//          const_add(sizeof(UserAddress), sizeof(Settlement))
-//        ))
-//
-//        /* validate quote_asset_id and base_asset_id */
-//        {
-//          let asset_count := sload(asset_count_slot)
-//          if iszero(and(lt(quote_asset_id, asset_count), lt(base_asset_id, asset_count))) {
-//            REVERT(4)
-//          }
-//        }
-//
-//        /* ensure there is enough space for the settlement group */
-//        if gt(group_end, cursor_end) {
-//          REVERT(5)
-//        }
-//
-//        let quote_net := 0
-//        let base_net := 0
-//
-//        let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-//        let exchange_balance_ptr := EXCHANGE_BALANCE_PTR_(exchange_ptr, asset_id)
-//        let exchange_balance := sload(exchange_balance_ptr)
-//
-//        /* loop through each settlement */
-//        for {} lt(cursor, cursor_end) {} {
-//          load /* UserAddress */ := mload(cursor)
-//          cursor := add(cursor, sizeof(UserAddress))
-//
-//          let user_ptr := USER_PTR(attr(UserAddress, 0, tmp_data, user_address))
-//
-//          /* Stage user's quote/base/fee update and test against limit */
-//          let market_state_ptr := MARKET_STATE_PTR(
-//            EXCHANGE_SESSION_PTR(user_ptr, exchange_id),
-//            quote_asset_id, base_asset_id
-//          )
-//
-//          let market_state_0 := sload(market_state_ptr)
-//
-//          let settlement_0 := mload(cursor)
-//          cursor := add(cursor, sizeof(Settlement))
-//
-//          let quote_delta := attr(Settlement, 0, settlement_0, quote_delta)
-//          CAST_64_NEG(quote_delta)
-//
-//          let base_delta := attr(Settlement, 0, settlement_0, base_delta)
-//          CAST_64_NEG(base_delta)
-//
-//          quote_net := add(quote_net, quote_delta)
-//          base_net := add(base_net, base_delta)
-//
-//          let fee := attr(Settlement, 0, settlement_0, fee)
-//
-//          /* Validate Limit */
-//          {
-//            let market_state_1 := sload(add(market_state_ptr, 1))
-//
-//            let quote_qty := attr(MarketState, 0, market_state_0, quote_qty)
-//            CAST_64_NEG(quote_qty)
-//
-//            let base_qty := attr(MarketState, 0, market_state_0, base_qty)
-//            CAST_64_NEG(base_qty)
-//
-//
-//            quote_qty := add(quote_qty, quote_delta)
-//            base_qty := add(base_qty, base_delta)
-//
-//            if or(INVALID_I64(quote_qty), INVALID_I64(base_qty)) {
-//              REVERT(6)
-//            }
-//
-//            /* Should not invalidate min_qty */
-//            {
-//              let min_quote_qty := attr(MarketState, 1, market_state_1, min_quote_qty)
-//              CAST_64_NEG(min_quote_qty)
-//
-//              let min_base_qty := attr(MarketState, 1, market_state_1, min_base_qty)
-//              CAST_64_NEG(min_base_qty)
-//
-//              if or(slt(quote_qty, min_quote_qty), slt(base_qty, min_base_qty)) {
-//                REVERT(6)
-//              }
-//            }
-//
-//            /* Check against limit */
-//            {
-//              /* Check if price fits limit */
-//              let negatives := add(slt(quote_qty, 1), mul(slt(base_qty, 1), 2))
-//
-//              switch negatives
-//              /* Both negative */
-//              case 3 {
-//                /* if one value is non zero, it must be negative */
-//                if or(quote_qty, base_qty) {
-//                  REVERT(7)
-//                }
-//              }
-//              /* long: quote_qty negative */
-//              case 1 {
-//                let current_price := div(mul(sub(0, quote_qty), PRICE_UNITS), base_qty)
-//                let long_max_price := attr(MarketState, 2, state_data_2, long_max_price)
-//
-//                if gt(current_price, long_max_price) {
-//                  REVERT(8)
-//                }
-//              }
-//              /* short: base_qty negative */
-//              case 2 {
-//                let current_price := div(mul(quote_qty, PRICE_UNITS), sub(0, base_qty))
-//                let short_min_price := attr(MarketState, 2, state_data_2, short_min_price)
-//
-//                if lt(current_price, short_min_price) {
-//                  REVERT(9)
-//                }
-//              }
-//            }
-//          }
+
+  struct ExchangeId {
+    uint32 exchange_id;
+  }
+
+  struct GroupHeader {
+    uint32 quote_asset_id;
+    uint32 base_asset_id;
+    uint8 user_count;
+  }
+
+  struct Settlement {
+    uint64 user_id;
+    int64 quote_delta;
+    int64 base_delta;
+    uint64 fees;
+  }
+
+  function exchange_apply_settlement_groups(bytes memory data) public {
+    uint256[6] memory variables;
+    
+    /*
+    #define VARIABLES_END         msize
+    #define VARIABLES_START       sub(VARIABLES_END, WORD_6)
+
+    #define QUOTE_ASSET_ID_MEM    sub(VARIABLES_END, WORD_6)
+    #define DATA_END_MEM          sub(VARIABLES_END, WORD_5)
+    #define EXCHANGE_FEES_MEM     sub(VARIABLES_END, WORD_4)
+    #define EXCHANGE_ID_MEM       sub(VARIABLES_END, WORD_3)
+    #define GROUP_END_MEM         sub(VARIABLES_END, WORD_2)
+    #define REVERT_REASON_MEM     sub(VARIABLES_END, WORD_1)
+
+    #define REVERT(code)    mstore(REVERT_REASON_MEM, code) \
+                                  revert(add(REVERT_REASON_MEM, 31), 1)
+    
+    #define DEBUG(code)           mstore(REVERT_REASON_MEM, code) \
+                                  revert(REVERT_REASON_MEM, 32)
+                                  */
+
+    assembly {
+      /* Check security lock */
+      SECURITY_FEATURE_CHECK(FEATURE_APPLY_SETTLEMENT_GROUPS, 0)
+
+      let data_len := mload(data)
+      let cursor := add(data, WORD_1)
+      let cursor_end := add(cursor, data_len)
+
+      let exchange_id_0 := CURSOR_LOAD(ExchangeId, 1)
+      let exchange_id := attr(ExchangeId, 0, exchange_id_0, exchange_id)
+      VALID_EXCHANGE_ID(exchange_id, 2)
+
+      /* caller must be exchange owner */
+      {
+        let exchange_ptr := EXCHANGE_PTR_(exchange_id)
+        let exchange_0 := sload(exchange_ptr)
+
+        if iszero(eq(caller, attr(Exchange, 0, exchange_0, owner))) {
+          REVERT(3)
+        }
+      }
+
+      /* keep looping while there is space for a GroupHeader */
+      for {} lt(cursor, cursor_end) {} {
+        let header_0 := CURSOR_LOAD(GroupHeader, 4)
+
+        let quote_asset_id := attr(GroupHeader, 0, header_0, quote_asset_id)
+        let base_asset_id := attr(GroupHeader, 0, header_0, base_asset_id)
+        let group_end := add(cursor, mul(
+          attr(GroupHeader, 0, header_0 /* GroupHeader */, user_count),
+          sizeof(Settlement)
+        ))
+
+        /* validate quote_asset_id and base_asset_id */
+        {
+          let asset_count := sload(asset_count_slot)
+          if iszero(and(lt(quote_asset_id, asset_count), lt(base_asset_id, asset_count))) {
+            REVERT(5)
+          }
+        }
+
+        /* ensure there is enough space for the settlement group */
+        if gt(group_end, cursor_end) {
+          REVERT(6)
+        }
+
+        let quote_net := 0
+        let base_net := 0
+
+        let exchange_ptr := EXCHANGE_PTR_(exchange_id)
+        let exchange_balance_ptr := EXCHANGE_BALANCE_PTR_(exchange_ptr, quote_asset_id)
+        let exchange_balance := sload(exchange_balance_ptr)
+
+        /* loop through each settlement */
+        for {} lt(cursor, group_end) {} {
+          let settlement_0 := mload(cursor)
+          cursor := add(cursor, sizeof(Settlement))
+
+          let user_ptr := USER_PTR_(attr(Settlement, 0, settlement_0, user_id))
+
+          /* Stage user's quote/base/fee update and test against limit */
+          let market_state_ptr := MARKET_STATE_PTR_(
+            SESSION_PTR_(user_ptr, exchange_id),
+            quote_asset_id, base_asset_id
+          )
+
+          let quote_delta := attr(Settlement, 0, settlement_0, quote_delta)
+          CAST_64_NEG(quote_delta)
+
+          let base_delta := attr(Settlement, 0, settlement_0, base_delta)
+          CAST_64_NEG(base_delta)
+
+          quote_net := add(quote_net, quote_delta)
+          base_net := add(base_net, base_delta)
+
+          let fees := attr(Settlement, 0, settlement_0, fees)
+
+          /* Validate Limit */
+          {
+            let market_state_0 := sload(market_state_ptr)
+
+            let quote_qty := attr(MarketState, 0, market_state_0, quote_qty)
+            CAST_64_NEG(quote_qty)
+
+            let base_qty := attr(MarketState, 0, market_state_0, base_qty)
+            CAST_64_NEG(base_qty)
+
+            quote_qty := add(quote_qty, quote_delta)
+            base_qty := add(base_qty, base_delta)
+
+            if or(INVALID_I64(quote_qty), INVALID_I64(base_qty)) {
+              REVERT(7)
+            }
+
+            let market_state_1 := sload(add(market_state_ptr, 1))
+
+            /* Check against min_qty */
+            {
+              let min_quote_qty := attr(MarketState, 1, market_state_1, min_quote_qty)
+              CAST_64_NEG(min_quote_qty)
+
+              let min_base_qty := attr(MarketState, 1, market_state_1, min_base_qty)
+              CAST_64_NEG(min_base_qty)
+
+              if or(slt(quote_qty, min_quote_qty), slt(base_qty, min_base_qty)) {
+                REVERT(8)
+              }
+            }
+
+            /* Check against limit */
+            {
+              /* Check if price fits limit */
+              let negatives := add(slt(quote_qty, 1), mul(slt(base_qty, 1), 2))
+
+              switch negatives
+              /* Both negative */
+              case 3 {
+                /* if one value is non zero, it must be negative */
+                if or(quote_qty, base_qty) {
+                  REVERT(9)
+                }
+              }
+              /* long: quote_qty negative */
+              case 1 {
+                let current_price := div(mul(sub(0, quote_qty), PRICE_UNITS), base_qty)
+                let long_max_price := attr(MarketState, 1, market_state_1, long_max_price)
+
+                if gt(current_price, long_max_price) {
+                  REVERT(10)
+                }
+              }
+              /* short: base_qty negative */
+              case 2 {
+                let current_price := div(mul(quote_qty, PRICE_UNITS), sub(0, base_qty))
+                let short_min_price := attr(MarketState, 1, market_state_1, short_min_price)
+
+                if lt(current_price, short_min_price) {
+                  REVERT(11)
+                }
+              }
+            }
+          }
 //
 //
 //
@@ -2016,19 +2000,19 @@ contract DCN {
 //            ))
 //          }
 //
-//        }
+        }
 //
 //        /* ensure net balance is 0 for settlement group */
 //        if or(quote_net, base_net) {
 //          REVERT(15)
 //        }
-//      }
-//
+      }
+
 //      let exchange_fees := mload(EXCHANGE_FEES_MEM)
 //
 //      let exchange_id := mload(EXCHANGE_ID_MEM)
 //      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
 //      sstore(add(exchange_ptr, 1), exchange_fees)
-//    }
-//  }
+    }
+  }
 }
