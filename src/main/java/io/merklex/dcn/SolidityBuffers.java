@@ -31,11 +31,21 @@ public class SolidityBuffers {
         if (value < 0) {
             buffer.put(NEGATIVE_BUFFER);
             jump(buffer, -8);
-        }
-        else {
+        } else {
             jump(buffer, 32 - 8);
         }
         buffer.putLong(value);
+    }
+
+    public static void putInt96(ByteBuffer buffer, int majorValue, long minorValue) {
+        if (majorValue < 0) {
+            buffer.put(NEGATIVE_BUFFER);
+            jump(buffer, -8 - 4);
+        } else {
+            jump(buffer, 32 - 8 - 4);
+        }
+        buffer.putInt(majorValue);
+        buffer.putLong(minorValue);
     }
 
     public static void putBytes(ByteBuffer buffer, String bytes) {

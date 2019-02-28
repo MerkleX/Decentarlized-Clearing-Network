@@ -14,13 +14,6 @@ public class UpdateLimit extends UpdateLimitMessage.UpdateLimit {
         return (UpdateLimit) super.wrap(buffer, offset);
     }
 
-    public UpdateLimit user(String userHex) {
-        byte[] userAddress = Numeric.hexStringToByteArray(userHex);
-        super.setUserAddress(userAddress);
-
-        return this;
-    }
-
     public UpdateLimit signature(String signatureHex) {
         byte[] signature = Numeric.hexStringToByteArray(signatureHex);
 
@@ -54,28 +47,33 @@ public class UpdateLimit extends UpdateLimitMessage.UpdateLimit {
     }
 
     @Override
+    public UpdateLimit dcnId(int value) {
+        return (UpdateLimit) super.dcnId(value);
+    }
+
+    @Override
+    public UpdateLimit userId(long value) {
+        return (UpdateLimit) super.userId(value);
+    }
+
+    @Override
     public UpdateLimit exchangeId(int value) {
         return (UpdateLimit) super.exchangeId(value);
     }
 
     @Override
-    public UpdateLimit version(long value) {
-        return (UpdateLimit) super.version(value);
+    public UpdateLimit quoteAssetId(int value) {
+        return (UpdateLimit) super.quoteAssetId(value);
     }
 
     @Override
-    public UpdateLimit assetId(int value) {
-        return (UpdateLimit) super.assetId(value);
+    public UpdateLimit baseAssetId(int value) {
+        return (UpdateLimit) super.baseAssetId(value);
     }
 
     @Override
-    public UpdateLimit maxLongPrice(long value) {
-        return (UpdateLimit) super.maxLongPrice(value);
-    }
-
-    @Override
-    public UpdateLimit minShortPrice(long value) {
-        return (UpdateLimit) super.minShortPrice(value);
+    public UpdateLimit feeLimit(long value) {
+        return (UpdateLimit) super.feeLimit(value);
     }
 
     @Override
@@ -89,8 +87,33 @@ public class UpdateLimit extends UpdateLimitMessage.UpdateLimit {
     }
 
     @Override
+    public UpdateLimit longMaxPrice(long value) {
+        return (UpdateLimit) super.longMaxPrice(value);
+    }
+
+    @Override
+    public UpdateLimit shortMinPrice(long value) {
+        return (UpdateLimit) super.shortMinPrice(value);
+    }
+
+    @Override
+    public UpdateLimit limitVersion(long value) {
+        return (UpdateLimit) super.limitVersion(value);
+    }
+
+    @Override
+    public UpdateLimit quoteShiftMajor(int value) {
+        return (UpdateLimit) super.quoteShiftMajor(value);
+    }
+
+    @Override
     public UpdateLimit quoteShift(long value) {
         return (UpdateLimit) super.quoteShift(value);
+    }
+
+    @Override
+    public UpdateLimit baseShiftMajor(int value) {
+        return (UpdateLimit) super.baseShiftMajor(value);
     }
 
     @Override
@@ -99,15 +122,18 @@ public class UpdateLimit extends UpdateLimitMessage.UpdateLimit {
     }
 
     private static final byte[] TYPE_HASH = KeccakHash.Hash(("UpdateLimit(" +
-            "uint96 dcn_id," +
+            "uint32 dcn_id," +
+            "uint64 user_id," +
             "uint32 exchange_id," +
             "uint32 quote_asset_id," +
             "uint32 base_asset_id," +
             "uint64 fee_limit," +
+
             "int64 min_quote_qty," +
             "int64 min_base_qty," +
             "uint64 long_max_price," +
             "uint64 short_min_price," +
+
             "uint64 limit_version," +
             "int96 quote_shift," +
             "int96 base_shift" +
@@ -119,20 +145,27 @@ public class UpdateLimit extends UpdateLimitMessage.UpdateLimit {
 //    }
 
     public byte[] hash() {
-        byte[] bytes = new byte[9 * 32];
+        byte[] bytes = new byte[13 * 32];
 
         ByteBuffer buffer = ByteBuffer.wrap(bytes);
         buffer.order(ByteOrder.BIG_ENDIAN);
 
+        SolidityBuffers.putUInt32(buffer, dcnId());
+        SolidityBuffers.putUInt64(buffer, userId());
         SolidityBuffers.putUInt32(buffer, exchangeId());
-        SolidityBuffers.putUInt32(buffer, assetId());
-        SolidityBuffers.putUInt64(buffer, version());
-        SolidityBuffers.putUInt64(buffer, maxLongPrice());
-        SolidityBuffers.putUInt64(buffer, minShortPrice());
+        SolidityBuffers.putUInt32(buffer, quoteAssetId());
+        SolidityBuffers.putUInt32(buffer, baseAssetId());
+        SolidityBuffers.putUInt64(buffer, feeLimit());
+
         SolidityBuffers.putInt64(buffer, minQuoteQty());
         SolidityBuffers.putInt64(buffer, minBaseQty());
-        SolidityBuffers.putInt64(buffer, quoteShift());
-        SolidityBuffers.putInt64(buffer, baseShift());
+        SolidityBuffers.putUInt64(buffer, longMaxPrice());
+        SolidityBuffers.putUInt64(buffer, shortMinPrice());
+
+        SolidityBuffers.putUInt64(buffer, limitVersion());
+        SolidityBuffers.putInt96(buffer, quoteShiftMajor(), quoteShift());
+        SolidityBuffers.putInt96(buffer, baseShiftMajor(), baseShift());
+
         buffer.flip();
 
         return KeccakHash.Hash(
