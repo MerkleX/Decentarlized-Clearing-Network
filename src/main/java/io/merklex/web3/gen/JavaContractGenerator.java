@@ -2,6 +2,7 @@ package io.merklex.web3.gen;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.merklex.web3.Utils;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,7 +16,7 @@ public class JavaContractGenerator {
 
     public JavaContractGenerator(File abiPath, File binaryPath) throws IOException {
         abi = MAPPER.readTree(abiPath);
-        binaryData = Utils.ReadFully(binaryPath).trim();
+        binaryData = Utils.ReadAll(binaryPath).trim();
     }
 
     private static class ConstantFunctionReturn {

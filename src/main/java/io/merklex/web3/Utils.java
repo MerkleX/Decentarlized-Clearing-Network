@@ -1,21 +1,20 @@
-package io.merklex.web3.gen;
+package io.merklex.web3;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Scanner;
 
 /**
  * @author plorio
  */
 public class Utils {
-    public static String ReadFully(File stream) throws IOException {
-        return ReadFully(new FileInputStream(stream));
+    public static String ReadAll(File stream) throws IOException {
+        return ReadAll(new FileInputStream(stream));
     }
 
-    public static String ReadFully(InputStream stream) throws IOException {
+    public static String ReadAll(InputStream stream) throws IOException {
         StringBuilder stringBuffer = new StringBuilder();
         byte[] buffer = new byte[1024];
 

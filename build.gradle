@@ -27,12 +27,9 @@ sourceSets {
     }
 }
 
-ext.web3jVersion = '3.5.0'
-
 dependencies {
-    compile group: 'org.web3j', name: 'core', version: web3jVersion
     compile group: 'org.agrona', name: 'Agrona', version: '0.9.1'
-    testCompile group: 'io.merklex.trading', name: 'ether-net', version: 'v0.3.1'
+    compile group: 'org.web3j', name: 'core', version: '3.5.0'
     testCompile group: 'junit', name: 'junit', version: '4.12'
     testCompile group: 'com.greghaskins', name: 'spectrum', version: '1.2.0'
 }

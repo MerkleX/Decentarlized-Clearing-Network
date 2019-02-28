@@ -1,5 +1,7 @@
 package io.merklex.web3.gen;
 
+import io.merklex.web3.Utils;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -14,9 +16,9 @@ public class GenerateContractCode {
         ProcessBuilder transpiler = new ProcessBuilder("node", "transpiler/run.js", contractSource.getAbsolutePath());
         Process transpilerProcess = transpiler.start();
 
-        String contractSourceData = Utils.ReadFully(transpilerProcess.getInputStream());
+        String contractSourceData = Utils.ReadAll(transpilerProcess.getInputStream());
         if (transpilerProcess.waitFor() != 0) {
-            throw new RuntimeException("Failed to transpile: " + Utils.ReadFully(transpilerProcess.getErrorStream()));
+            throw new RuntimeException("Failed to transpile: " + Utils.ReadAll(transpilerProcess.getErrorStream()));
         }
 
         File solidityContractFile = new File(outputDir, contractSource.getName());
@@ -29,7 +31,7 @@ public class GenerateContractCode {
                 "-o", outputDir.getAbsolutePath());
 
         Process compileProcess = compile.start();
-        String errorData = Utils.ReadFully(compileProcess.getErrorStream());
+        String errorData = Utils.ReadAll(compileProcess.getErrorStream());
 
         if (compileProcess.waitFor() != 0) {
             throw new RuntimeException(errorData);

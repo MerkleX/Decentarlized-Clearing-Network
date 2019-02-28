@@ -185,8 +185,6 @@ public class CreatorTests {
             tx = account30.sendCall(query.contractAddress,
                     DCN.security_propose(BigInteger.valueOf(4)));
 
-            System.out.println(RevertCodeExtractor.Get(tx.getError()));
-
             assertFalse(tx.hasError());
             assertEquals("0x1", account20.waitForResult(tx).getStatus());
         });
@@ -200,7 +198,6 @@ public class CreatorTests {
 
             tx = account30.sendCall(query.contractAddress,
                     DCN.security_set_proposed());
-            System.out.println(tx.hasError());
             assertTrue(tx.hasError());
             assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
             assertEquals("0x0", account20.waitForResult(tx).getStatus());

@@ -1,4 +1,4 @@
-package io.merklex.dcn.dev;
+package io.merklex.dcn.tools;
 
 import io.merklex.dcn.contracts.DCN;
 import io.merklex.web3.EtherTransactions;

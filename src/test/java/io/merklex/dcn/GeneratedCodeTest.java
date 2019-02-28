@@ -1,7 +1,7 @@
 package io.merklex.dcn;
 
+import io.merklex.web3.Utils;
 import io.merklex.web3.gen.GenerateContractCode;
-import io.merklex.ether_net.Utils;
 import org.junit.Assert;
 import org.junit.Test;
 

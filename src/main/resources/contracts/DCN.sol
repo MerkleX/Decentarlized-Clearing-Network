@@ -602,10 +602,14 @@ contract DCN {
        * proposed_locked_features unlocks a new features
        */
 
+      /*
+       * Example: current_proposal = 0b11111111
+       *         proposed_features = 0b00010000
+       *          differnces = XOR = 0b11101111
+       */
+
       let current_proposal := sload(security_locked_features_proposed_slot)
       let proposed_differences := xor(current_proposal, proposed_locked_features)
-
-      DEBUG_REVERT(proposed_differences)
 
       /*
        * proposed_differences will have "1" in feature positions that have changed.
@@ -629,7 +633,7 @@ contract DCN {
       CREATOR_REQUIRED(1)
 
       let unlock_timestamp := sload(security_proposed_unlock_timestamp_slot) 
-      if lt(unlock_timestamp, timestamp) {
+      if gt(unlock_timestamp, timestamp) {
         REVERT(2)
       }
 

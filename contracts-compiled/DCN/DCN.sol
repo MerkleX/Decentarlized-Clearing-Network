@@ -323,8 +323,6 @@ contract DCN {
       }
       let current_proposal := sload(security_locked_features_proposed_slot)
       let proposed_differences := xor(current_proposal, proposed_locked_features)
-      mstore(32, proposed_differences)
-      revert(32, 32)
       let does_unlocks_features := and(proposed_differences, not(proposed_locked_features))
       if does_unlocks_features {
         sstore(security_proposed_unlock_timestamp_slot, add(timestamp, 172800))
@@ -343,7 +341,7 @@ contract DCN {
         }
       }
       let unlock_timestamp := sload(security_proposed_unlock_timestamp_slot)
-      if lt(unlock_timestamp, timestamp) {
+      if gt(unlock_timestamp, timestamp) {
         mstore(32, 2)
         revert(63, 1)
       }
