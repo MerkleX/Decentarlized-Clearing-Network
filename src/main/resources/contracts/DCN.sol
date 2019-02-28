@@ -18,6 +18,7 @@ pragma solidity ^0.5.0;
 #define WORD_11 352 /* 32*11 = 352 */
 #define WORD_12 384 /* 32*12 = 384 */
 #define WORD_13 416 /* 32*13 = 416 */
+#define WORD_14 448 /* 32*14 = 448 */
 
 #define U64_MASK                                                 0xFFFFFFFFFFFFFFFF
 #define U64_MAX                                                  0xFFFFFFFFFFFFFFFF
@@ -1136,7 +1137,6 @@ contract DCN {
   }
 
   function transfer_to_session(uint64 user_id, uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
-    uint256[1] memory revert_reason;
     uint256[4] memory log_data_mem;
 
     assembly {
@@ -1199,7 +1199,6 @@ contract DCN {
   }
 
   function transfer_from_session(uint64 user_id, uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
-    uint256[1] memory revert_reason;
     uint256[4] memory log_data_mem;
 
     assembly {
@@ -1275,7 +1274,6 @@ contract DCN {
   }
 
   function deposit_asset_to_session(uint64 user_id, uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
-    uint256[1] memory revert_reason;
     uint256[4] memory transfer_in_mem;
     uint256[1] memory transfer_out_mem;
     uint256[3] memory log_data_mem;
@@ -1474,8 +1472,8 @@ contract DCN {
   }
 
   struct UpdateLimit {
-    uint64 user_id;
     uint32 dcn_id;
+    uint64 user_id;
     uint32 exchange_id;
     uint32 quote_asset_id;
     uint32 base_asset_id;
@@ -1490,221 +1488,238 @@ contract DCN {
     uint96 quote_shift;
     uint96 base_shift;
   }
-//
-//  #define UPDATE_LIMIT_BYTES const_add(sizeof(UpdateLimit), sizeof(Signature))
-//  #define SIG_HASH_HEADER 0x1901000000000000000000000000000000000000000000000000000000000000
-//  #define DCN_HEADER_HASH 0xe3d3073cc59e3a3126c17585a7e516a048e61a9a1c82144af982d1c194b18710
-//  #define UPDATE_LIMIT_TYPE_HASH 0xe0bfc2789e007df269c9fec46d3ddd4acf88fdf0f76af154da933aab7fb2f2b9
-//
-//  function exchange_set_limits(bytes memory data) public {
-//    uint256[1] memory revert_reason;
-//    uint256[10] memory to_hash_mem;
-//
-//    uint256 cursor;
-//    uint256 cursor_end;
-//    uint256 exchange_id;
-//
-//    /*
-//     * Ensure caller is exchange and setup cursors.
-//     */
-//    assembly {
-//      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_SET_LIMITS, 0)
-//
-//      let data_size := mload(data)
-//      cursor := add(data, WORD_1)
-//      cursor_end := add(cursor, data_size)
-//
-//      let set_limits_header_0 := mload(cursor)
-//      cursor := add(cursor, sizeof(SetLimitsHeader))
-//
-//      /* ensure there was space for SetLimitsHeader */
-//      if gt(cursor, cursor_end) {
-//        REVERT(1)
-//      }
-//
-//      exchange_id := attr(SetLimitsHeader, 0, set_limits_header_0, exchange_id)
-//      let exchange_0 := sload(EXCHANGE_PTR_(exchange_id))
-//      let exchange_owner := attr(Exchange, 0, exchange_0, owner)
-//
-//      /* ensure caller is the exchange owner */
-//      if iszero(eq(caller, exchange_owner)) {
-//        REVERT(2)
-//      }
-//    }
-//
-//    /*
-//     * Iterate through each limit to validate and apply
-//     */
-//    while (true) {
-//      uint256 update_limit_0;
-//      uint256 update_limit_1;
-//      uint256 update_limit_2;
-//
-//      uint256 limit_hash;
-//
-//      /* hash limit */
-//      assembly {
-//        /* Reached the end */
-//        if eq(cursor, cursor_end) {
-//          return(0, 0)
-//        }
-//
-//        update_limit_0 := mload(cursor)
-//        update_limit_1 := mload(add(cursor, WORD_1))
-//        update_limit_2 := mload(add(cursor, WORD_2))
-//        cursor := add(cursor, WORD_3)
-//
-//        /* ensure there is space */
-//        if gt(cursor, cursor_end) {
-//          REVERT(3)
-//        }
-//
-//        /* macro to make life easier */
-//        #define ATTR_GET(INDEX, ATTR_NAME) \
-//          attr(UpdateLimit, INDEX, update_limit_##INDEX, ATTR_NAME)
-//
-//        #define BUF_PUT(WORD, INDEX, ATTR_NAME) \
-//          mstore(add(to_hash_mem, WORD), ATTR_GET(ATTR_NAME))
-//
-//        #define BUF_PUT_I64(WORD, INDEX, ATTR_NAME) \
-//          { \
-//            let temp_var := ATTR_GET(INDEX, ATTR_NAME) \
-//            CAST_64_NEG(temp_var) \
-//            mstore(add(to_hash_mem, WORD), temp_var) \
-//          }
-//
-//        #define BUF_PUT_I96(WORD, INDEX, ATTR_NAME) \
-//          { \
-//            let temp_var := ATTR_GET(INDEX, ATTR_NAME) \
-//            CAST_96_NEG(temp_var) \
-//            mstore(add(to_hash_mem, WORD), temp_var) \
-//          }
-//
-//        /* store data to hash */
-//        {
-//          mstore(to_hash_mem, UPDATE_LIMIT_TYPE_HASH)
-//
-//          BUF_PUT(WORD_1, 0, dcn_id)
-//          BUF_PUT(WORD_2, 0, exchange_id)
-//          BUF_PUT(WORD_3, 0, quote_asset_id)
-//          BUF_PUT(WORD_4, 0, base_asset_id)
-//          BUF_PUT(WORD_5, 0, fee_limit)
-//
-//          BUF_PUT_I64(WORD_6, 1, min_quote_qty)
-//          BUF_PUT_I64(WORD_7, 1, min_base_qty)
-//          BUF_PUT(WORD_8, 1, long_max_price)
-//          BUF_PUT(WORD_9, 1, short_min_price)
-//
-//          BUF_PUT(WORD_10, 2, limit_version)
-//          BUF_PUT_I96(WORD_11, 2, quote_shift)
-//          BUF_PUT_I96(WORD_12, 2, base_shift)
-//        }
-//
-//        limit_hash := keccak256(to_hash_mem, 66)
-//      }
-//
-//      address user_address;
-//
-//      /* verify signature */
-//      {
-//        bytes32 sig_r;
-//        bytes32 sig_s;
-//        uint8 sig_v;
-//
-//        assembly {
-//          sig_r := attr(Signature, 0, sload(cursor), sig_r)
-//          sig_s := attr(Signature, 1, sload(add(cursor, 1)), sig_s)
-//
-//          let signature_2 := sload(add(cursor, 2))
-//          sig_v := attr(Signature, 2, signature_2, sig_v)
-//          user_address := attr(Signature, 2, signature_2, user_address)
-//
-//          cursor := add(cursor, sizeof(Settlement))
-//          if gt(cursor, cursor_end) {
-//            REVERT(4)
-//          }
-//        }
-//
-//        uint256 recover_address = uint256(ecrecover(
-//          /* hash */ bytes32(to_hash_mem[0]),
-//          /* v */ sig_v,
-//          /* r */ sig_r,
-//          /* s */ sig_s
-//        ));
-//
-//        assembly {
-//          if iszero(eq(recover_address, user_address)) {
-//            REVERT(5)
-//          }
-//        }
-//      }
-//
-//      /* validate and apply new limit */
-//      assembly {
-//        /* limit's exchange id should match */
-//        {
-//          let limit_exchange_id := attr(UpdateLimit, 0, update_limit_0, exchange_id)
-//          if iszero(eq(limit_exchange_id, exchange_id)) {
-//            REVERT(6)
-//          }
-//        }
-//
-//        let user_ptr := USER_PTR(user_address)
-//        let session_ptr := EXCHANGE_SESSION_PTR(user_ptr, exchange_id)
-//        let market_state_ptr := MARKET_STATE_PTR(
-//          session_ptr,
-//          attr(UpdateLimit, 0, update_limit_0, quote_asset_id),
-//          attr(UpdateLimit, 0, update_limit_0, base_asset_id)
-//        )
-//
-//        let market_state_0 := sload(market_state_ptr)
-//        let market_state_1 := sload(add(market_state_ptr, 1))
-//        let market_state_2 := sload(add(market_state_ptr, 2))
-//
-//        /* verify limit version is greater */
-//        {
-//          let current_limit_version := attr(UpdateLimit, 2, update_limit_2, limit_version)
-//          let proposed_limit_version := attr(MarketState, 2, market_state_2, limit_version)
-//
-//          if iszero(gt(proposed_limit_version, current_limit_version)) {
-//            REVERT(7)
-//          }
-//        }
-//
-//        let quote_qty := attr(MarketState, 0, market_state_0, quote_qty)
-//        CAST_64_NEG(quote_qty)
-//
-//        let base_qty := attr(MarketState, 0, market_state_0, base_qty)
-//        CAST_64_NEG(base_qty)
-//
-//        #define APPLY_SHIFT(SIDE, REVERT_1) \
-//          { \
-//            let current_shift := attr(MarketState, 2, market_state_2, SIDE##_shift) \
-//            CAST_96_NEG(current_shift) \
-//            \
-//            let new_shift := attr(UpdateLimit, 2, update_limit_2, SIDE##_shift) \
-//            CAST_96_NEG(new_shift) \
-//            \
-//            SIDE##_qty := add(quote_qty, sub(new_shift, current_shift)) \
-//            if INVALID_I64(SIDE##_qty) { \
-//              REVERT(REVERT_1) \
-//            } \
-//          }
-//
-//        APPLY_SHIFT(quote, 8)
-//        APPLY_SHIFT(base, 8)
-//
-//        let new_market_state_0 := or(
-//          build(MarketState, 0, quote_qty, base_qty, /* fee_used */ 0, update_limit_0),
-//          and(mask_out(MarketState, 0, quote_qty, base_qty, fee_limit), market_state_0) /* extract fee_used */
-//        )
-//
-//        sstore(market_state_ptr, new_market_state_0)
-//        sstore(add(market_state_ptr, 1), update_limit_1)
-//        sstore(add(market_state_ptr, 2), update_limit_2)
-//      }
-//    }
-//  }
+
+  #define UPDATE_LIMIT_BYTES const_add(sizeof(UpdateLimit), sizeof(Signature))
+  #define SIG_HASH_HEADER 0x1901000000000000000000000000000000000000000000000000000000000000
+  #define DCN_HEADER_HASH 0xe3d3073cc59e3a3126c17585a7e516a048e61a9a1c82144af982d1c194b18710
+  #define UPDATE_LIMIT_TYPE_HASH 0xe0bfc2789e007df269c9fec46d3ddd4acf88fdf0f76af154da933aab7fb2f2b9
+
+  struct SetLimitMemory {
+    uint256 user_id;
+    uint256 exchange_id;
+    uint256 quote_asset_id;
+    uint256 base_asset_id;
+    uint256 limit_version;
+    uint256 quote_shift;
+    uint256 base_shift;
+  }
+
+  function exchange_set_limits(bytes memory data) public {
+    uint256[14] memory to_hash_mem;
+    uint256[sizeof(SetLimitMemory)] memory set_limit_memory_space;
+
+    #define MEM_PTR(KEY) \
+      sub(msize, const_sub(sizeof(SetLimitMemory), byte_offset(SetLimitMemory, KEY)))
+
+    #define SAVE_MEM(KEY, VALUE) \
+      mstore(MEM_PTR(KEY), VALUE)
+
+    #define LOAD_MEM(KEY) \
+      mload(MEM_PTR(KEY))
+
+    uint256 cursor;
+    uint256 cursor_end;
+    uint256 exchange_id;
+
+    /*
+     * Ensure caller is exchange and setup cursors.
+     */
+    assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_SET_LIMITS, 0)
+
+      let data_size := mload(data)
+      cursor := add(data, WORD_1)
+      cursor_end := add(cursor, data_size)
+
+      let set_limits_header_0 := CURSOR_LOAD(SetLimitsHeader, 1)
+      exchange_id := attr(SetLimitsHeader, 0, set_limits_header_0, exchange_id)
+
+      let exchange_0 := sload(EXCHANGE_PTR_(exchange_id))
+      let exchange_owner := attr(Exchange, 0, exchange_0, owner)
+
+      /* ensure caller is the exchange owner */
+      if iszero(eq(caller, exchange_owner)) {
+        REVERT(2)
+      }
+    }
+
+    /*
+     * Iterate through each limit to validate and apply
+     */
+    while (true) {
+      uint256 update_limit_0;
+      uint256 update_limit_1;
+      uint256 update_limit_2;
+
+      bytes32 limit_hash;
+
+      /* hash limit, and extract variables */
+      assembly {
+        /* Reached the end */
+        if eq(cursor, cursor_end) {
+          return(0, 0)
+        }
+
+        update_limit_0 := mload(cursor)
+        update_limit_1 := mload(add(cursor, WORD_1))
+        update_limit_2 := mload(add(cursor, WORD_2))
+
+        cursor := add(cursor, WORD_3)
+        if gt(cursor, cursor_end) {
+          REVERT(3)
+        }
+
+        /* macro to make life easier */
+        #define ATTR_GET(INDEX, ATTR_NAME) \
+          attr(UpdateLimit, INDEX, update_limit_##INDEX, ATTR_NAME)
+
+        #define BUF_PUT(WORD, INDEX, ATTR_NAME) \
+          temp_var := ATTR_GET(INDEX, ATTR_NAME) \
+          mstore(add(to_hash_mem, WORD), temp_var)
+
+        #define BUF_PUT_I64(WORD, INDEX, ATTR_NAME) \
+          temp_var := ATTR_GET(INDEX, ATTR_NAME) \
+          CAST_64_NEG(temp_var) \
+          mstore(add(to_hash_mem, WORD), temp_var)
+
+        #define BUF_PUT_I96(WORD, INDEX, ATTR_NAME) \
+          temp_var := ATTR_GET(INDEX, ATTR_NAME) \
+          CAST_96_NEG(temp_var) \
+          mstore(add(to_hash_mem, WORD), temp_var)
+        
+        #define SAVE(VAR_NAME) \
+          SAVE_MEM(VAR_NAME, temp_var)
+
+        #define LOAD(VAR_NAME) \
+          LOAD_MEM(VAR_NAME)
+          
+        /* store data to hash */
+        {
+          mstore(to_hash_mem, UPDATE_LIMIT_TYPE_HASH)
+
+          let temp_var := 0
+
+              BUF_PUT(WORD_1,  0, dcn_id)
+              BUF_PUT(WORD_2,  0, user_id) SAVE(user_id)
+              BUF_PUT(WORD_3,  0, exchange_id)
+              BUF_PUT(WORD_4,  0, quote_asset_id) SAVE(quote_asset_id)
+              BUF_PUT(WORD_5,  0, base_asset_id) SAVE(base_asset_id)
+              BUF_PUT(WORD_6,  0, fee_limit)
+
+          BUF_PUT_I64(WORD_7,  1, min_quote_qty)
+          BUF_PUT_I64(WORD_8,  1, min_base_qty)
+              BUF_PUT(WORD_9,  1, long_max_price)
+              BUF_PUT(WORD_10, 1, short_min_price)
+
+              BUF_PUT(WORD_11, 2, limit_version) SAVE(limit_version)
+          BUF_PUT_I96(WORD_12, 2, quote_shift) SAVE(quote_shift)
+          BUF_PUT_I96(WORD_13, 2, base_shift) SAVE(base_shift)
+        }
+
+        limit_hash := keccak256(to_hash_mem, WORD_14)
+      }
+
+      /* verify signature */
+      {
+        bytes32 sig_r;
+        bytes32 sig_s;
+        uint8 sig_v;
+
+        /* Load signature data */
+        assembly {
+          let c := cursor
+          let c_end := cursor_end
+
+          sig_r := attr(Signature, 0, sload(c), sig_r)
+          sig_s := attr(Signature, 1, sload(add(c, WORD_1)), sig_s)
+          sig_v := attr(Signature, 2, sload(add(c, WORD_2)), sig_v)
+
+          cursor := add(cursor, sizeof(Signature))
+          if gt(cursor, cursor_end) {
+            REVERT(4)
+          }
+        }
+
+        uint256 recover_address = uint256(ecrecover(
+          /* hash */ limit_hash,
+          /* v */ sig_v,
+          /* r */ sig_r,
+          /* s */ sig_s
+        ));
+
+        assembly {
+          let user_ptr := USER_PTR_(LOAD(user_id))
+          let trade_address := sload(pointer_attr(User, user_ptr, trade_address))
+
+          if iszero(eq(recover_address, trade_address)) {
+            REVERT(5)
+          }
+        }
+      }
+
+      /* validate and apply new limit */
+      assembly {
+        /* limit's exchange id should match */
+        {
+          if iszero(eq(LOAD(exchange_id), exchange_id)) {
+            REVERT(6)
+          }
+        }
+
+        let user_ptr := USER_PTR_(LOAD(user_id))
+        let session_ptr := SESSION_PTR_(user_ptr, exchange_id)
+        let market_state_ptr := MARKET_STATE_PTR_(
+          session_ptr,
+          LOAD(quote_asset_id),
+          LOAD(base_asset_id)
+        )
+
+        let market_state_0 := sload(market_state_ptr)
+        let market_state_1 := sload(add(market_state_ptr, 1))
+        let market_state_2 := sload(add(market_state_ptr, 2))
+
+        /* verify limit version is greater */
+        {
+          let current_limit_version := attr(UpdateLimit, 2, update_limit_2, limit_version)
+
+          if iszero(gt(LOAD(limit_version), current_limit_version)) {
+            REVERT(7)
+          }
+        }
+
+        let quote_qty := attr(MarketState, 0, market_state_0, quote_qty)
+        CAST_64_NEG(quote_qty)
+
+        let base_qty := attr(MarketState, 0, market_state_0, base_qty)
+        CAST_64_NEG(base_qty)
+
+        #define APPLY_SHIFT(SIDE, REVERT_1) \
+          { \
+            let current_shift := attr(MarketState, 2, market_state_2, SIDE##_shift) \
+            CAST_96_NEG(current_shift) \
+            \
+            let new_shift := LOAD(SIDE##_shift) \
+            \
+            SIDE##_qty := add(quote_qty, sub(new_shift, current_shift)) \
+            if INVALID_I64(SIDE##_qty) { \
+              REVERT(REVERT_1) \
+            } \
+          }
+
+        APPLY_SHIFT(quote, 8)
+        APPLY_SHIFT(base, 9)
+
+        let new_market_state_0 := or(
+          build(MarketState, 0, quote_qty, base_qty, /* fee_used */ 0, update_limit_0),
+          and(mask_out(MarketState, 0, quote_qty, base_qty, fee_limit), market_state_0) /* extract fee_used */
+        )
+
+        sstore(market_state_ptr, new_market_state_0)
+        sstore(add(market_state_ptr, 1), update_limit_1)
+        sstore(add(market_state_ptr, 2), update_limit_2)
+      }
+    }
+  }
 //
 //  struct GroupsHeader {
 //    uint32 exchange_id;

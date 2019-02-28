@@ -170,10 +170,36 @@ module.exports = function(raw) {
       }
 
       if (node.type === 'StateVariableDeclaration'
+        || node.type === 'ElementaryTypeName'
+        || node.type === 'Identifier'
+        || node.type === 'NumberLiteral'
         || node.type === 'ReturnStatement'
-        || node.type === 'VariableDeclarationStatement'
         || node.type === 'StructDefinition') {
         return raw_input;
+      }
+
+      if (node.type === 'VariableDeclarationStatement') {
+        if (node.variables.length != 1) {
+          throw new Error('only support one var per var declaration statement');
+        }
+
+        const v = node.variables[0];
+        if (!v.typeName.length) {
+          return raw_input;
+        }
+
+        return `\n${tab}${print(v.typeName.baseTypeName)}[${print(v.typeName.length)}] ${v.storageLocation} ${v.name};`;
+      }
+
+      if (node.type === 'FunctionCall') {
+        if (node.expression.name === 'sizeof') {
+          if (node.arguments.length !== 1) {
+            throw new Error('sizeof expects one argument');
+          }
+
+          const arg = print(node.arguments[0], tab);
+          return typeSize(arg);
+        }
       }
 
       if (node.type === 'FunctionDefinition') {
@@ -194,9 +220,6 @@ module.exports = function(raw) {
         const items = node.statements || node.operations;
         if (items.length === 0) {
           return '{}';
-        }
-        if (items.length === 1) {
-          return '{ ' + print(items[0]) + ' }';
         }
         return `{${pre}${items.map(node => print(node, tab + TAB)).join(pre)}\n${tab}}`;
       }
@@ -237,7 +260,6 @@ module.exports = function(raw) {
         if (node.functionName === 'pointer_attr') {
           const [ struct_type, pointer, attr_name ] = node.arguments.map(print);
 
-
           const struct = structs[struct_type];
           if (!struct) {
             throw new Error('Cannot build struct for ' + struct_type);
@@ -267,6 +289,36 @@ module.exports = function(raw) {
           }
 
           return `add(${pointer}, ${total_size / 32n})`;
+        }
+
+        if (node.functionName === 'byte_offset') {
+          const [ struct_type, attr_name ] = node.arguments.map(print);
+
+          const struct = structs[struct_type];
+          if (!struct) {
+            throw new Error('Cannot build struct for ' + struct_type);
+          }
+
+          let total_size = 0n;
+          let found = false;
+
+          let i;
+          for (i = 0; i < struct.members.length; ++i) {
+            const member = struct.members[i];
+
+            if (member.name === attr_name) {
+              found = true;
+              break;
+            }
+
+            total_size += typeSize(member.type) * (member.length || 1n);
+          }
+
+          if (!found) {
+            throw new Error('failed to find ' + attr_name + ' in ' + struct_type);
+          }
+
+          return total_size;
         }
 
         if (node.functionName === 'build') {
@@ -513,6 +565,15 @@ module.exports = function(raw) {
           }, 0n);
         }
 
+        if (node.functionName === 'const_sub') {
+          const args = node.arguments.map(print);
+          if (args.length != 2) {
+            throw new Error('const_sub requires 2 args');
+          }
+
+          return BigInt(args[0]) - BigInt(args[1]);
+        }
+
         return node.functionName + '(' + node.arguments.map(arg => print(arg, tab)).join(', ') + ')';
       }
 
@@ -542,7 +603,7 @@ module.exports = function(raw) {
         }).join(`\n${tab}${TAB}`)}`;
       }
 
-      console.error(node);
+      console.error('Error', node.type, node);
       return '<error '+node.type+'>';
     }
 
