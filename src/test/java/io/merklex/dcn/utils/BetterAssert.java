@@ -5,7 +5,7 @@ import org.junit.Assert;
 import java.math.BigInteger;
 
 public class BetterAssert {
-    public static void assertEquals(BigInteger expected, BigInteger actual) {
+    public static void assertEquivalent(BigInteger expected, BigInteger actual) {
         if (expected.compareTo(actual) != 0) {
             Assert.assertEquals(expected, actual);
         }
@@ -17,15 +17,15 @@ public class BetterAssert {
         }
     }
 
-    public static void assertEquals(long expected, BigInteger actual) {
-        assertEquals(BigInteger.valueOf(expected), actual);
+    public static void assertEquivalent(long expected, BigInteger actual) {
+        assertEquivalent(BigInteger.valueOf(expected), actual);
     }
 
-    public static void assertEquals(long expected, long actual) {
+    public static void assertEquivalent(long expected, long actual) {
         Assert.assertEquals(expected, actual);
     }
 
-    public static <T> void assertEquals(T expected, T actual) {
+    public static <T> void assertEquivalent(T expected, T actual) {
         Assert.assertEquals(expected, actual);
     }
 }

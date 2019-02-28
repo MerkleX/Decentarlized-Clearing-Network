@@ -35,13 +35,13 @@
 //            TransactionReceipt tx;
 //
 //            tx = creator.call(StaticNetwork.DCN(), DCN.add_asset("abcd", 1, creator.getAddress()));
-//            Assert.assertEquals("0x1", tx.getStatus());
+//            Assert.assertEquivalent("0x1", tx.getStatus());
 //
 //            tx = creator.call(StaticNetwork.DCN(), DCN.add_asset("abce", 1, creator.getAddress()));
-//            Assert.assertEquals("0x1", tx.getStatus());
+//            Assert.assertEquivalent("0x1", tx.getStatus());
 //
 //            tx = creator.call(StaticNetwork.DCN(), DCN.add_exchange("merklex ", quoteAssetId, exchange.getAddress()));
-//            Assert.assertEquals("0x1", tx.getStatus());
+//            Assert.assertEquivalent("0x1", tx.getStatus());
 //        });
 //
 //        QueryHelper helper = new QueryHelper(StaticNetwork.DCN(), StaticNetwork.Web3());
@@ -69,10 +69,10 @@
 //            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
 //
 //            Assert.assertTrue(ethSendTransaction.hasError());
-//            Assert.assertEquals("0x06", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+//            Assert.assertEquivalent("0x06", RevertCodeExtractor.Get(ethSendTransaction.getError()));
 //
 //            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
-//            Assert.assertEquals("0x0", call.getStatus());
+//            Assert.assertEquivalent("0x0", call.getStatus());
 //        });
 //
 //        it("should apply limit with valid signature", () -> {
@@ -95,7 +95,7 @@
 //            Assert.assertFalse(ethSendTransaction.hasError());
 //
 //            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
-//            Assert.assertEquals("0x1", call.getStatus());
+//            Assert.assertEquivalent("0x1", call.getStatus());
 //
 //            DCN.GetSessionStateReturnValue query = helper.query(DCN::query_get_session_state,
 //                    DCN.get_session_state(user1.getAddress(), 0, baseAssetId));
@@ -121,10 +121,10 @@
 //            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
 //
 //            Assert.assertTrue(ethSendTransaction.hasError());
-//            Assert.assertEquals("0x03", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+//            Assert.assertEquivalent("0x03", RevertCodeExtractor.Get(ethSendTransaction.getError()));
 //
 //            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
-//            Assert.assertEquals("0x0", call.getStatus());
+//            Assert.assertEquivalent("0x0", call.getStatus());
 //        });
 //
 //        it("should fail to apply older version", () -> {
@@ -145,10 +145,10 @@
 //            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
 //
 //            Assert.assertTrue(ethSendTransaction.hasError());
-//            Assert.assertEquals("0x03", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+//            Assert.assertEquivalent("0x03", RevertCodeExtractor.Get(ethSendTransaction.getError()));
 //
 //            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
-//            Assert.assertEquals("0x0", call.getStatus());
+//            Assert.assertEquivalent("0x0", call.getStatus());
 //        });
 //
 //        it("should fail to apply with invalid signature", () -> {
@@ -168,10 +168,10 @@
 //            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
 //
 //            Assert.assertTrue(ethSendTransaction.hasError());
-//            Assert.assertEquals("0x05", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+//            Assert.assertEquivalent("0x05", RevertCodeExtractor.Get(ethSendTransaction.getError()));
 //
 //            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
-//            Assert.assertEquals("0x0", call.getStatus());
+//            Assert.assertEquivalent("0x0", call.getStatus());
 //        });
 //
 //        it("should be able to apply multiple updates", () -> {
@@ -218,7 +218,7 @@
 //            Assert.assertFalse(ethSendTransaction.hasError());
 //
 //            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
-//            Assert.assertEquals("0x1", call.getStatus());
+//            Assert.assertEquivalent("0x1", call.getStatus());
 //
 //            ShouldMatch(updateLimit.wrap(buffer, 0), helper.query(DCN::query_get_session_state,
 //                    DCN.get_session_state(user1.getAddress(), 0, baseAssetId)));
@@ -271,20 +271,20 @@
 //            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
 //
 //            Assert.assertTrue(ethSendTransaction.hasError());
-//            Assert.assertEquals("0x05", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+//            Assert.assertEquivalent("0x05", RevertCodeExtractor.Get(ethSendTransaction.getError()));
 //
 //            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
-//            Assert.assertEquals("0x0", call.getStatus());
+//            Assert.assertEquivalent("0x0", call.getStatus());
 //        });
 //    }
 //
 //    private static void ShouldMatch(UpdateLimit updateLimit, DCN.GetSessionStateReturnValue dcn) {
-//        Assert.assertEquals(updateLimit.quoteShift(), dcn.quote_shift);
-//        Assert.assertEquals(updateLimit.baseShift(), dcn.base_shift);
-//        Assert.assertEquals(updateLimit.maxLongPrice(), dcn.long_max_price);
-//        Assert.assertEquals(updateLimit.minShortPrice(), dcn.short_min_price);
-//        Assert.assertEquals(updateLimit.version(), dcn.version);
-//        Assert.assertEquals(updateLimit.minQuoteQty(), dcn.min_quote);
-//        Assert.assertEquals(updateLimit.minBaseQty(), dcn.min_base);
+//        Assert.assertEquivalent(updateLimit.quoteShift(), dcn.quote_shift);
+//        Assert.assertEquivalent(updateLimit.baseShift(), dcn.base_shift);
+//        Assert.assertEquivalent(updateLimit.maxLongPrice(), dcn.long_max_price);
+//        Assert.assertEquivalent(updateLimit.minShortPrice(), dcn.short_min_price);
+//        Assert.assertEquivalent(updateLimit.version(), dcn.version);
+//        Assert.assertEquivalent(updateLimit.minQuoteQty(), dcn.min_quote);
+//        Assert.assertEquivalent(updateLimit.minBaseQty(), dcn.min_base);
 //    }
 //}

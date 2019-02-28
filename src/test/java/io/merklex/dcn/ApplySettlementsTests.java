@@ -18,7 +18,7 @@
 //import java.math.BigInteger;
 //
 //import static com.greghaskins.spectrum.Spectrum.*;
-//import static org.junit.Assert.assertEquals;
+//import static org.junit.Assert.assertEquivalent;
 //import static org.junit.Assert.fail;
 //
 //@RunWith(Spectrum.class)
@@ -29,7 +29,7 @@
 //            fail("TX Failed, Revert: " + RevertCodeExtractor.Get(tx.getError()));
 //        }
 //
-//        Assert.assertEquals("0x1", Accounts.getTx(0).waitForResult(tx).getStatus());
+//        Assert.assertEquivalent("0x1", Accounts.getTx(0).waitForResult(tx).getStatus());
 //    }
 //
 //    {
@@ -129,8 +129,8 @@
 //
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", creator.waitForResult(tx).getStatus());
+//                assertEquivalent("0x01", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", creator.waitForResult(tx).getStatus());
 //
 //                settlements.exchangeId(oldExchangeId);
 //            });
@@ -138,22 +138,22 @@
 //            it("should fail with non creator as caller", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = buyer.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", buyer.waitForResult(tx).getStatus());
+//                assertEquivalent("0x02", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", buyer.waitForResult(tx).getStatus());
 //            });
 //
 //            it("should fail if missing data for settlement group", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size() - 1);
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x03", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", creator.waitForResult(tx).getStatus());
+//                assertEquivalent("0x03", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", creator.waitForResult(tx).getStatus());
 //            });
 //
 //            it("should fail with buyer not locking session", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x04", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", creator.waitForResult(tx).getStatus());
+//                assertEquivalent("0x04", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", creator.waitForResult(tx).getStatus());
 //            });
 //
 //            it("should not be able to make quote balance negative", () -> {
@@ -165,8 +165,8 @@
 //
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x05", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", creator.waitForResult(tx).getStatus());
+//                assertEquivalent("0x05", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", creator.waitForResult(tx).getStatus());
 //
 //                entry.quoteDelta(initialQuoteSpend);
 //            });
@@ -183,8 +183,8 @@
 //
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x05", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", creator.waitForResult(tx).getStatus());
+//                assertEquivalent("0x05", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", creator.waitForResult(tx).getStatus());
 //
 //                entry
 //                        .quoteDelta(initialQuoteSpend)
@@ -194,8 +194,8 @@
 //            it("should fail because of fee limit", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x06", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", creator.waitForResult(tx).getStatus());
+//                assertEquivalent("0x06", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", creator.waitForResult(tx).getStatus());
 //            });
 //
 //            it("should not be able to make base balance negative", () -> {
@@ -207,8 +207,8 @@
 //
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x07", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", creator.waitForResult(tx).getStatus());
+//                assertEquivalent("0x07", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", creator.waitForResult(tx).getStatus());
 //
 //                entry.baseDelta(oldBaseDelta);
 //            });
@@ -216,8 +216,8 @@
 //            it("should fail because min quote is violated", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x09", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", creator.waitForResult(tx).getStatus());
+//                assertEquivalent("0x09", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", creator.waitForResult(tx).getStatus());
 //            });
 //
 //            it("should be able to update min_quote for buyer", () -> {
@@ -246,8 +246,8 @@
 //            it("should fail because long_max_price is too low", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x0c", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", creator.waitForResult(tx).getStatus());
+//                assertEquivalent("0x0c", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", creator.waitForResult(tx).getStatus());
 //            });
 //
 //            it("should update max long price", () -> {
@@ -276,8 +276,8 @@
 //            it("should fail because seller session is not setup", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x04", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", creator.waitForResult(tx).getStatus());
+//                assertEquivalent("0x04", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", creator.waitForResult(tx).getStatus());
 //            });
 //
 //            it("should be able to setup seller", () -> {
@@ -321,29 +321,29 @@
 //                group.settlement(entry, 0);
 //                balance = query.query(DCN::query_get_session_balance,
 //                        DCN.get_session_balance(buyer.getAddress(), 0, quoteAssetId));
-//                assertEquals(initBalance + entry.quoteDelta() - entry.fees(), balance.asset_balance);
+//                assertEquivalent(initBalance + entry.quoteDelta() - entry.fees(), balance.asset_balance);
 //
 //                balance = query.query(DCN::query_get_session_balance,
 //                        DCN.get_session_balance(buyer.getAddress(), 0, baseAssetId));
-//                assertEquals(entry.baseDelta(), balance.asset_balance);
+//                assertEquivalent(entry.baseDelta(), balance.asset_balance);
 //
 //                /* seller balances */
 //                group.settlement(entry, 1);
 //                balance = query.query(DCN::query_get_session_balance,
 //                        DCN.get_session_balance(seller.getAddress(), 0, quoteAssetId));
-//                assertEquals(entry.quoteDelta(), balance.asset_balance);
+//                assertEquivalent(entry.quoteDelta(), balance.asset_balance);
 //
 //                balance = query.query(DCN::query_get_session_balance,
 //                        DCN.get_session_balance(seller.getAddress(), 0, baseAssetId));
-//                assertEquals(initBalance + entry.baseDelta(), balance.asset_balance);
+//                assertEquivalent(initBalance + entry.baseDelta(), balance.asset_balance);
 //
 //                /* exchange received fees */
 //                DCN.GetExchangeReturnValue exchange = query.query(DCN::query_get_exchange, DCN.get_exchange(0));
-//                assertEquals(group.settlement(entry, 0).fees(), exchange.fee_balance);
+//                assertEquivalent(group.settlement(entry, 0).fees(), exchange.fee_balance);
 //
 //                /* buyer fees used */
 //                DCN.GetSessionReturnValue session = query.query(DCN::query_get_session, DCN.get_session(buyer.getAddress(), 0));
-//                assertEquals(group.settlement(entry, 0).fees(), session.fee_used);
+//                assertEquivalent(group.settlement(entry, 0).fees(), session.fee_used);
 //            });
 //
 //            it("should not settle if locked", () -> {
@@ -353,21 +353,21 @@
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
 //
 //                Assert.assertTrue(tx.hasError());
-//                Assert.assertEquals("0x64", RevertCodeExtractor.Get(tx.getError()));
+//                Assert.assertEquivalent("0x64", RevertCodeExtractor.Get(tx.getError()));
 //            });
 //
 //            it("non exchange should not be able to withdraw fee", () -> {
 //                EthSendTransaction tx = buyer.sendCall(StaticNetwork.DCN(),
 //                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 11));
 //                Assert.assertTrue(tx.hasError());
-//                Assert.assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
+//                Assert.assertEquivalent("0x01", RevertCodeExtractor.Get(tx.getError()));
 //            });
 //
 //            it("exchange should not be able to withdraw more than fee", () -> {
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(),
 //                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 11));
 //                Assert.assertTrue(tx.hasError());
-//                Assert.assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
+//                Assert.assertEquivalent("0x02", RevertCodeExtractor.Get(tx.getError()));
 //            });
 //
 //            it("should be able to withdraw fee 50", () -> {
@@ -375,11 +375,11 @@
 //                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 5)));
 //
 //                DCN.GetExchangeReturnValue exchange = query.query(DCN::query_get_exchange, DCN.get_exchange(0));
-//                assertEquals(5, exchange.fee_balance);
+//                assertEquivalent(5, exchange.fee_balance);
 //
 //                ERC20.BalanceofReturnValue balance = ERC20.query_balanceOf(quoteToken.value, StaticNetwork.Web3(),
 //                        ERC20.balanceOf(creator.getAddress()));
-//                Assert.assertEquals(BigInteger.valueOf(50), balance.balance);
+//                Assert.assertEquivalent(BigInteger.valueOf(50), balance.balance);
 //            });
 //
 //            it("should be able to withdraw fee 0", () -> {
@@ -387,11 +387,11 @@
 //                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 0)));
 //
 //                DCN.GetExchangeReturnValue exchange = query.query(DCN::query_get_exchange, DCN.get_exchange(0));
-//                assertEquals(5, exchange.fee_balance);
+//                assertEquivalent(5, exchange.fee_balance);
 //
 //                ERC20.BalanceofReturnValue balance = ERC20.query_balanceOf(quoteToken.value, StaticNetwork.Web3(),
 //                        ERC20.balanceOf(creator.getAddress()));
-//                Assert.assertEquals(BigInteger.valueOf(50), balance.balance);
+//                Assert.assertEquivalent(BigInteger.valueOf(50), balance.balance);
 //            });
 //
 //            it("should be able to withdraw fee 50 to 0", () -> {
@@ -399,18 +399,18 @@
 //                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 5)));
 //
 //                DCN.GetExchangeReturnValue exchange = query.query(DCN::query_get_exchange, DCN.get_exchange(0));
-//                assertEquals(0, exchange.fee_balance);
+//                assertEquivalent(0, exchange.fee_balance);
 //
 //                ERC20.BalanceofReturnValue balance = ERC20.query_balanceOf(quoteToken.value, StaticNetwork.Web3(),
 //                        ERC20.balanceOf(creator.getAddress()));
-//                Assert.assertEquals(BigInteger.valueOf(100), balance.balance);
+//                Assert.assertEquivalent(BigInteger.valueOf(100), balance.balance);
 //            });
 //
 //            it("should fail to withdraw with no balance", () -> {
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(),
 //                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 1));
 //                Assert.assertTrue(tx.hasError());
-//                Assert.assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
+//                Assert.assertEquivalent("0x02", RevertCodeExtractor.Get(tx.getError()));
 //            });
 //        });
 //    }

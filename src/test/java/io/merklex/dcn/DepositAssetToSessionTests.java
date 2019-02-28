@@ -17,7 +17,7 @@
 //
 //import static com.greghaskins.spectrum.Spectrum.describe;
 //import static com.greghaskins.spectrum.Spectrum.it;
-//import static org.junit.Assert.assertEquals;
+//import static org.junit.Assert.assertEquivalent;
 //
 //@RunWith(Spectrum.class)
 //public class DepositAssetToSessionTests {
@@ -32,8 +32,8 @@
 //        describe("with unit_scale=1 asset", () -> {
 //            it("should error with invalid asset id", () -> {
 //                EthSendTransaction tx = user.sendCall(StaticNetwork.DCN(), DCN.deposit_asset_to_session(0, 0, 10));
-//                assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", user.waitForResult(tx).getStatus());
+//                assertEquivalent("0x01", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", user.waitForResult(tx).getStatus());
 //            });
 //
 //            Box<String> token1 = new Box<>();
@@ -48,34 +48,34 @@
 //                );
 //
 //                TransactionReceipt addTx = creator.call(StaticNetwork.DCN(), DCN.add_asset("1234", 1, token1.value));
-//                assertEquals("0x1", addTx.getStatus());
+//                assertEquivalent("0x1", addTx.getStatus());
 //
 //                EthSendTransaction tx = user.sendCall(StaticNetwork.DCN(), DCN.deposit_asset_to_session(0, 0, 0));
-//                assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", user.waitForResult(tx).getStatus());
+//                assertEquivalent("0x02", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", user.waitForResult(tx).getStatus());
 //            });
 //
 //            it("should error with no token allowance", () -> {
 //                EthSendTransaction tx = user.sendCall(StaticNetwork.DCN(), DCN.deposit_asset_to_session(0, 0, 10));
-//                assertEquals("0x03", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", user.waitForResult(tx).getStatus());
+//                assertEquivalent("0x03", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", user.waitForResult(tx).getStatus());
 //            });
 //
 //            BigInteger allowance = BigInteger.valueOf(800);
 //
 //            it("should fail to deposit more than allowance", () -> {
-//                assertEquals("0x1",
+//                assertEquivalent("0x1",
 //                        user.call(token1.value, ERC20.approve(StaticNetwork.DCN(), allowance)).getStatus());
 //
 //                EthSendTransaction tx = user.sendCall(StaticNetwork.DCN(),
 //                        DCN.deposit_asset_to_session(0, 0, allowance.longValue() + 1)
 //                );
-//                assertEquals("0x03", RevertCodeExtractor.Get(tx.getError()));
-//                assertEquals("0x0", user.waitForResult(tx).getStatus());
+//                assertEquivalent("0x03", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquivalent("0x0", user.waitForResult(tx).getStatus());
 //            });
 //
 //            it("should deposit", () -> {
-//                assertEquals("0x1",
+//                assertEquivalent("0x1",
 //                        user.call(token1.value, ERC20.approve(StaticNetwork.DCN(), allowance)).getStatus());
 //
 //                long deposit = allowance.longValue() / 2;
@@ -83,30 +83,30 @@
 //                TransactionReceipt tx = user.call(StaticNetwork.DCN(),
 //                        DCN.deposit_asset_to_session(0, 0, deposit)
 //                );
-//                assertEquals("0x1", tx.getStatus());
+//                assertEquivalent("0x1", tx.getStatus());
 //
 //                DCN.GetBalanceReturnValue balance = dcnQ.query(DCN::query_get_balance,
 //                        DCN.get_balance(user.getAddress(), 0));
-//                assertEquals(BigInteger.ZERO, balance.return_balance);
+//                assertEquivalent(BigInteger.ZERO, balance.return_balance);
 //
 //                DCN.GetSessionBalanceReturnValue sessionBalance = dcnQ.query(DCN::query_get_session_balance,
 //                        DCN.get_session_balance(user.getAddress(), 0, 0));
-//                assertEquals(deposit, sessionBalance.asset_balance);
-//                assertEquals(deposit, sessionBalance.total_deposit);
+//                assertEquivalent(deposit, sessionBalance.asset_balance);
+//                assertEquivalent(deposit, sessionBalance.total_deposit);
 //
 //                ERC20.BalanceofReturnValue tokenBalance;
 //
 //                tokenBalance = ERC20.query_balanceOf(token1.value, StaticNetwork.Web3(),
 //                        ERC20.balanceOf(user.getAddress()));
-//                assertEquals(ogTokenBalance.subtract(BigInteger.valueOf(deposit)), tokenBalance.balance);
+//                assertEquivalent(ogTokenBalance.subtract(BigInteger.valueOf(deposit)), tokenBalance.balance);
 //
 //                tokenBalance = ERC20.query_balanceOf(token1.value, StaticNetwork.Web3(),
 //                        ERC20.balanceOf(StaticNetwork.DCN()));
-//                assertEquals(BigInteger.valueOf(deposit), tokenBalance.balance);
+//                assertEquivalent(BigInteger.valueOf(deposit), tokenBalance.balance);
 //            });
 //
 //            it("deposit should add", () -> {
-//                assertEquals("0x1",
+//                assertEquivalent("0x1",
 //                        user.call(token1.value, ERC20.approve(StaticNetwork.DCN(), allowance)).getStatus());
 //
 //                long deposit = allowance.longValue() / 2;
@@ -114,26 +114,26 @@
 //                TransactionReceipt tx = user.call(StaticNetwork.DCN(),
 //                        DCN.deposit_asset_to_session(0, 0, deposit)
 //                );
-//                assertEquals("0x1", tx.getStatus());
+//                assertEquivalent("0x1", tx.getStatus());
 //
 //                DCN.GetBalanceReturnValue balance = dcnQ.query(DCN::query_get_balance,
 //                        DCN.get_balance(user.getAddress(), 0));
-//                assertEquals(BigInteger.ZERO, balance.return_balance);
+//                assertEquivalent(BigInteger.ZERO, balance.return_balance);
 //
 //                DCN.GetSessionBalanceReturnValue sessionBalance = dcnQ.query(DCN::query_get_session_balance,
 //                        DCN.get_session_balance(user.getAddress(), 0, 0));
-//                assertEquals(deposit * 2, sessionBalance.asset_balance);
-//                assertEquals(deposit * 2, sessionBalance.total_deposit);
+//                assertEquivalent(deposit * 2, sessionBalance.asset_balance);
+//                assertEquivalent(deposit * 2, sessionBalance.total_deposit);
 //
 //                ERC20.BalanceofReturnValue tokenBalance;
 //
 //                tokenBalance = ERC20.query_balanceOf(token1.value, StaticNetwork.Web3(),
 //                        ERC20.balanceOf(user.getAddress()));
-//                assertEquals(ogTokenBalance.subtract(allowance), tokenBalance.balance);
+//                assertEquivalent(ogTokenBalance.subtract(allowance), tokenBalance.balance);
 //
 //                tokenBalance = ERC20.query_balanceOf(token1.value, StaticNetwork.Web3(),
 //                        ERC20.balanceOf(StaticNetwork.DCN()));
-//                assertEquals(allowance, tokenBalance.balance);
+//                assertEquivalent(allowance, tokenBalance.balance);
 //            });
 //        });
 //    }

@@ -18,7 +18,7 @@
 //
 //import static com.greghaskins.spectrum.Spectrum.beforeAll;
 //import static com.greghaskins.spectrum.Spectrum.it;
-//import static org.junit.Assert.assertEquals;
+//import static org.junit.Assert.assertEquivalent;
 //
 //@RunWith(Spectrum.class)
 //public class WithdrawFromSessionTests {
@@ -42,26 +42,26 @@
 //
 //            tx = creator.call(StaticNetwork.DCN(),
 //                    DCN.add_asset("1234", 10, token.value));
-//            assertEquals("0x1", tx.getStatus());
+//            assertEquivalent("0x1", tx.getStatus());
 //
 //            tx = creator.call(StaticNetwork.DCN(),
 //                    DCN.add_exchange("12345678", 0, exchange.getAddress()));
-//            assertEquals("0x1", tx.getStatus());
+//            assertEquivalent("0x1", tx.getStatus());
 //
 //            tx = user.call(token.value,
 //                    ERC20.approve(StaticNetwork.DCN(), BigInteger.valueOf(10000)));
-//            assertEquals("0x1", tx.getStatus());
+//            assertEquivalent("0x1", tx.getStatus());
 //
 //            tx = user.call(StaticNetwork.DCN(),
 //                    DCN.deposit_asset_to_session(0, 0, 1000));
-//            assertEquals("0x1", tx.getStatus());
+//            assertEquivalent("0x1", tx.getStatus());
 //
 //            long now = System.currentTimeMillis() / 1000;
 //            long days15 = 15 * 24 * 3600;
 //
 //            tx = user.call(StaticNetwork.DCN(),
 //                    DCN.update_session(0, now + days15, 0));
-//            assertEquals("0x1", tx.getStatus());
+//            assertEquivalent("0x1", tx.getStatus());
 //        });
 //
 //        it("user should not be able to withdraw from session", () -> {
@@ -69,9 +69,9 @@
 //                    DCN.withdraw_from_session(0, 0, user.getAddress(), 100));
 //
 //            Assert.assertTrue(tx.hasError());
-//            Assert.assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
+//            Assert.assertEquivalent("0x01", RevertCodeExtractor.Get(tx.getError()));
 //
-//            Assert.assertEquals("0x0", user.waitForResult(tx).getStatus());
+//            Assert.assertEquivalent("0x0", user.waitForResult(tx).getStatus());
 //        });
 //
 //        it("exchange should be able to withdraw from session", () -> {
@@ -79,12 +79,12 @@
 //                    DCN.withdraw_from_session(0, 0, user.getAddress(), 100));
 //
 //            Assert.assertFalse(tx.hasError());
-//            Assert.assertEquals("0x1", user.waitForResult(tx).getStatus());
+//            Assert.assertEquivalent("0x1", user.waitForResult(tx).getStatus());
 //
-//            Assert.assertEquals(900, dcnQ.query(DCN::query_get_session_balance,
+//            Assert.assertEquivalent(900, dcnQ.query(DCN::query_get_session_balance,
 //                    DCN.get_session_balance(user.getAddress(), 0, 0)).asset_balance);
 //
-//            Assert.assertEquals(BigInteger.valueOf(1000), dcnQ.query(DCN::query_get_balance,
+//            Assert.assertEquivalent(BigInteger.valueOf(1000), dcnQ.query(DCN::query_get_balance,
 //                    DCN.get_balance(user.getAddress(), 0)).return_balance);
 //        });
 //
@@ -93,9 +93,9 @@
 //                    DCN.withdraw_from_session(0, 0, user.getAddress(), 901));
 //
 //            Assert.assertTrue(tx.hasError());
-//            Assert.assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
+//            Assert.assertEquivalent("0x02", RevertCodeExtractor.Get(tx.getError()));
 //
-//            Assert.assertEquals("0x0", user.waitForResult(tx).getStatus());
+//            Assert.assertEquivalent("0x0", user.waitForResult(tx).getStatus());
 //        });
 //    }
 //}
