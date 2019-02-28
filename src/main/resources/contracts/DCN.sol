@@ -605,6 +605,8 @@ contract DCN {
       let current_proposal := sload(security_locked_features_proposed_slot)
       let proposed_differences := xor(current_proposal, proposed_locked_features)
 
+      DEBUG_REVERT(proposed_differences)
+
       /*
        * proposed_differences will have "1" in feature positions that have changed.
        * Want to see if those positions have proposed_locked_features as "0", meaning
@@ -666,6 +668,7 @@ contract DCN {
         REVERT(1)
       }
       sstore(creator_recovery_slot, caller)
+      sstore(creator_recovery_proposed_slot, 0)
     }
   }
 
@@ -911,7 +914,7 @@ contract DCN {
       SECURITY_FEATURE_CHECK(FEATURE_ADD_EXCHANGE, 0)
       CREATOR_REQUIRED(1)
 
-      /* Name must be 12 bytes long */
+      /* Name must be 11 bytes long */
       let name_len := mload(name)
       if iszero(eq(name_len, 11)) {
         REVERT(2)
