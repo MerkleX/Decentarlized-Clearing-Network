@@ -212,17 +212,18 @@ contract DCN {
   }
   
   function get_session_balance(uint64 user_id, uint32 exchange_id, uint32 asset_id) public view 
-  returns (uint192 total_deposit, uint64 asset_balance) {
+  returns (uint128 total_deposit, uint64 unsettled_withdraw_total, uint64 asset_balance) {
     
-    uint256[2] memory return_value_mem;
+    uint256[3] memory return_value_mem;
     assembly {
       let user_ptr := add(users_slot, mul(237684487561239756862931337222, user_id))
       let session_ptr := add(add(user_ptr, 4294967302), mul(4294967299, exchange_id))
       let session_balance_ptr := add(add(session_ptr, 1), asset_id)
       let session_balance_0 := sload(session_balance_ptr)
       mstore(return_value_mem, and(div(session_balance_0, 0x100000000000000000000000000000000), 0xffffffffffffffffffffffffffffffff))
-      mstore(add(return_value_mem, 32), and(session_balance_0, 0xffffffffffffffff))
-      return(return_value_mem, 64)
+      mstore(add(return_value_mem, 32), and(div(session_balance_0, 0x10000000000000000), 0xffffffffffffffff))
+      mstore(add(return_value_mem, 64), and(session_balance_0, 0xffffffffffffffff))
+      return(return_value_mem, 96)
     }
   }
   
@@ -994,7 +995,7 @@ contract DCN {
       let updated_exchange_balance := sub(session_balance, quantity)
       let unsettled_withdraw_total := and(div(session_balance_0, 0x10000000000000000), 0xffffffffffffffff)
       if lt(updated_exchange_balance, unsettled_withdraw_total) {
-        mstore(32, 5)
+        mstore(32, 6)
         revert(63, 1)
       }
       sstore(session_balance_ptr, or(and(0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000, session_balance_0), 
@@ -1006,7 +1007,7 @@ contract DCN {
       let user_balance := sload(user_balance_ptr)
       let updated_user_balance := add(user_balance, scaled_quantity)
       if lt(updated_user_balance, user_balance) {
-        mstore(32, 6)
+        mstore(32, 7)
         revert(63, 1)
       }
       sstore(user_balance_ptr, updated_user_balance)
@@ -1097,7 +1098,7 @@ contract DCN {
     uint64 quantity;
   }
   
-  function exchange_transfer_from_locked(bytes memory data) public  {
+  function exchange_transfer_from(bytes memory data) public  {
     assembly {
       {
         let locked_features := sload(security_locked_features_slot)

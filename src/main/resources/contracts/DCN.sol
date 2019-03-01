@@ -502,8 +502,8 @@ contract DCN {
   }
 
   function get_session_balance(uint64 user_id, uint32 exchange_id, uint32 asset_id) public view
-  returns (uint192 total_deposit, uint64 asset_balance) {
-    uint256[2] memory return_value_mem;
+  returns (uint128 total_deposit, uint64 unsettled_withdraw_total, uint64 asset_balance) {
+    uint256[3] memory return_value_mem;
 
     assembly {
       let user_ptr := USER_PTR_(user_id)
@@ -512,9 +512,10 @@ contract DCN {
       let session_balance_0 := sload(session_balance_ptr)
 
       RETURN_0(attr(SessionBalance, 0, session_balance_0, total_deposit))
-      RETURN(WORD_1, attr(SessionBalance, 0, session_balance_0, asset_balance))
+      RETURN(WORD_1, attr(SessionBalance, 0, session_balance_0, unsettled_withdraw_total))
+      RETURN(WORD_2, attr(SessionBalance, 0, session_balance_0, asset_balance))
 
-      return(return_value_mem, WORD_2)
+      return(return_value_mem, WORD_3)
     }
   }
 
@@ -1252,7 +1253,7 @@ contract DCN {
 
       /* do not let user withdraw money owed to the exchange */
       if lt(updated_exchange_balance, unsettled_withdraw_total) {
-        REVERT(5)
+        REVERT(6)
       }
 
       sstore(session_balance_ptr, or(
@@ -1273,7 +1274,7 @@ contract DCN {
       let updated_user_balance := add(user_balance, scaled_quantity)
       /* protect against addition overflow */
       if lt(updated_user_balance, user_balance) {
-        REVERT(6)
+        REVERT(7)
       }
 
       sstore(user_balance_ptr, updated_user_balance)
