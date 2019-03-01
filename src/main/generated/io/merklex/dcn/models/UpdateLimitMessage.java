@@ -237,7 +237,7 @@ public class UpdateLimitMessage {
         }
         public String toString() {
             StringBuilder sb = new StringBuilder();
-            sb.append("UpdateLimit { ");
+            sb.append("LimitUpdate { ");
             sb.append("dcn_id: ");
             sb.append(Integer.toUnsignedString(dcnId()));
             sb.append(", user_id: ");

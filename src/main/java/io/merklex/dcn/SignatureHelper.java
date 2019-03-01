@@ -41,9 +41,6 @@ public class SignatureHelper {
         return new Sign.SignatureData(v, r, s);
     }
 
-
-
-
     public static String RecoverKey(
             byte[] messageHash, Sign.SignatureData signatureData) throws SignatureException {
 

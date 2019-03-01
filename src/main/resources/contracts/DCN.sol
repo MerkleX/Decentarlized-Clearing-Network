@@ -166,7 +166,7 @@ contract DCN {
     /* address used to update trade_address / withdraw_address */
     uint256 recovery_address;
 
-    /* proposed address to update recover_address */
+    /* proposed address to update recovery_address */
     uint256 recovery_address_proposed;
 
     /* balances under the user's control */
@@ -205,10 +205,10 @@ contract DCN {
   #define INVALID_I64(variable) \
     or(slt(variable, I64_MIN), sgt(variable, I64_MAX))
 
-  #define MSTORE_STR(MSTORE_VAR, CONTENT_DATA, STR_LEN, STR_DATA) \
-    mstore(MSTORE_VAR, CONTENT_DATA) \
-    mstore(add(MSTORE_VAR, CONTENT_DATA), STR_LEN) \
-    mstore(add(MSTORE_VAR, const_add(CONTENT_DATA, WORD_1)), STR_DATA)
+  #define MSTORE_STR(MSTORE_VAR, STR_OFFSET, STR_LEN, STR_DATA) \
+    mstore(MSTORE_VAR, STR_OFFSET) \
+    mstore(add(MSTORE_VAR, STR_OFFSET), STR_LEN) \
+    mstore(add(MSTORE_VAR, const_add(STR_OFFSET, WORD_1)), STR_DATA)
 
   #define RETURN_0(VALUE) \
     mstore(return_value_mem, VALUE)
@@ -414,7 +414,7 @@ contract DCN {
       let exchange_1 := sload(add(exchange_ptr, 1))
       let exchange_2 := sload(add(exchange_ptr, 2))
 
-      MSTORE_STR(return_value_mem, WORD_6, 12, exchange_0)
+      MSTORE_STR(return_value_mem, WORD_5, 11, exchange_0)
       RETURN(WORD_1, attr(Exchange, 0, exchange_0, locked))
       RETURN(WORD_2, attr(Exchange, 0, exchange_0, owner))
       RETURN(WORD_3, attr(Exchange, 1, exchange_1, recovery_address))
@@ -536,7 +536,7 @@ contract DCN {
 
       let user_ptr := USER_PTR_(user_id)
       let exchange_session_ptr := SESSION_PTR_(user_ptr, exchange_id)
-      let exchange_state_ptr := MARKET_STATE_PTR_(exchange_session_ptr, base_shift, quote_shift)
+      let exchange_state_ptr := MARKET_STATE_PTR_(exchange_session_ptr, quote_shift, base_shift)
 
       let state_data_0 := sload(exchange_state_ptr)
       let state_data_1 := sload(add(exchange_state_ptr, 1))
@@ -939,11 +939,17 @@ contract DCN {
        */
 
       let name_data := mload(add(name, 32))
-      let exchange_data := or(name_data, build(Exchange, 0, /* space for name */ 0, /* locked */ 0, addr))
-      sstore(exchange_ptr, exchange_data)
+      let exchange_0 := or(
+        name_data,
+        build(Exchange, 0,
+              /* space for name */ 0,
+              /* locked */ 0,
+              /* owner */ addr)
+      )
+      sstore(exchange_ptr, exchange_0)
 
       /* Store owner backup */
-      sstore(add(exchange_ptr, 2), addr)
+      sstore(pointer_attr(Exchange, exchange_ptr, recovery_address), addr)
 
       /* Update exchange count */
       sstore(exchange_count_slot, add(exchange_id, 1))
@@ -1500,7 +1506,7 @@ contract DCN {
   #define UPDATE_LIMIT_BYTES const_add(sizeof(UpdateLimit), sizeof(Signature))
   #define SIG_HASH_HEADER 0x1901000000000000000000000000000000000000000000000000000000000000
   #define DCN_HEADER_HASH 0xe3d3073cc59e3a3126c17585a7e516a048e61a9a1c82144af982d1c194b18710
-  #define UPDATE_LIMIT_TYPE_HASH 0xe0bfc2789e007df269c9fec46d3ddd4acf88fdf0f76af154da933aab7fb2f2b9
+  #define UPDATE_LIMIT_TYPE_HASH 0xbe6b685e53075dd48bdabc4949b848400d5a7e53705df48e04ace664c3946ad2
 
   struct SetLimitMemory {
     uint256 user_id;
@@ -1517,7 +1523,7 @@ contract DCN {
     uint256[sizeof(SetLimitMemory)] memory set_limit_memory_space;
 
     #define MEM_PTR(KEY) \
-      sub(msize, const_sub(sizeof(SetLimitMemory), byte_offset(SetLimitMemory, KEY)))
+      const_add(0x320, byte_offset(SetLimitMemory, KEY))
 
     #define SAVE_MEM(KEY, VALUE) \
       mstore(MEM_PTR(KEY), VALUE)
@@ -1533,6 +1539,10 @@ contract DCN {
      * Ensure caller is exchange and setup cursors.
      */
     assembly {
+      if iszero(eq(set_limit_memory_space, 0x320)) {
+        REVERT(100)
+      }
+
       SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_SET_LIMITS, 0)
 
       let data_size := mload(data)
@@ -1572,7 +1582,7 @@ contract DCN {
         update_limit_1 := mload(add(cursor, WORD_1))
         update_limit_2 := mload(add(cursor, WORD_2))
 
-        cursor := add(cursor, WORD_3)
+        cursor := add(cursor, sizeof(UpdateLimit))
         if gt(cursor, cursor_end) {
           REVERT(3)
         }
@@ -1625,6 +1635,12 @@ contract DCN {
         }
 
         limit_hash := keccak256(to_hash_mem, WORD_14)
+
+        mstore(to_hash_mem, SIG_HASH_HEADER)
+        mstore(add(to_hash_mem, 2), DCN_HEADER_HASH)
+        mstore(add(to_hash_mem, const_add(WORD_1, 2)), limit_hash)
+
+        limit_hash := keccak256(to_hash_mem, const_add(WORD_2, 2))
       }
 
       /* verify signature */
@@ -1635,12 +1651,9 @@ contract DCN {
 
         /* Load signature data */
         assembly {
-          let c := cursor
-          let c_end := cursor_end
-
-          sig_r := attr(Signature, 0, sload(c), sig_r)
-          sig_s := attr(Signature, 1, sload(add(c, WORD_1)), sig_s)
-          sig_v := attr(Signature, 2, sload(add(c, WORD_2)), sig_v)
+          sig_r := attr(Signature, 0, mload(cursor), sig_r)
+          sig_s := attr(Signature, 1, mload(add(cursor, WORD_1)), sig_s)
+          sig_v := attr(Signature, 2, mload(add(cursor, WORD_2)), sig_v)
 
           cursor := add(cursor, sizeof(Signature))
           if gt(cursor, cursor_end) {
@@ -1648,7 +1661,7 @@ contract DCN {
           }
         }
 
-        uint256 recover_address = uint256(ecrecover(
+        uint256 recovered_address = uint256(ecrecover(
           /* hash */ limit_hash,
           /* v */ sig_v,
           /* r */ sig_r,
@@ -1659,7 +1672,7 @@ contract DCN {
           let user_ptr := USER_PTR_(LOAD(user_id))
           let trade_address := sload(pointer_attr(User, user_ptr, trade_address))
 
-          if iszero(eq(recover_address, trade_address)) {
+          if iszero(eq(recovered_address, trade_address)) {
             REVERT(5)
           }
         }
@@ -1688,7 +1701,7 @@ contract DCN {
 
         /* verify limit version is greater */
         {
-          let current_limit_version := attr(UpdateLimit, 2, update_limit_2, limit_version)
+          let current_limit_version := attr(MarketState, 2, market_state_2, limit_version)
 
           if iszero(gt(LOAD(limit_version), current_limit_version)) {
             REVERT(7)

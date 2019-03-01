@@ -12,14 +12,10 @@ public class DCNHasher {
 
     public static final DCNHasher instance = new DCNHasher(VERSION, CHAIN_ID);
 
-    public static void main(String[] args) {
-        System.out.println(Numeric.toHexString(instance.hash));
-    }
-
     private final String version;
     private final long chainId;
 
-    private final byte[] hash;
+    public final byte[] hash;
 
     public DCNHasher(String version, long chainId) {
         this.version = version;

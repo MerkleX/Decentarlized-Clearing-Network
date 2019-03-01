@@ -222,7 +222,7 @@
 //
 //            it("should be able to update min_quote for buyer", () -> {
 //                byte[] updateLimitBytes = new byte[1000];
-//                UpdateLimit updateLimit = new UpdateLimit().wrap(new UnsafeBuffer(updateLimitBytes), 0);
+//                LimitUpdate updateLimit = new LimitUpdate().wrap(new UnsafeBuffer(updateLimitBytes), 0);
 //
 //                updateLimit
 //                        .user(buyer.getAddress())
@@ -239,7 +239,7 @@
 //                byte[] hash = DCNHasher.instance.hash(updateLimit.hash());
 //                updateLimit.signature(buyer.signHash(hash));
 //
-//                String payload = Hex.toHexString(updateLimitBytes, 0, UpdateLimit.BYTES);
+//                String payload = Hex.toHexString(updateLimitBytes, 0, LimitUpdate.BYTES);
 //                success(creator.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload)));
 //            });
 //
@@ -252,7 +252,7 @@
 //
 //            it("should update max long price", () -> {
 //                byte[] updateLimitBytes = new byte[1000];
-//                UpdateLimit updateLimit = new UpdateLimit().wrap(new UnsafeBuffer(updateLimitBytes), 0);
+//                LimitUpdate updateLimit = new LimitUpdate().wrap(new UnsafeBuffer(updateLimitBytes), 0);
 //
 //                updateLimit
 //                        .user(buyer.getAddress())
@@ -269,7 +269,7 @@
 //                byte[] hash = DCNHasher.instance.hash(updateLimit.hash());
 //                updateLimit.signature(buyer.signHash(hash));
 //
-//                String payload = Hex.toHexString(updateLimitBytes, 0, UpdateLimit.BYTES);
+//                String payload = Hex.toHexString(updateLimitBytes, 0, LimitUpdate.BYTES);
 //                success(creator.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload)));
 //            });
 //
@@ -287,7 +287,7 @@
 //
 //                {
 //                    byte[] updateLimitBytes = new byte[1000];
-//                    UpdateLimit updateLimit = new UpdateLimit().wrap(new UnsafeBuffer(updateLimitBytes), 0);
+//                    LimitUpdate updateLimit = new LimitUpdate().wrap(new UnsafeBuffer(updateLimitBytes), 0);
 //
 //                    updateLimit
 //                            .user(seller.getAddress())
@@ -304,7 +304,7 @@
 //                    byte[] hash = DCNHasher.instance.hash(updateLimit.hash());
 //                    updateLimit.signature(seller.signHash(hash));
 //
-//                    String payload = Hex.toHexString(updateLimitBytes, 0, UpdateLimit.BYTES);
+//                    String payload = Hex.toHexString(updateLimitBytes, 0, LimitUpdate.BYTES);
 //                    success(creator.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload)));
 //                }
 //            });

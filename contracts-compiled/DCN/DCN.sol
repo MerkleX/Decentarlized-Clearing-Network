@@ -124,9 +124,9 @@ contract DCN {
       let exchange_0 := sload(exchange_ptr)
       let exchange_1 := sload(add(exchange_ptr, 1))
       let exchange_2 := sload(add(exchange_ptr, 2))
-      mstore(return_value_mem, 192)
-      mstore(add(return_value_mem, 192), 12)
-      mstore(add(return_value_mem, 224), exchange_0)
+      mstore(return_value_mem, 160)
+      mstore(add(return_value_mem, 160), 11)
+      mstore(add(return_value_mem, 192), exchange_0)
       mstore(add(return_value_mem, 32), and(div(exchange_0, 0x10000000000000000000000000000000000000000), 0xff))
       mstore(add(return_value_mem, 64), and(exchange_0, 0xffffffffffffffffffffffffffffffffffffffff))
       mstore(add(return_value_mem, 96), exchange_1)
@@ -243,7 +243,7 @@ contract DCN {
       quote_shift := quote_asset_id
       let user_ptr := add(users_slot, mul(237684487561239756862931337222, user_id))
       let exchange_session_ptr := add(add(user_ptr, 4294967302), mul(4294967299, exchange_id))
-      let exchange_state_ptr := add(add(exchange_session_ptr, 4294967297), mul(3, add(mul(base_shift, exp(2, 32)), quote_shift)))
+      let exchange_state_ptr := add(add(exchange_session_ptr, 4294967297), mul(3, add(mul(quote_shift, exp(2, 32)), base_shift)))
       let state_data_0 := sload(exchange_state_ptr)
       let state_data_1 := sload(add(exchange_state_ptr, 1))
       let state_data_2 := sload(add(exchange_state_ptr, 2))
@@ -648,10 +648,10 @@ contract DCN {
       }
       let exchange_ptr := add(exchanges_slot, mul(4294967299, exchange_id))
       let name_data := mload(add(name, 32))
-      let exchange_data := or(name_data, 
+      let exchange_0 := or(name_data, 
         /* owner */ addr)
-      sstore(exchange_ptr, exchange_data)
-      sstore(add(exchange_ptr, 2), addr)
+      sstore(exchange_ptr, exchange_0)
+      sstore(add(exchange_ptr, 1), addr)
       sstore(exchange_count_slot, add(exchange_id, 1))
     }
   }
@@ -1237,6 +1237,10 @@ contract DCN {
     uint256 cursor_end;
     uint256 exchange_id;
     assembly {
+      if iszero(eq(set_limit_memory_space, 0x320)) {
+        mstore(32, 100)
+        revert(63, 1)
+      }
       {
         let locked_features := sload(security_locked_features_slot)
         if and(locked_features, 0x80) {
@@ -1280,21 +1284,21 @@ contract DCN {
             revert(63, 1)
           }
           {
-            mstore(to_hash_mem, 0xe0bfc2789e007df269c9fec46d3ddd4acf88fdf0f76af154da933aab7fb2f2b9)
+            mstore(to_hash_mem, 0xbe6b685e53075dd48bdabc4949b848400d5a7e53705df48e04ace664c3946ad2)
             let temp_var := 0
             temp_var := and(div(update_limit_0, 0x100000000000000000000000000000000000000000000000000000000), 0xffffffff)
             mstore(add(to_hash_mem, 32), temp_var)
             temp_var := and(div(update_limit_0, 0x10000000000000000000000000000000000000000), 0xffffffffffffffff)
             mstore(add(to_hash_mem, 64), temp_var)
-            mstore(sub(msize, 224), temp_var)
+            mstore(800, temp_var)
             temp_var := and(div(update_limit_0, 0x100000000000000000000000000000000), 0xffffffff)
             mstore(add(to_hash_mem, 96), temp_var)
             temp_var := and(div(update_limit_0, 0x1000000000000000000000000), 0xffffffff)
             mstore(add(to_hash_mem, 128), temp_var)
-            mstore(sub(msize, 160), temp_var)
+            mstore(864, temp_var)
             temp_var := and(div(update_limit_0, 0x10000000000000000), 0xffffffff)
             mstore(add(to_hash_mem, 160), temp_var)
-            mstore(sub(msize, 128), temp_var)
+            mstore(896, temp_var)
             temp_var := and(update_limit_0, 0xffffffffffffffff)
             mstore(add(to_hash_mem, 192), temp_var)
             temp_var := and(div(update_limit_1, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
@@ -1313,48 +1317,50 @@ contract DCN {
             mstore(add(to_hash_mem, 320), temp_var)
             temp_var := and(div(update_limit_2, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
             mstore(add(to_hash_mem, 352), temp_var)
-            mstore(sub(msize, 96), temp_var)
+            mstore(928, temp_var)
             temp_var := and(div(update_limit_2, 0x1000000000000000000000000), 0xffffffffffffffffffffffff)
             if and(temp_var, 0x800000000000000000000000) {
               temp_var := or(temp_var, 0xffffffffffffffffffffffffffffffffffffffff000000000000000000000000)
             }
             mstore(add(to_hash_mem, 384), temp_var)
-            mstore(sub(msize, 64), temp_var)
+            mstore(960, temp_var)
             temp_var := and(update_limit_2, 0xffffffffffffffffffffffff)
             if and(temp_var, 0x800000000000000000000000) {
               temp_var := or(temp_var, 0xffffffffffffffffffffffffffffffffffffffff000000000000000000000000)
             }
             mstore(add(to_hash_mem, 416), temp_var)
-            mstore(sub(msize, 32), temp_var)
+            mstore(992, temp_var)
           }
           limit_hash := keccak256(to_hash_mem, 448)
+          mstore(to_hash_mem, 0x1901000000000000000000000000000000000000000000000000000000000000)
+          mstore(add(to_hash_mem, 2), 0xe3d3073cc59e3a3126c17585a7e516a048e61a9a1c82144af982d1c194b18710)
+          mstore(add(to_hash_mem, 34), limit_hash)
+          limit_hash := keccak256(to_hash_mem, 66)
         }
         {
           bytes32 sig_r;
           bytes32 sig_s;
           uint8 sig_v;
           assembly {
-            let c := cursor
-            let c_end := cursor_end
-            sig_r := sload(c)
-            sig_s := sload(add(c, 32))
-            sig_v := and(div(sload(add(c, 64)), 0x100000000000000000000000000000000000000000000000000000000000000), 0xff)
+            sig_r := mload(cursor)
+            sig_s := mload(add(cursor, 32))
+            sig_v := and(div(mload(add(cursor, 64)), 0x100000000000000000000000000000000000000000000000000000000000000), 0xff)
             cursor := add(cursor, 65)
             if gt(cursor, cursor_end) {
               mstore(32, 4)
               revert(63, 1)
             }
           }
-          uint256 recover_address = uint256(ecrecover(
+          uint256 recovered_address = uint256(ecrecover(
           /* hash */ limit_hash,
           /* v */ sig_v,
           /* r */ sig_r,
           /* s */ sig_s
         ));
           assembly {
-            let user_ptr := add(users_slot, mul(237684487561239756862931337222, mload(sub(msize, 224))))
+            let user_ptr := add(users_slot, mul(237684487561239756862931337222, mload(800)))
             let trade_address := sload(add(user_ptr, 0))
-            if iszero(eq(recover_address, trade_address)) {
+            if iszero(eq(recovered_address, trade_address)) {
               mstore(32, 5)
               revert(63, 1)
             }
@@ -1362,20 +1368,20 @@ contract DCN {
         }
         assembly {
           {
-            if iszero(eq(mload(sub(msize, 192)), exchange_id)) {
+            if iszero(eq(mload(832), exchange_id)) {
               mstore(32, 6)
               revert(63, 1)
             }
           }
-          let user_ptr := add(users_slot, mul(237684487561239756862931337222, mload(sub(msize, 224))))
+          let user_ptr := add(users_slot, mul(237684487561239756862931337222, mload(800)))
           let session_ptr := add(add(user_ptr, 4294967302), mul(4294967299, exchange_id))
-          let market_state_ptr := add(add(session_ptr, 4294967297), mul(3, add(mul(mload(sub(msize, 160)), exp(2, 32)), mload(sub(msize, 128)))))
+          let market_state_ptr := add(add(session_ptr, 4294967297), mul(3, add(mul(mload(864), exp(2, 32)), mload(896))))
           let market_state_0 := sload(market_state_ptr)
           let market_state_1 := sload(add(market_state_ptr, 1))
           let market_state_2 := sload(add(market_state_ptr, 2))
           {
-            let current_limit_version := and(div(update_limit_2, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
-            if iszero(gt(mload(sub(msize, 96)), current_limit_version)) {
+            let current_limit_version := and(div(market_state_2, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
+            if iszero(gt(mload(928), current_limit_version)) {
               mstore(32, 7)
               revert(63, 1)
             }
@@ -1393,7 +1399,7 @@ contract DCN {
             if and(current_shift, 0x800000000000000000000000) {
               current_shift := or(current_shift, 0xffffffffffffffffffffffffffffffffffffffff000000000000000000000000)
             }
-            let new_shift := mload(sub(msize, 64))
+            let new_shift := mload(960)
             quote_qty := add(quote_qty, sub(new_shift, current_shift))
             if or(slt(quote_qty, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF8000000000000000), sgt(quote_qty, 0x7FFFFFFFFFFFFFFF)) {
               mstore(32, 8)
@@ -1405,7 +1411,7 @@ contract DCN {
             if and(current_shift, 0x800000000000000000000000) {
               current_shift := or(current_shift, 0xffffffffffffffffffffffffffffffffffffffff000000000000000000000000)
             }
-            let new_shift := mload(sub(msize, 32))
+            let new_shift := mload(992)
             base_qty := add(quote_qty, sub(new_shift, current_shift))
             if or(slt(base_qty, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF8000000000000000), sgt(base_qty, 0x7FFFFFFFFFFFFFFF)) {
               mstore(32, 9)
