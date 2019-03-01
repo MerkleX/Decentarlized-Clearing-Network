@@ -14,6 +14,8 @@ import java.math.BigInteger;
 
 import static com.greghaskins.spectrum.Spectrum.beforeAll;
 import static com.greghaskins.spectrum.Spectrum.it;
+import static io.merklex.dcn.utils.AssertHelpers.assertRevert;
+import static io.merklex.dcn.utils.AssertHelpers.assertSuccess;
 import static org.junit.Assert.*;
 
 @RunWith(Spectrum.class)
@@ -45,71 +47,40 @@ public class CreatorTests {
         });
 
         it("only creator should be able to add exchange", () -> {
-            EthSendTransaction tx = account20.sendCall(query.contractAddress,
-                    DCN.add_exchange("12345678901", account10.getAddress()));
+            assertRevert("0x01", account20.sendCall(query.contractAddress,
+                    DCN.add_exchange("12345678901", account10.getAddress())));
 
-            assertTrue(tx.hasError());
-            assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-            assertEquals("0x0", account20.waitForResult(tx).getStatus());
-
-            tx = account10.sendCall(query.contractAddress,
-                    DCN.add_exchange("12345678901", account20.getAddress()));
-
-            assertFalse(tx.hasError());
-            assertEquals("0x1", account20.waitForResult(tx).getStatus());
+            assertSuccess(account10.sendCall(query.contractAddress,
+                    DCN.add_exchange("12345678901", account20.getAddress())));
         });
 
         it("only creator not be able to add asset", () -> {
-            EthSendTransaction tx = account20.sendCall(query.contractAddress,
-                    DCN.add_asset("1234", 1, account10.getAddress()));
+            assertRevert("0x01", account20.sendCall(query.contractAddress,
+                    DCN.add_asset("1234", 1, account10.getAddress())));
 
-            assertTrue(tx.hasError());
-            assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-            assertEquals("0x0", account20.waitForResult(tx).getStatus());
-
-            tx = account10.sendCall(query.contractAddress,
-                    DCN.add_asset("1234", 1, account10.getAddress()));
-
-            assertFalse(tx.hasError());
-            assertEquals("0x1", account20.waitForResult(tx).getStatus());
+            assertSuccess(account10.sendCall(query.contractAddress,
+                    DCN.add_asset("1234", 1, account10.getAddress())));
         });
 
         it("only creator should be able to update address", () -> {
-            EthSendTransaction tx = account20.sendCall(query.contractAddress,
-                    DCN.creator_update(account20.getAddress()));
+            assertRevert("0x01", account20.sendCall(query.contractAddress,
+                    DCN.creator_update(account20.getAddress())));
 
-            assertTrue(tx.hasError());
-            assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-            assertEquals("0x0", account20.waitForResult(tx).getStatus());
-
-            tx = account10.sendCall(query.contractAddress,
-                    DCN.creator_update(account20.getAddress()));
-
-            assertFalse(tx.hasError());
-            assertEquals("0x1", account10.waitForResult(tx).getStatus());
-
+            assertSuccess(account10.sendCall(query.contractAddress,
+                    DCN.creator_update(account20.getAddress())));
 
             DCN.GetCreatorReturnValue creator = query.query(DCN::query_get_creator, DCN.get_creator());
-
             assertEquals(account20.getAddress(), creator.dcn_creator);
             assertEquals(account10.getAddress(), creator.dcn_creator_recovery);
             assertEquals("0x0000000000000000000000000000000000000000", creator.dcn_creator_recovery_proposed);
         });
 
         it("only recover code should be able to update address", () -> {
-            EthSendTransaction tx = account20.sendCall(query.contractAddress,
-                    DCN.creator_update(account30.getAddress()));
+            assertRevert("0x01", account20.sendCall(query.contractAddress,
+                    DCN.creator_update(account30.getAddress())));
 
-            assertTrue(tx.hasError());
-            assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-            assertEquals("0x0", account20.waitForResult(tx).getStatus());
-
-            tx = account10.sendCall(query.contractAddress,
-                    DCN.creator_update(account30.getAddress()));
-
-            assertFalse(tx.hasError());
-            assertEquals("0x1", account10.waitForResult(tx).getStatus());
-
+            assertSuccess(account10.sendCall(query.contractAddress,
+                    DCN.creator_update(account30.getAddress())));
 
             DCN.GetCreatorReturnValue creator = query.query(DCN::query_get_creator, DCN.get_creator());
             assertEquals(account30.getAddress(), creator.dcn_creator);
@@ -118,19 +89,11 @@ public class CreatorTests {
         });
 
         it("only recovery should be able to propose recovery update", () -> {
-            EthSendTransaction tx = account30.sendCall(query.contractAddress,
-                    DCN.creator_propose_recovery(account20.getAddress()));
+            assertRevert("0x01", account30.sendCall(query.contractAddress,
+                    DCN.creator_propose_recovery(account20.getAddress())));
 
-            assertTrue(tx.hasError());
-            assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-            assertEquals("0x0", account20.waitForResult(tx).getStatus());
-
-
-            tx = account10.sendCall(query.contractAddress,
-                    DCN.creator_propose_recovery(account20.getAddress()));
-
-            assertFalse(tx.hasError());
-            assertEquals("0x1", account10.waitForResult(tx).getStatus());
+            assertSuccess(account10.sendCall(query.contractAddress,
+                    DCN.creator_propose_recovery(account20.getAddress())));
 
             DCN.GetCreatorReturnValue creator = query.query(DCN::query_get_creator, DCN.get_creator());
             assertEquals(account30.getAddress(), creator.dcn_creator);
@@ -139,22 +102,14 @@ public class CreatorTests {
         });
 
         it("only proposed should be able to update recovery", () -> {
-            EthSendTransaction tx = account30.sendCall(query.contractAddress,
-                    DCN.creator_update_recovery());
-            assertTrue(tx.hasError());
-            assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-            assertEquals("0x0", account20.waitForResult(tx).getStatus());
+            assertRevert("0x01", account30.sendCall(query.contractAddress,
+                    DCN.creator_update_recovery()));
 
-            tx = account10.sendCall(query.contractAddress,
-                    DCN.creator_update_recovery());
-            assertTrue(tx.hasError());
-            assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-            assertEquals("0x0", account20.waitForResult(tx).getStatus());
+            assertRevert("0x01", account10.sendCall(query.contractAddress,
+                    DCN.creator_update_recovery()));
 
-            tx = account20.sendCall(query.contractAddress,
-                    DCN.creator_update_recovery());
-            assertFalse(tx.hasError());
-            assertEquals("0x1", account20.waitForResult(tx).getStatus());
+            assertSuccess(account20.sendCall(query.contractAddress,
+                    DCN.creator_update_recovery()));
 
             DCN.GetCreatorReturnValue creator = query.query(DCN::query_get_creator, DCN.get_creator());
             assertEquals(account30.getAddress(), creator.dcn_creator);
@@ -163,44 +118,27 @@ public class CreatorTests {
         });
 
         it("only creator should be able to security lock", () -> {
-            EthSendTransaction tx = account20.sendCall(query.contractAddress,
-                    DCN.security_lock(BigInteger.valueOf(5)));
-            assertTrue(tx.hasError());
-            assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-            assertEquals("0x0", account20.waitForResult(tx).getStatus());
+            assertRevert("0x01", account20.sendCall(query.contractAddress,
+                    DCN.security_lock(BigInteger.valueOf(5))));
 
-            tx = account30.sendCall(query.contractAddress,
-                    DCN.security_lock(BigInteger.valueOf(5)));
-            assertFalse(tx.hasError());
-            assertEquals("0x1", account20.waitForResult(tx).getStatus());
+            assertSuccess(account30.sendCall(query.contractAddress,
+                    DCN.security_lock(BigInteger.valueOf(5))));
         });
 
         it("only creator should be able to propose security", () -> {
-            EthSendTransaction tx = account20.sendCall(query.contractAddress,
-                    DCN.security_propose(BigInteger.valueOf(4)));
-            assertTrue(tx.hasError());
-            assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-            assertEquals("0x0", account20.waitForResult(tx).getStatus());
+            assertRevert("0x01", account20.sendCall(query.contractAddress,
+                    DCN.security_propose(BigInteger.valueOf(4))));
 
-            tx = account30.sendCall(query.contractAddress,
-                    DCN.security_propose(BigInteger.valueOf(4)));
-
-            assertFalse(tx.hasError());
-            assertEquals("0x1", account20.waitForResult(tx).getStatus());
+            assertSuccess(account30.sendCall(query.contractAddress,
+                    DCN.security_propose(BigInteger.valueOf(4))));
         });
 
         it("only creator should be able to set proposed security", () -> {
-            EthSendTransaction tx = account20.sendCall(query.contractAddress,
-                    DCN.security_set_proposed());
-            assertTrue(tx.hasError());
-            assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-            assertEquals("0x0", account20.waitForResult(tx).getStatus());
+            assertRevert("0x01", account20.sendCall(query.contractAddress,
+                    DCN.security_set_proposed()));
 
-            tx = account30.sendCall(query.contractAddress,
-                    DCN.security_set_proposed());
-            assertTrue(tx.hasError());
-            assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
-            assertEquals("0x0", account20.waitForResult(tx).getStatus());
+            assertRevert("0x02", account30.sendCall(query.contractAddress,
+                    DCN.security_set_proposed()));
         });
     }
 }

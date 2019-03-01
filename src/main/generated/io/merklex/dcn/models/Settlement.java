@@ -21,17 +21,15 @@ public class Settlement {
         public int messageMemoryOffset() {
             return offset;
         }
-        public static final int USER_ADDRESS_OFFSET = 0;
-        public static final int USER_ADDRESS_COUNT = 20;
-        public static final int USER_ADDRESS_LENGTH = 20;
-        public static final int USER_ADDRESS_ITEM_LENGTH = 1;
-        public static final int QUOTE_DELTA_OFFSET = 20;
+        public static final int USER_ID_OFFSET = 0;
+        public static final int USER_ID_LENGTH = 8;
+        public static final int QUOTE_DELTA_OFFSET = 8;
         public static final int QUOTE_DELTA_LENGTH = 8;
-        public static final int BASE_DELTA_OFFSET = 28;
+        public static final int BASE_DELTA_OFFSET = 16;
         public static final int BASE_DELTA_LENGTH = 8;
-        public static final int FEES_OFFSET = 36;
+        public static final int FEES_OFFSET = 24;
         public static final int FEES_LENGTH = 8;
-        public static final int BYTES = 44;
+        public static final int BYTES = 32;
         public SettlementData wrap(MutableDirectBuffer buffer, int offset) {
             this.buffer = buffer;
             this.offset = offset;
@@ -43,29 +41,11 @@ public class Settlement {
         public void writeTo(MutableDirectBuffer buffer, int offset) {
             buffer.putBytes(offset, this.buffer, this.offset, BYTES);
         }
-        public SettlementData userAddress(int pos, byte value) {
-            assert(pos >= 0 && pos < USER_ADDRESS_COUNT);
-            buffer.putByte(this.offset + USER_ADDRESS_OFFSET + USER_ADDRESS_ITEM_LENGTH * pos, value);
-            return this;
+        public long userId() {
+            return this.buffer.getLong(this.offset + USER_ID_OFFSET, ByteOrder.BIG_ENDIAN);
         }
-        public byte userAddress(int pos) {
-            assert(pos >= 0 && pos < USER_ADDRESS_COUNT);
-            return buffer.getByte(this.offset + USER_ADDRESS_OFFSET + USER_ADDRESS_ITEM_LENGTH * pos);
-        }
-        public SettlementData getUserAddress(byte[] value, int pos) {
-            buffer.getBytes(this.offset + USER_ADDRESS_OFFSET, value, pos, 20);
-            return this;
-        }
-        public SettlementData getUserAddress(byte[] value) {
-            buffer.getBytes(this.offset + USER_ADDRESS_OFFSET, value, 0, 20);
-            return this;
-        }
-        public SettlementData setUserAddress(byte[] value, int pos) {
-            buffer.putBytes(this.offset + USER_ADDRESS_OFFSET, value, pos, 20);
-            return this;
-        }
-        public SettlementData setUserAddress(byte[] value) {
-            buffer.putBytes(this.offset + USER_ADDRESS_OFFSET, value, 0, 20);
+        public SettlementData userId(long value) {
+            this.buffer.putLong(this.offset + USER_ID_OFFSET, value, ByteOrder.BIG_ENDIAN);
             return this;
         }
         public long quoteDelta() {
@@ -92,15 +72,8 @@ public class Settlement {
         public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append("SettlementData { ");
-            sb.append("user_address: ");
-            sb.append("[").append(userAddress(0)).append(", ").append(userAddress(1)).append(", ").append(userAddress(2)).append(", ")
-                    .append(userAddress(3)).append(", ").append(userAddress(4)).append(", ").append(userAddress(5)).append(", ")
-                    .append(userAddress(6)).append(", ").append(userAddress(7)).append(", ").append(userAddress(8)).append(", ")
-                    .append(userAddress(9)).append(", ").append(userAddress(10)).append(", ").append(userAddress(11)).append(", ")
-                    .append(userAddress(12)).append(", ").append(userAddress(13)).append(", ").append(userAddress(14)).append(", ")
-                    .append(userAddress(15)).append(", ").append(userAddress(16)).append(", ").append(userAddress(17)).append(", ")
-                    .append(userAddress(18)).append(", ").append(userAddress(19))
-                    .append("]");
+            sb.append("user_id: ");
+            sb.append(Long.toUnsignedString(userId()));
             sb.append(", quote_delta: ");
             sb.append(quoteDelta());
             sb.append(", base_delta: ");
@@ -167,11 +140,13 @@ public class Settlement {
         public int messageMemoryOffset() {
             return offset;
         }
-        public static final int BASE_ASSET_ID_OFFSET = 0;
+        public static final int QUOTE_ASSET_ID_OFFSET = 0;
+        public static final int QUOTE_ASSET_ID_LENGTH = 4;
+        public static final int BASE_ASSET_ID_OFFSET = 4;
         public static final int BASE_ASSET_ID_LENGTH = 4;
-        public static final int USER_COUNT_OFFSET = 4;
+        public static final int USER_COUNT_OFFSET = 8;
         public static final int USER_COUNT_LENGTH = 1;
-        public static final int BYTES = 5;
+        public static final int BYTES = 9;
         public GroupHeader wrap(MutableDirectBuffer buffer, int offset) {
             this.buffer = buffer;
             this.offset = offset;
@@ -182,6 +157,13 @@ public class Settlement {
         }
         public void writeTo(MutableDirectBuffer buffer, int offset) {
             buffer.putBytes(offset, this.buffer, this.offset, BYTES);
+        }
+        public int quoteAssetId() {
+            return this.buffer.getInt(this.offset + QUOTE_ASSET_ID_OFFSET, ByteOrder.BIG_ENDIAN);
+        }
+        public GroupHeader quoteAssetId(int value) {
+            this.buffer.putInt(this.offset + QUOTE_ASSET_ID_OFFSET, value, ByteOrder.BIG_ENDIAN);
+            return this;
         }
         public int baseAssetId() {
             return this.buffer.getInt(this.offset + BASE_ASSET_ID_OFFSET, ByteOrder.BIG_ENDIAN);
@@ -200,7 +182,9 @@ public class Settlement {
         public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append("GroupHeader { ");
-            sb.append("base_asset_id: ");
+            sb.append("quote_asset_id: ");
+            sb.append(Integer.toUnsignedString(quoteAssetId()));
+            sb.append(", base_asset_id: ");
             sb.append(Integer.toUnsignedString(baseAssetId()));
             sb.append(", user_count: ");
             sb.append(Byte.toUnsignedInt(userCount()));

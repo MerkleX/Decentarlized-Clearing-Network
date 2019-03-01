@@ -20,8 +20,8 @@
 //import java.util.List;
 //
 //import static com.greghaskins.spectrum.dsl.specification.Specification.*;
-//import static io.merklex.dcn.utils.BetterAssert.assertEquivalent;
-//import static io.merklex.dcn.utils.BetterAssert.assertNotEquals;
+//import static io.merklex.dcn.utils.AssertHelpers.assertEquivalent;
+//import static io.merklex.dcn.utils.AssertHelpers.assertNotEquals;
 //
 //@RunWith(Spectrum.class)
 //public class UserSessionTests {

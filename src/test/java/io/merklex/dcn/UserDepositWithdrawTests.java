@@ -5,17 +5,17 @@ import io.merklex.dcn.contracts.DCN;
 import io.merklex.dcn.contracts.ERC20;
 import io.merklex.dcn.utils.Accounts;
 import io.merklex.dcn.utils.Box;
-import io.merklex.dcn.utils.RevertCodeExtractor;
 import io.merklex.dcn.utils.StaticNetwork;
 import io.merklex.web3.EtherTransactions;
 import io.merklex.web3.QueryHelper;
 import org.junit.runner.RunWith;
-import org.web3j.protocol.core.methods.response.EthSendTransaction;
 
 import java.math.BigInteger;
 
 import static com.greghaskins.spectrum.dsl.specification.Specification.*;
-import static org.junit.Assert.*;
+import static io.merklex.dcn.utils.AssertHelpers.assertRevert;
+import static io.merklex.dcn.utils.AssertHelpers.assertSuccess;
+import static org.junit.Assert.assertEquals;
 
 @RunWith(Spectrum.class)
 public class UserDepositWithdrawTests {
@@ -63,22 +63,16 @@ public class UserDepositWithdrawTests {
 
 
         it("should fail without allowance", () -> {
-            EthSendTransaction tx = bob.sendCall(StaticNetwork.DCN(),
-                    DCN.user_deposit(userId, assetId, deposit));
-
-            assertTrue(tx.hasError());
-            assertEquals("0x03", RevertCodeExtractor.Get(tx.getError()));
+            assertRevert("0x03", bob.sendCall(StaticNetwork.DCN(),
+                    DCN.user_deposit(userId, assetId, deposit)));
         });
 
         it("should be able to deposit with allowance", () -> {
-            EthSendTransaction tx = bob.sendCall(token.value, ERC20.approve(StaticNetwork.DCN(), deposit.multiply(BigInteger.TEN)));
-            assertFalse(tx.hasError());
-            assertEquals("0x1", bob.waitForResult(tx).getStatus());
+            assertSuccess(bob.sendCall(token.value,
+                    ERC20.approve(StaticNetwork.DCN(), deposit.multiply(BigInteger.TEN))));
 
-            tx = bob.sendCall(StaticNetwork.DCN(),
-                    DCN.user_deposit(userId, assetId, deposit));
-            assertFalse(tx.hasError());
-            assertEquals("0x1", bob.waitForResult(tx).getStatus());
+            assertSuccess(bob.sendCall(StaticNetwork.DCN(),
+                    DCN.user_deposit(userId, assetId, deposit)));
 
             ERC20.BalanceofReturnValue walletBalance;
 
@@ -93,14 +87,11 @@ public class UserDepositWithdrawTests {
         });
 
         it("other user should be able to deposit to user", () -> {
-            EthSendTransaction tx = tokenOwner.sendCall(token.value, ERC20.approve(StaticNetwork.DCN(), deposit.multiply(BigInteger.TEN)));
-            assertFalse(tx.hasError());
-            assertEquals("0x1", tokenOwner.waitForResult(tx).getStatus());
+            assertSuccess(tokenOwner.sendCall(token.value,
+                    ERC20.approve(StaticNetwork.DCN(), deposit.multiply(BigInteger.TEN))));
 
-            tx = tokenOwner.sendCall(StaticNetwork.DCN(),
-                    DCN.user_deposit(userId, assetId, deposit));
-            assertFalse(tx.hasError());
-            assertEquals("0x1", tokenOwner.waitForResult(tx).getStatus());
+            assertSuccess(tokenOwner.sendCall(StaticNetwork.DCN(),
+                    DCN.user_deposit(userId, assetId, deposit)));
 
             ERC20.BalanceofReturnValue walletBalance;
 
@@ -115,18 +106,13 @@ public class UserDepositWithdrawTests {
         });
 
         it("user should not be able to withdraw more than balance", () -> {
-            EthSendTransaction tx = bob.sendCall(StaticNetwork.DCN(),
-                    DCN.user_withdraw(userId, assetId, bob.getAddress(), deposit.multiply(BigInteger.valueOf(3))));
-            assertTrue(tx.hasError());
-            assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
-            assertEquals("0x0", bob.waitForResult(tx).getStatus());
+            assertRevert("0x02", bob.sendCall(StaticNetwork.DCN(),
+                    DCN.user_withdraw(userId, assetId, bob.getAddress(), deposit.multiply(BigInteger.valueOf(3)))));
         });
 
         it("should be able to withdraw", () -> {
-            EthSendTransaction tx = bob.sendCall(StaticNetwork.DCN(),
-                    DCN.user_withdraw(userId, assetId, bob.getAddress(), deposit));
-            assertFalse(tx.hasError());
-            assertEquals("0x1", bob.waitForResult(tx).getStatus());
+            assertSuccess(bob.sendCall(StaticNetwork.DCN(),
+                    DCN.user_withdraw(userId, assetId, bob.getAddress(), deposit)));
 
             ERC20.BalanceofReturnValue walletBalance;
 
@@ -142,30 +128,19 @@ public class UserDepositWithdrawTests {
 
         describe("only should be able to withdraw using withdraw address", () -> {
             it("should fail from other user", () -> {
-                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(),
-                        DCN.user_withdraw(userId, assetId, bob.getAddress(), deposit));
-                assertTrue(tx.hasError());
-                assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-                assertEquals("0x0", bob.waitForResult(tx).getStatus());
+                assertRevert("0x01", creator.sendCall(StaticNetwork.DCN(),
+                        DCN.user_withdraw(userId, assetId, bob.getAddress(), deposit)));
             });
 
-
             it("should fail from user's trade_address and word with withdraw", () -> {
-                EthSendTransaction tx = bob.sendCall(StaticNetwork.DCN(),
-                        DCN.user_withdraw_address_update(userId, bobBackup.getAddress()));
-                assertFalse(tx.hasError());
-                assertEquals("0x1", bob.waitForResult(tx).getStatus());
+                assertSuccess(bob.sendCall(StaticNetwork.DCN(),
+                        DCN.user_withdraw_address_update(userId, bobBackup.getAddress())));
 
-                tx = bob.sendCall(StaticNetwork.DCN(),
-                        DCN.user_withdraw(userId, assetId, bob.getAddress(), deposit));
-                assertTrue(tx.hasError());
-                assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
-                assertEquals("0x0", bob.waitForResult(tx).getStatus());
+                assertRevert("0x01", bob.sendCall(StaticNetwork.DCN(),
+                        DCN.user_withdraw(userId, assetId, bob.getAddress(), deposit)));
 
-                tx = bobBackup.sendCall(StaticNetwork.DCN(),
-                        DCN.user_withdraw(userId, assetId, tokenOwner.getAddress(), deposit));
-                assertFalse(tx.hasError());
-                assertEquals("0x1", bob.waitForResult(tx).getStatus());
+                assertSuccess(bobBackup.sendCall(StaticNetwork.DCN(),
+                        DCN.user_withdraw(userId, assetId, tokenOwner.getAddress(), deposit)));
 
                 ERC20.BalanceofReturnValue walletBalance;
 

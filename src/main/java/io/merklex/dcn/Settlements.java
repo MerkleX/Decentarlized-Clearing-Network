@@ -70,37 +70,18 @@ public class Settlements extends Settlement.GroupsHeader {
 
     public static class SettlementData extends Settlement.SettlementData {
         @Override
-        public SettlementData clearToZeros() {
-            return (SettlementData) super.clearToZeros();
-        }
-
-        @Override
         public SettlementData wrap(MutableDirectBuffer buffer, int offset) {
             return (SettlementData) super.wrap(buffer, offset);
         }
 
         @Override
-        public SettlementData userAddress(int pos, byte value) {
-            return (SettlementData) super.userAddress(pos, value);
+        public SettlementData clearToZeros() {
+            return (SettlementData) super.clearToZeros();
         }
 
         @Override
-        public SettlementData getUserAddress(byte[] value, int pos) {
-            return (SettlementData) super.getUserAddress(value, pos);
-        }
-
-        @Override
-        public SettlementData setUserAddress(byte[] value, int pos) {
-            return (SettlementData) super.setUserAddress(value, pos);
-        }
-
-        @Override
-        public SettlementData setUserAddress(byte[] value) {
-            return (SettlementData) super.setUserAddress(value);
-        }
-        
-        public SettlementData setUserAddress(String value) {
-            return (SettlementData) super.setUserAddress(Numeric.hexStringToByteArray(value));
+        public SettlementData userId(long value) {
+            return (SettlementData) super.userId(value);
         }
 
         @Override

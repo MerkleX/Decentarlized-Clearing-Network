@@ -291,7 +291,7 @@ contract DCN {
   #define FEATURE_DEPOSIT 0x8
   #define FEATURE_TRANSFER_TO_SESSION 0x10
   #define FEATURE_DEPOSIT_ASSET_TO_SESSION 0x20
-  #define FEATURE_EXCHANGE_TRANSFER_FROM_LOCKED 0x40
+  #define FEATURE_EXCHANGE_TRANSFER_FROM 0x40
   #define FEATURE_EXCHANGE_SET_LIMITS 0x80
   #define FEATURE_APPLY_SETTLEMENT_GROUPS 0x100
   #define FEATURE_EXCHANGE_UPDATE_OWNER 0x200
@@ -1355,9 +1355,9 @@ contract DCN {
       REVERT(REVERT_1) \
     }
 
-  function exchange_transfer_from_locked(bytes memory data) public {
+  function exchange_transfer_from(bytes memory data) public {
     assembly {
-      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_TRANSFER_FROM_LOCKED, 0)
+      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_TRANSFER_FROM, 0)
 
       let data_len := mload(data)
       let cursor := add(data, WORD_1)

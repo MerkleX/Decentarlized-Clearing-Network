@@ -7,11 +7,12 @@ import io.merklex.dcn.utils.StaticNetwork;
 import io.merklex.web3.EtherTransactions;
 import io.merklex.web3.QueryHelper;
 import org.junit.runner.RunWith;
-import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import static com.greghaskins.spectrum.Spectrum.it;
-import static org.junit.Assert.*;
+import static io.merklex.dcn.utils.AssertHelpers.assertSuccess;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 @RunWith(Spectrum.class)
 public class UserManagementTests {
@@ -25,11 +26,7 @@ public class UserManagementTests {
         QueryHelper query = new QueryHelper(StaticNetwork.DCN(), StaticNetwork.Web3());
 
         it("should be able to create user", () -> {
-            EthSendTransaction tx = user1.sendCall(StaticNetwork.DCN(), DCN.user_create());
-            assertFalse(tx.hasError());
-
-            TransactionReceipt result = user1.waitForResult(tx);
-            assertEquals("0x1", result.getStatus());
+            TransactionReceipt result = assertSuccess(user1.sendCall(StaticNetwork.DCN(), DCN.user_create()));
 
             assertEquals(1, result.getLogs().size());
             DCN.UserCreated userCreated = DCN.ExtractUserCreated(result.getLogs().get(0));
