@@ -33,6 +33,8 @@ public class SessionTransferTests {
 
         BigInteger totalSupply = BigInteger.valueOf(100000000_0000000000L);
         BigInteger bobDCNBalance = BigInteger.valueOf(10000_0000000000L);
+        long exchangeDepositAmount = 100;
+        BigInteger exchangeDepositScaled = BigInteger.valueOf(100_0000000000L);
 
         QueryHelper query = new QueryHelper(StaticNetwork.DCN(), StaticNetwork.Web3());
 
@@ -64,7 +66,11 @@ public class SessionTransferTests {
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
                     DCN.add_exchange("12345678901", creator.getAddress())));
             assertSuccess(bob.sendCall(StaticNetwork.DCN(),
-                    DCN.exchange_deposit(exchangeId, assetId, 100)));
+                    DCN.exchange_deposit(exchangeId, assetId, exchangeDepositAmount)));
+
+            ERC20.BalanceofReturnValue userBalance = ERC20.query_balanceOf(token.value, StaticNetwork.Web3(),
+                    ERC20.balanceOf(bob.getAddress()));
+            assertEquals(totalSupply.subtract(bobDCNBalance).subtract(exchangeDepositScaled), userBalance.balance);
         });
 
         it("should not be able to transfer more than balance", () -> {
@@ -221,6 +227,45 @@ public class SessionTransferTests {
                         DCN.get_balance(userId, assetId));
                 assertEquals(bobDCNBalance, userBalance.return_balance);
             });
+        });
+
+        it("should not be able to transfer from if session is locked", () -> {
+            assertSuccess(bobBackup.sendCall(StaticNetwork.DCN(),
+                    DCN.transfer_to_session(userId, exchangeId, assetId, transferAmount)));
+
+            BigInteger unlockAt = BigInteger.valueOf(System.currentTimeMillis() / 1000 + 30000);
+            assertSuccess(bob.sendCall(StaticNetwork.DCN(),
+                    DCN.user_set_session_unlock_at(userId, exchangeId, unlockAt)));
+
+            assertRevert("0x04", bob.sendCall(StaticNetwork.DCN(),
+                    DCN.transfer_from_session(userId, exchangeId, assetId, transferAmount)));
+        });
+
+        it("should be able deposit directly to session", () -> {
+            TransactionReceipt tx = assertSuccess(bob.sendCall(StaticNetwork.DCN(),
+                    DCN.user_deposit_to_session(userId, exchangeId, assetId, transferAmount)));
+
+            assertEquals(2, tx.getLogs().size());
+            DCN.ExchangeDeposit exchangeDeposit = DCN.ExtractExchangeDeposit(tx.getLogs().get(1));
+            assertNotNull(exchangeDeposit);
+            assertEquals(userId, exchangeDeposit.user_id);
+            assertEquals(exchangeId, exchangeDeposit.exchange_id);
+            assertEquals(assetId, exchangeDeposit.asset_id);
+
+            DCN.GetSessionBalanceReturnValue sessionBalance = query.query(DCN::query_get_session_balance,
+                    DCN.get_session_balance(userId, exchangeId, assetId));
+            assertEquals(bigTransfer.multiply(BigInteger.valueOf(7)), sessionBalance.total_deposit);
+            assertEquals(transferAmount * 2, sessionBalance.unsettled_withdraw_total);
+            assertEquals(transferAmount * 4, sessionBalance.asset_balance);
+
+            ERC20.BalanceofReturnValue userBalance = ERC20.query_balanceOf(token.value, StaticNetwork.Web3(),
+                    ERC20.balanceOf(bob.getAddress()));
+            assertEquals(totalSupply
+                    .subtract(bobDCNBalance)
+                    .subtract(exchangeDepositScaled)
+                    .subtract(scaledTransfer),
+                    userBalance.balance
+            );
         });
     }
 }

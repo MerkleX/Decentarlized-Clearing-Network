@@ -1281,7 +1281,7 @@ contract DCN {
     }
   }
 
-  function deposit_asset_to_session(uint64 user_id, uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
+  function user_deposit_to_session(uint64 user_id, uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
     uint256[4] memory transfer_in_mem;
     uint256[1] memory transfer_out_mem;
     uint256[3] memory log_data_mem;
