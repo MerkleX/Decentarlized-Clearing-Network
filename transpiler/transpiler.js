@@ -321,7 +321,8 @@ module.exports = function(raw) {
           return total_size;
         }
 
-        if (node.functionName === 'build') {
+        if (node.functionName === 'build' || node.functionName === 'build_with_mask') {
+          const mask = node.functionName === 'build_with_mask';
           const args = node.arguments.map(print);
 
           const struct_type = args[0];
@@ -368,11 +369,22 @@ module.exports = function(raw) {
               continue;
             }
 
-            if (bits_remaining === 0n) {
-              parts.push(`/* ${member.name} */ ${arg}`);
+            if (mask) {
+              const arg_mask = '0x' + ((1n<<bits) - 1n).toString(16);
+              if (bits_remaining === 0n) {
+                parts.push(`/* ${member.name} */ and(${arg}, ${arg_mask})`);
+              }
+              else {
+                parts.push(`/* ${member.name} */ mul(and(${arg}, ${arg_mask}), 0x${(1n<<bits_remaining).toString(16)})`);
+              }
             }
             else {
-              parts.push(`/* ${member.name} */ mul(${arg}, 0x${(1n<<bits_remaining).toString(16)})`);
+              if (bits_remaining === 0n) {
+                parts.push(`/* ${member.name} */ ${arg}`);
+              }
+              else {
+                parts.push(`/* ${member.name} */ mul(${arg}, 0x${(1n<<bits_remaining).toString(16)})`);
+              }
             }
           }
 

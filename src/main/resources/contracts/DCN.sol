@@ -1520,10 +1520,15 @@ contract DCN {
 
   function exchange_set_limits(bytes memory data) public {
     uint256[14] memory to_hash_mem;
+
+    uint256 cursor;
+    uint256 cursor_end;
+    uint256 exchange_id;
+
     uint256[sizeof(SetLimitMemory)] memory set_limit_memory_space;
 
     #define MEM_PTR(KEY) \
-      const_add(0x320, byte_offset(SetLimitMemory, KEY))
+      add(set_limit_memory_space, byte_offset(SetLimitMemory, KEY))
 
     #define SAVE_MEM(KEY, VALUE) \
       mstore(MEM_PTR(KEY), VALUE)
@@ -1531,18 +1536,10 @@ contract DCN {
     #define LOAD_MEM(KEY) \
       mload(MEM_PTR(KEY))
 
-    uint256 cursor;
-    uint256 cursor_end;
-    uint256 exchange_id;
-
     /*
      * Ensure caller is exchange and setup cursors.
      */
     assembly {
-      if iszero(eq(set_limit_memory_space, 0x320)) {
-        REVERT(100)
-      }
-
       SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_SET_LIMITS, 0)
 
       let data_size := mload(data)
@@ -1721,7 +1718,7 @@ contract DCN {
             \
             let new_shift := LOAD(SIDE##_shift) \
             \
-            SIDE##_qty := add(quote_qty, sub(new_shift, current_shift)) \
+            SIDE##_qty := add(SIDE##_qty, sub(new_shift, current_shift)) \
             if INVALID_I64(SIDE##_qty) { \
               REVERT(REVERT_1) \
             } \
@@ -1731,8 +1728,13 @@ contract DCN {
         APPLY_SHIFT(base, 9)
 
         let new_market_state_0 := or(
-          build(MarketState, 0, quote_qty, base_qty, /* fee_used */ 0, update_limit_0),
-          and(mask_out(MarketState, 0, quote_qty, base_qty, fee_limit), market_state_0) /* extract fee_used */
+          build_with_mask(
+            MarketState, 0,
+            /* quote_qty */ quote_qty,
+            /* base_qty */ base_qty,
+            /* fee_used */ 0,
+            /* fee_limit */ update_limit_0),
+            and(mask_out(MarketState, 0, quote_qty, base_qty, fee_limit), market_state_0) /* extract fee_used */
         )
 
         sstore(market_state_ptr, new_market_state_0)

@@ -87,8 +87,6 @@ public class UpdateLimits {
                 throw new IllegalArgumentException("Wrong version number must be 0, 1, 27, or 28");
             }
 
-            System.out.println("Sig R: " + Numeric.toHexString(sig.getR()));
-
             super.setSigR(sig.getR());
             super.setSigS(sig.getS());
             super.sigV(v);
@@ -151,6 +149,19 @@ public class UpdateLimits {
             return (LimitUpdate) super.limitVersion(value);
         }
 
+        public LimitUpdate quoteShift(BigInteger value) {
+            int majorValue = value.shiftRight(64).intValue();
+            long minorValue = value.longValue();
+
+            if (!value.equals(BigInteger.valueOf(majorValue).shiftLeft(64).or(BigInteger.valueOf(minorValue)))) {
+                throw new IllegalStateException();
+            }
+
+            quoteShiftMajor(majorValue);
+            quoteShift(minorValue);
+            return this;
+        }
+
         @Override
         public LimitUpdate quoteShiftMajor(int value) {
             return (LimitUpdate) super.quoteShiftMajor(value);
@@ -163,7 +174,20 @@ public class UpdateLimits {
 
         public BigInteger quoteShiftBig() {
             return BigInteger.valueOf(super.quoteShiftMajor()).shiftLeft(64)
-                    .add(BigInteger.valueOf(quoteShift()));
+                    .or(BigInteger.valueOf(quoteShift()));
+        }
+
+        public LimitUpdate baseShift(BigInteger value) {
+            int majorValue = value.shiftRight(64).intValue();
+            long minorValue = value.longValue();
+
+            if (value.compareTo(BigInteger.valueOf(majorValue).shiftLeft(64).or(BigInteger.valueOf(minorValue))) != 0) {
+                throw new IllegalStateException();
+            }
+
+            baseShiftMajor(majorValue);
+            baseShift(minorValue);
+            return this;
         }
 
         @Override
@@ -177,8 +201,8 @@ public class UpdateLimits {
         }
 
         public BigInteger baseShiftBig() {
-            return BigInteger.valueOf(super.baseShiftMajor()).shiftLeft(64)
-                    .add(BigInteger.valueOf(baseShift()));
+            return BigInteger.valueOf(baseShiftMajor()).shiftLeft(64)
+                    .or(BigInteger.valueOf(baseShift()));
         }
 
         public byte[] hash() {

@@ -27,6 +27,22 @@ public class Settlements extends Settlement.GroupsHeader {
         );
     }
 
+    public int bytes(int groups, Group group) {
+        int settlements = 0;
+        firstGroup(group);
+
+        for (int i = 0; i < groups; i++) {
+            settlements += group.userCount();
+            group.nextGroup(group);
+        }
+
+        return bytes(groups, settlements);
+    }
+
+    public int bytes(int groups, int settlements) {
+        return BYTES + Group.BYTES * groups + SettlementData.BYTES * settlements;
+    }
+
     public static class Group extends Settlement.GroupHeader {
         @Override
         public Group clearToZeros() {
@@ -36,6 +52,11 @@ public class Settlements extends Settlement.GroupsHeader {
         @Override
         public Group wrap(MutableDirectBuffer buffer, int offset) {
             return (Group) super.wrap(buffer, offset);
+        }
+
+        @Override
+        public Group quoteAssetId(int value) {
+            return (Group) super.quoteAssetId(value);
         }
 
         @Override
@@ -56,11 +77,19 @@ public class Settlements extends Settlement.GroupsHeader {
             return (Group) super.userCount((byte) value);
         }
 
+        public SettlementData firstSettlement(SettlementData settlement) {
+            return settlement(settlement, 0);
+        }
+
         public SettlementData settlement(SettlementData settlement, int index) {
             return settlement.wrap(
                     this.messageMemoryBuffer(),
                     this.messageMemoryOffset() + Group.BYTES + SettlementData.BYTES * index
             );
+        }
+
+        public Group nextGroup(Group group) {
+            return group.wrap(messageMemoryBuffer(), messageMemoryOffset() + BYTES);
         }
 
         public int size() {
@@ -97,6 +126,10 @@ public class Settlements extends Settlement.GroupsHeader {
         @Override
         public SettlementData fees(long value) {
             return (SettlementData) super.fees(value);
+        }
+
+        public SettlementData nextSettlement(SettlementData settlement) {
+            return settlement.wrap(messageMemoryBuffer(), messageMemoryOffset() + BYTES);
         }
     }
 }
