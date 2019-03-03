@@ -26,7 +26,6 @@ pragma solidity ^0.5.0;
 #define I64_MIN  0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF8000000000000000
 #define U256_MAX 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
-
 #define MIN_UNLOCK_AT 28800 /* 8 hours in seconds */
 #define MAX_UNLOCK_AT 1209600 /* 14 days in seconds */
 #define TWO_HOURS 7200 /* 2 hours in seconds */
@@ -1114,7 +1113,7 @@ contract DCN {
     }
   }
 
-  function user_set_session_unlock_at(uint64 user_id, uint32 exchange_id, uint256 unlock_at) public {
+  function user_session_set_unlock_at(uint64 user_id, uint32 exchange_id, uint256 unlock_at) public {
     uint256[3] memory log_data_mem;
 
     assembly {
@@ -1147,6 +1146,24 @@ contract DCN {
       sstore(pointer_attr(ExchangeSession, session_ptr, unlock_at), unlock_at)
 
       log_event(UnlockAtUpdated, log_data_mem, caller, exchange_id)
+    }
+  }
+
+  function user_session_reset(uint64 user_id, uint32 exchange_id, uint32 asset_id) public {
+    assembly {
+      VALID_EXCHANGE_ID(exchange_id, 1)
+
+      let user_ptr := USER_PTR_(user_id)
+      let trade_address := sload(attr(User, user_ptr, trade_address))
+      if iszero(eq(caller, trade_address)) {
+        REVERT(2)
+      }
+
+      let session_ptr := SESSION_PTR_(user_ptr, exchange_id)
+      let unlock_at := sload(pointer_attr(ExchangeSession, session_ptr, unlock_at))
+      if gt(unlock_at, timestamp) {
+        REVERT(3)
+      }
     }
   }
 
