@@ -29,6 +29,8 @@ public class ApplySettlementsTests {
     private static final int baseAssetId = 1;
 
     {
+        StaticNetwork.DescribeCheckpoint();
+
         EtherTransactions creator = Accounts.getTx(0);
         EtherTransactions exchange = Accounts.getTx(5);
         EtherTransactions user1 = Accounts.getTx(1);
@@ -504,6 +506,194 @@ public class ApplySettlementsTests {
                         .userId(userId2)
                         .quoteDelta(-3)
                         .baseDelta(1)
+                        .fees(0);
+
+                assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+            });
+
+            it("fee_limit", () -> {
+                exchange.reloadNonce();
+
+                updateLimits
+                        .exchangeId(exchangeId)
+                        .firstLimitUpdate(limitUpdate)
+
+                        .setValues(setDefault(userId1))
+                        .minQuoteQty(Long.MIN_VALUE)
+                        .minBaseQty(Long.MIN_VALUE)
+                        .feeLimit(100)
+                        .sign(user1.credentials(), DCNHasher.instance)
+
+                        .nextLimitUpdate(limitUpdate)
+
+                        .setValues(setDefault(userId2))
+                        .minQuoteQty(Long.MIN_VALUE)
+                        .minBaseQty(Long.MIN_VALUE)
+                        .sign(user2.credentials(), DCNHasher.instance);
+
+                assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_set_limits(updateLimits.payload(2))));
+
+                settlements
+                        .exchangeId(exchangeId)
+
+                        .firstGroup(settlementGroup)
+                        .quoteAssetId(quoteAssetId)
+                        .baseAssetId(baseAssetId)
+                        .userCount(2)
+
+                        .firstSettlement(settlementData)
+                        .userId(userId1)
+                        .quoteDelta(3)
+                        .baseDelta(-1)
+                        .fees(101)
+
+                        .nextSettlement(settlementData)
+                        .userId(userId2)
+                        .quoteDelta(-3)
+                        .baseDelta(1)
+                        .fees(0);
+
+                assertRevert("0x08", exchange.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+                settlements
+                        .exchangeId(exchangeId)
+
+                        .firstGroup(settlementGroup)
+                        .quoteAssetId(quoteAssetId)
+                        .baseAssetId(baseAssetId)
+                        .userCount(2)
+
+                        .firstSettlement(settlementData)
+                        .userId(userId1)
+                        .quoteDelta(3)
+                        .baseDelta(-1)
+                        .fees(100)
+
+                        .nextSettlement(settlementData)
+                        .userId(userId2)
+                        .quoteDelta(-3)
+                        .baseDelta(1)
+                        .fees(0);
+
+                assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+            });
+
+            it("negative position", () -> {
+                exchange.reloadNonce();
+
+                updateLimits
+                        .exchangeId(exchangeId)
+                        .firstLimitUpdate(limitUpdate)
+
+                        .setValues(setDefault(userId1))
+                        .minQuoteQty(Long.MIN_VALUE)
+                        .minBaseQty(Long.MIN_VALUE)
+                        .baseShift(BigInteger.valueOf(10).negate())
+                        .sign(user1.credentials(), DCNHasher.instance)
+
+                        .nextLimitUpdate(limitUpdate)
+
+                        .setValues(setDefault(userId2))
+                        .minQuoteQty(Long.MIN_VALUE)
+                        .minBaseQty(Long.MIN_VALUE)
+                        .baseShift(BigInteger.valueOf(200))
+                        .quoteShift(BigInteger.valueOf(200))
+                        .sign(user2.credentials(), DCNHasher.instance);
+
+                assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_set_limits(updateLimits.payload(2))));
+
+                settlements
+                        .exchangeId(exchangeId)
+
+                        .firstGroup(settlementGroup)
+                        .quoteAssetId(quoteAssetId)
+                        .baseAssetId(baseAssetId)
+                        .userCount(2)
+
+                        .firstSettlement(settlementData)
+                        .userId(userId1)
+                        .quoteDelta(-11)
+                        .baseDelta(9)
+                        .fees(0)
+
+                        .nextSettlement(settlementData)
+                        .userId(userId2)
+                        .quoteDelta(11)
+                        .baseDelta(-9)
+                        .fees(0);
+
+                assertRevert("0x0a", exchange.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+                settlements
+                        .exchangeId(exchangeId)
+
+                        .firstGroup(settlementGroup)
+                        .quoteAssetId(quoteAssetId)
+                        .baseAssetId(baseAssetId)
+                        .userCount(2)
+
+                        .firstSettlement(settlementData)
+                        .userId(userId1)
+                        .quoteDelta(-11)
+                        .baseDelta(10)
+                        .fees(0)
+
+                        .nextSettlement(settlementData)
+                        .userId(userId2)
+                        .quoteDelta(11)
+                        .baseDelta(-10)
+                        .fees(0);
+
+                assertRevert("0x0a", exchange.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+                settlements
+                        .exchangeId(exchangeId)
+
+                        .firstGroup(settlementGroup)
+                        .quoteAssetId(quoteAssetId)
+                        .baseAssetId(baseAssetId)
+                        .userCount(2)
+
+                        .firstSettlement(settlementData)
+                        .userId(userId1)
+                        .quoteDelta(0)
+                        .baseDelta(9)
+                        .fees(0)
+
+                        .nextSettlement(settlementData)
+                        .userId(userId2)
+                        .quoteDelta(0)
+                        .baseDelta(-9)
+                        .fees(0);
+
+                assertRevert("0x0a", exchange.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+                settlements
+                        .exchangeId(exchangeId)
+
+                        .firstGroup(settlementGroup)
+                        .quoteAssetId(quoteAssetId)
+                        .baseAssetId(baseAssetId)
+                        .userCount(2)
+
+                        .firstSettlement(settlementData)
+                        .userId(userId1)
+                        .quoteDelta(-11)
+                        .baseDelta(11)
+                        .fees(0)
+
+                        .nextSettlement(settlementData)
+                        .userId(userId2)
+                        .quoteDelta(11)
+                        .baseDelta(-11)
                         .fees(0);
 
                 assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
