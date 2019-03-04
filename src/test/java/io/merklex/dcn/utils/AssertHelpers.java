@@ -13,6 +13,7 @@ public class AssertHelpers {
     public static TransactionReceipt assertSuccess(EthSendTransaction tx) {
         try {
             if (tx.hasError()) {
+                System.out.println(tx.getError());
                 throw new AssertionError("Got revert: " + RevertCodeExtractor.Get(tx.getError()));
             }
             TransactionReceipt result = Accounts.getTx(0).waitForResult(tx);

@@ -9,6 +9,7 @@ import org.web3j.utils.Numeric;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.function.Consumer;
 
 public class UpdateLimits {
     public static final byte[] TYPE_HASH = KeccakHash.Hash(("LimitUpdate(" +
@@ -52,6 +53,10 @@ public class UpdateLimits {
         return update.wrap(buffer, offset + Integer.BYTES);
     }
 
+    public String payload(int limitUpdateCount) {
+        return BufferToHex.ToHex(buffer, offset, bytes(limitUpdateCount));
+    }
+
     public int bytes(int limitUpdateCount) {
         return Integer.BYTES + LimitUpdate.BYTES * limitUpdateCount;
     }
@@ -91,6 +96,11 @@ public class UpdateLimits {
             super.setSigS(sig.getS());
             super.sigV(v);
 
+            return this;
+        }
+
+        public LimitUpdate setValues(Consumer<LimitUpdate> handle) {
+            handle.accept(this);
             return this;
         }
 

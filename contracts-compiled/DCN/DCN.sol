@@ -841,7 +841,7 @@ contract DCN {
     }
   }
   
-  function user_set_session_unlock_at(uint64 user_id, uint32 exchange_id, uint256 unlock_at) public  {
+  function user_session_set_unlock_at(uint64 user_id, uint32 exchange_id, uint256 unlock_at) public  {
     
     uint256[3] memory log_data_mem;
     assembly {
@@ -878,6 +878,35 @@ contract DCN {
       mstore(log_data_mem, caller)
       mstore(add(log_data_mem, 32), exchange_id)
       log1(log_data_mem, 64, /* UnlockAtUpdated */ 0x63df31d073674141c50de7dfe71cf27c3e441a7af3004b5e0c53c90f74a0710c)
+    }
+  }
+  
+  function user_market_reset(uint64 user_id, uint32 exchange_id, uint32 quote_asset_id, uint32 base_asset_id) public  {
+    assembly {
+      {
+        let exchange_count := sload(exchange_count_slot)
+        if iszero(lt(exchange_id, exchange_count)) {
+          mstore(32, 1)
+          revert(63, 1)
+        }
+      }
+      let user_ptr := add(users_slot, mul(237684487561239756862931337222, user_id))
+      let trade_address := sload(add(user_ptr, 0))
+      if iszero(eq(caller, trade_address)) {
+        mstore(32, 2)
+        revert(63, 1)
+      }
+      let session_ptr := add(add(user_ptr, 4294967302), mul(4294967299, exchange_id))
+      let unlock_at := sload(add(session_ptr, 0))
+      if gt(unlock_at, timestamp) {
+        mstore(32, 3)
+        revert(63, 1)
+      }
+      let market_state_ptr := add(add(session_ptr, 4294967297), mul(3, add(mul(quote_asset_id, exp(2, 32)), base_asset_id)))
+      sstore(market_state_ptr, 0)
+      sstore(add(market_state_ptr, 1), 0)
+      let market_state_2_ptr := add(market_state_ptr, 2)
+      sstore(market_state_2_ptr, and(0xffffffffffffffff000000000000000000000000000000000000000000000000, sload(market_state_2_ptr)))
     }
   }
   
@@ -1083,6 +1112,62 @@ contract DCN {
       mstore(add(log_data_mem, 32), exchange_id)
       mstore(add(log_data_mem, 64), asset_id)
       log1(log_data_mem, 96, /* ExchangeDeposit */ 0x7a2923ebfa019dc20de0ae2be0c8639b07e068b143e98ed7f7a74dc4d4f5ab45)
+    }
+  }
+  struct UnsettledWithdrawHeader {
+    uint32 exchange_id;
+    uint32 asset_id;
+    uint32 user_count;
+  }
+  struct UnsettledWithdrawUser {
+    uint64 user_id;
+  }
+  
+  function recover_unsettled_withdraws(bytes memory data) public  {
+    assembly {
+      let data_len := mload(data)
+      let cursor := add(data, 32)
+      let cursor_end := add(cursor, data_len)
+      for {} lt(cursor, cursor_end) {} {
+        let unsettled_withdraw_header_0 := mload(cursor)
+        let exchange_id := and(div(unsettled_withdraw_header_0, 0x100000000000000000000000000000000000000000000000000000000), 0xffffffff)
+        let asset_id := and(div(unsettled_withdraw_header_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffff)
+        let user_count := and(div(unsettled_withdraw_header_0, 0x10000000000000000000000000000000000000000), 0xffffffff)
+        let group_end := add(cursor, add(12, mul(user_count, 8)))
+        if gt(group_end, cursor_end) {
+          mstore(32, 1)
+          revert(63, 1)
+        }
+        let exchange_balance_ptr := add(add(add(exchanges_slot, mul(4294967299, exchange_id)), 3), asset_id)
+        let exchange_balance := sload(exchange_balance_ptr)
+        let start_exchange_balance := exchange_balance
+        for {} lt(cursor, group_end) {
+          cursor := add(cursor, 8)
+        } {
+          let user_id := and(div(mload(cursor), 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
+          let session_balance_ptr := add(add(add(add(add(users_slot, mul(237684487561239756862931337222, user_id)), 4294967302), mul(4294967299, exchange_id)), 1), asset_id)
+          let session_balance_0 := sload(session_balance_ptr)
+          let asset_balance := and(session_balance_0, 0xffffffffffffffff)
+          let unsettled_balance := and(div(session_balance_0, 0x10000000000000000), 0xffffffffffffffff)
+          let to_recover := unsettled_balance
+          if gt(to_recover, asset_balance) {
+            to_recover := asset_balance
+          }
+          if to_recover {
+            exchange_balance := add(exchange_balance, to_recover)
+            asset_balance := sub(asset_balance, to_recover)
+            unsettled_balance := sub(unsettled_balance, to_recover)
+            sstore(session_balance_ptr, or(and(0xffffffffffffffffffffffffffffffff00000000000000000000000000000000, session_balance_0), or(
+              /* unsettled_withdraw_total */ mul(unsettled_balance, 0x10000000000000000), 
+              /* asset_balance */ asset_balance)))
+          }
+        }
+        if gt(start_exchange_balance, exchange_balance) {
+          mstore(32, 2)
+          revert(63, 1)
+        }
+        sstore(exchange_balance_ptr, exchange_balance)
+      }
     }
   }
   struct ExchangeTransfersHeader {
@@ -1558,7 +1643,7 @@ contract DCN {
                 min_base_qty := or(min_base_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
               }
               if or(slt(quote_qty, min_quote_qty), slt(base_qty, min_base_qty)) {
-                mstore(32, 8)
+                mstore(32, 9)
                 revert(63, 1)
               }
             }
@@ -1567,7 +1652,7 @@ contract DCN {
               switch negatives
                 case 3 {
                   if or(quote_qty, base_qty) {
-                    mstore(32, 9)
+                    mstore(32, 10)
                     revert(63, 1)
                   }
                 }
@@ -1575,7 +1660,7 @@ contract DCN {
                   let current_price := div(mul(sub(0, quote_qty), 100000000), base_qty)
                   let long_max_price := and(div(market_state_1, 0x10000000000000000), 0xffffffffffffffff)
                   if gt(current_price, long_max_price) {
-                    mstore(32, 10)
+                    mstore(32, 11)
                     revert(63, 1)
                   }
                 }
@@ -1583,7 +1668,7 @@ contract DCN {
                   let current_price := div(mul(quote_qty, 100000000), sub(0, base_qty))
                   let short_min_price := and(market_state_1, 0xffffffffffffffff)
                   if lt(current_price, short_min_price) {
-                    mstore(32, 11)
+                    mstore(32, 12)
                     revert(63, 1)
                   }
                 }
@@ -1596,13 +1681,13 @@ contract DCN {
           let quote_balance := and(quote_session_balance_0, 0xffffffffffffffff)
           quote_balance := add(quote_balance, quote_delta)
           if gt(quote_balance, 0xFFFFFFFFFFFFFFFF) {
-            mstore(32, 12)
+            mstore(32, 13)
             revert(63, 1)
           }
           let base_balance := and(base_session_balance_0, 0xffffffffffffffff)
           base_balance := add(base_balance, base_delta)
           if gt(base_balance, 0xFFFFFFFFFFFFFFFF) {
-            mstore(32, 13)
+            mstore(32, 14)
             revert(63, 1)
           }
           sstore(market_state_ptr, market_state_0)
@@ -1612,7 +1697,7 @@ contract DCN {
             /* asset_balance */ base_balance))
         }
         if or(quote_net, base_net) {
-          mstore(32, 14)
+          mstore(32, 15)
           revert(63, 1)
         }
         sstore(exchange_balance_ptr, exchange_balance)

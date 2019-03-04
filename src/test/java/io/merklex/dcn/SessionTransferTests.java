@@ -235,7 +235,7 @@ public class SessionTransferTests {
 
             BigInteger unlockAt = BigInteger.valueOf(System.currentTimeMillis() / 1000 + 30000);
             assertSuccess(bob.sendCall(StaticNetwork.DCN(),
-                    DCN.user_set_session_unlock_at(userId, exchangeId, unlockAt)));
+                    DCN.user_session_set_unlock_at(userId, exchangeId, unlockAt)));
 
             assertRevert("0x04", bob.sendCall(StaticNetwork.DCN(),
                     DCN.transfer_from_session(userId, exchangeId, assetId, transferAmount)));

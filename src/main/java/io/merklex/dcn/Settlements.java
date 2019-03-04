@@ -2,7 +2,6 @@ package io.merklex.dcn;
 
 import io.merklex.dcn.models.Settlement;
 import org.agrona.MutableDirectBuffer;
-import org.web3j.utils.Numeric;
 
 public class Settlements extends Settlement.GroupsHeader {
     @Override
@@ -25,6 +24,10 @@ public class Settlements extends Settlement.GroupsHeader {
                 this.messageMemoryBuffer(),
                 this.messageMemoryOffset() + BYTES
         );
+    }
+
+    public String payload(int groups) {
+        return BufferToHex.ToHex(messageMemoryBuffer(), messageMemoryOffset(), bytes(groups, new Group()));
     }
 
     public int bytes(int groups, Group group) {

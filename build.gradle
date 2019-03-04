@@ -33,3 +33,9 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
     testCompile group: 'com.greghaskins', name: 'spectrum', version: '1.2.0'
 }
+
+
+task code_gen(type:JavaExec) {
+    main = 'io.merklex.web3.gen.GenerateContractCode'
+    classpath = sourceSets.main.runtimeClasspath
+}

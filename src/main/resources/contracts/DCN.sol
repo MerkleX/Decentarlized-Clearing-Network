@@ -1149,12 +1149,12 @@ contract DCN {
     }
   }
 
-  function user_session_reset(uint64 user_id, uint32 exchange_id, uint32 asset_id) public {
+  function user_market_reset(uint64 user_id, uint32 exchange_id, uint32 quote_asset_id, uint32 base_asset_id) public {
     assembly {
       VALID_EXCHANGE_ID(exchange_id, 1)
 
       let user_ptr := USER_PTR_(user_id)
-      let trade_address := sload(attr(User, user_ptr, trade_address))
+      let trade_address := sload(pointer_attr(User, user_ptr, trade_address))
       if iszero(eq(caller, trade_address)) {
         REVERT(2)
       }
@@ -1164,6 +1164,18 @@ contract DCN {
       if gt(unlock_at, timestamp) {
         REVERT(3)
       }
+
+      let market_state_ptr := MARKET_STATE_PTR_(session_ptr, quote_asset_id, base_asset_id)
+
+      sstore(market_state_ptr, 0)
+      sstore(add(market_state_ptr, 1), 0)
+
+      /* keep limit_version, so mask out quote_shift & base_shift */
+      let market_state_2_ptr := add(market_state_ptr, 2)
+      sstore(market_state_2_ptr, and(
+        mask_out(MarketState, 2, quote_shift, base_shift),
+        sload(market_state_2_ptr)
+      ))
     }
   }
 
@@ -1354,6 +1366,83 @@ contract DCN {
       ))
 
       log_event(ExchangeDeposit, log_data_mem, user_id, exchange_id, asset_id)
+    }
+  }
+
+  struct UnsettledWithdrawHeader {
+    uint32 exchange_id;
+    uint32 asset_id;
+    uint32 user_count;
+  }
+
+  struct UnsettledWithdrawUser {
+    uint64 user_id;
+  }
+
+  function recover_unsettled_withdraws(bytes memory data) public {
+    assembly {
+      let data_len := mload(data)
+      let cursor := add(data, WORD_1)
+      let cursor_end := add(cursor, data_len)
+
+      for {} lt(cursor, cursor_end) {} {
+        let unsettled_withdraw_header_0 := mload(cursor)
+
+        let exchange_id := attr(UnsettledWithdrawHeader, 0, unsettled_withdraw_header_0, exchange_id)
+        let asset_id := attr(UnsettledWithdrawHeader, 0, unsettled_withdraw_header_0, asset_id)
+        let user_count := attr(UnsettledWithdrawHeader, 0, unsettled_withdraw_header_0, user_count)
+
+        let group_end := add(
+          cursor, add(
+            sizeof(UnsettledWithdrawHeader),
+            mul(user_count, sizeof(UnsettledWithdrawUser))
+        ))
+
+        if gt(group_end, cursor_end) {
+          REVERT(1)
+        }
+
+        let exchange_balance_ptr := EXCHANGE_BALANCE_PTR_(EXCHANGE_PTR_(exchange_id), asset_id)
+        let exchange_balance := sload(exchange_balance_ptr)
+        let start_exchange_balance := exchange_balance
+
+        for {} lt(cursor, group_end) { cursor := add(cursor, sizeof(UnsettledWithdrawUser)) } {
+          let user_id := attr(UnsettledWithdrawUser, 0, mload(cursor), user_id)
+
+          let session_balance_ptr := SESSION_BALANCE_PTR_(SESSION_PTR_(USER_PTR_(user_id), exchange_id), asset_id)
+          let session_balance_0 := sload(session_balance_ptr)
+
+          let asset_balance := attr(SessionBalance, 0, session_balance_0, asset_balance)
+          let unsettled_balance := attr(SessionBalance, 0, session_balance_0, unsettled_withdraw_total)
+          let to_recover := unsettled_balance
+
+          if gt(to_recover, asset_balance) {
+            to_recover := asset_balance
+          }
+
+          /* non zero */
+          if to_recover {
+            exchange_balance := add(exchange_balance, to_recover)
+            asset_balance := sub(asset_balance, to_recover)
+            unsettled_balance := sub(unsettled_balance, to_recover)
+
+            sstore(session_balance_ptr, or(
+              and(mask_out(SessionBalance, 0, unsettled_withdraw_total, asset_balance), session_balance_0),
+              build(
+                SessionBalance, 0,
+                /* total_deposit */ 0,
+                /* unsettled_withdraw_total */ unsettled_balance,
+                /* asset_balance */ asset_balance)
+            ))
+          }
+        }
+
+        if gt(start_exchange_balance, exchange_balance) {
+          REVERT(2)
+        }
+
+        sstore(exchange_balance_ptr, exchange_balance)
+      }
     }
   }
 
@@ -1901,7 +1990,7 @@ contract DCN {
               CAST_64_NEG(min_base_qty)
 
               if or(slt(quote_qty, min_quote_qty), slt(base_qty, min_base_qty)) {
-                REVERT(8)
+                REVERT(9)
               }
             }
 
@@ -1915,7 +2004,7 @@ contract DCN {
               case 3 {
                 /* if one value is non zero, it must be negative */
                 if or(quote_qty, base_qty) {
-                  REVERT(9)
+                  REVERT(10)
                 }
               }
               /* long: quote_qty negative */
@@ -1924,7 +2013,7 @@ contract DCN {
                 let long_max_price := attr(MarketState, 1, market_state_1, long_max_price)
 
                 if gt(current_price, long_max_price) {
-                  REVERT(10)
+                  REVERT(11)
                 }
               }
               /* short: base_qty negative */
@@ -1933,7 +2022,7 @@ contract DCN {
                 let short_min_price := attr(MarketState, 1, market_state_1, short_min_price)
 
                 if lt(current_price, short_min_price) {
-                  REVERT(11)
+                  REVERT(12)
                 }
               }
             }
@@ -1948,13 +2037,13 @@ contract DCN {
           let quote_balance := attr(SessionBalance, 0, quote_session_balance_0, asset_balance)
           quote_balance := add(quote_balance, quote_delta)
           if U64_OVERFLOW(quote_balance) {
-            REVERT(12)
+            REVERT(13)
           }
 
           let base_balance := attr(SessionBalance, 0, base_session_balance_0, asset_balance)
           base_balance := add(base_balance, base_delta)
           if U64_OVERFLOW(base_balance) {
-            REVERT(13)
+            REVERT(14)
           }
 
           sstore(market_state_ptr, market_state_0)
@@ -1977,7 +2066,7 @@ contract DCN {
         }
 
         if or(quote_net, base_net) {
-          REVERT(14)
+          REVERT(15)
         }
 
         sstore(exchange_balance_ptr, exchange_balance)
