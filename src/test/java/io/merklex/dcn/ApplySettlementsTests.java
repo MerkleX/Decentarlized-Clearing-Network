@@ -29,6 +29,7 @@ public class ApplySettlementsTests {
     private static final int baseAssetId = 1;
 
     {
+        StaticNetwork.DescribeCheckpoint();
         StaticNetwork.DescribeCheckpointForEach();
 
         EtherTransactions creator = Accounts.getTx(0);
