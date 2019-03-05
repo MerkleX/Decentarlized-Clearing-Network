@@ -6,8 +6,8 @@ import org.web3j.protocol.Web3j;
 import java.io.IOException;
 
 public class QueryHelper {
-    public final String contractAddress;
-    public final Web3j web3j;
+    public String contractAddress;
+    public Web3j web3j;
 
     public QueryHelper(String contractAddress, Web3j web3j) {
         this.contractAddress = contractAddress;

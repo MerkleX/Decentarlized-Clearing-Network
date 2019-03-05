@@ -1,7 +1,7 @@
 package io.merklex.dcn;
 
-import io.merklex.ether_net.Utils;
-import io.merklex.dcn.utils.GenerateContractCode;
+import io.merklex.web3.Utils;
+import io.merklex.web3.gen.GenerateContractCode;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -76,29 +76,5 @@ public class GeneratedCodeTest {
         } finally {
             Utils.DeleteDir(compareOut);
         }
-    }
-
-    public static void main(String[] args) throws IOException, InterruptedException {
-        GenerateContractCode.ContractToJava(
-                new File("src/main/resources/contracts/DCN.sol"),
-                new File("src/main/generated"),
-                "io.merklex.dcn.contracts"
-        );
-
-        GenerateContractCode.ContractToJava(
-                new File("src/main/resources/contracts/ERC20.sol"),
-                new File("src/main/generated"),
-                "io.merklex.dcn.contracts"
-        );
-
-        GenerateContractCode.CompileContract(
-                new File("src/main/resources/contracts/DCN.sol"),
-                new File("contracts-compiled/DCN")
-        );
-
-        GenerateContractCode.CompileContract(
-                new File("src/main/resources/contracts/ERC20.sol"),
-                new File("contracts-compiled/ERC20")
-        );
     }
 }

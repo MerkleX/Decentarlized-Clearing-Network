@@ -1,15 +1,13 @@
-package io.merklex.dcn.utils;
+package io.merklex.web3.gen;
 
-import io.merklex.ether.JavaContractGenerator;
-import io.merklex.ether_net.Utils;
-import org.web3j.codegen.SolidityFunctionWrapperGenerator;
+import io.merklex.web3.Utils;
 
-import java.io.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
 
 public class GenerateContractCode {
-
     public static void CompileContract(File contractSource, File outputDir) throws IOException, InterruptedException {
         if (!outputDir.exists() && !outputDir.mkdirs()) {
             throw new IOException("Failed to create output directory");
@@ -77,5 +75,29 @@ public class GenerateContractCode {
         } finally {
             Utils.DeleteDir(compileOut);
         }
+    }
+
+    public static void main(String[] args) throws IOException, InterruptedException {
+        ContractToJava(
+                new File("src/main/resources/contracts/DCN.sol"),
+                new File("src/main/generated"),
+                "io.merklex.dcn.contracts"
+        );
+
+        ContractToJava(
+                new File("src/main/resources/contracts/ERC20.sol"),
+                new File("src/main/generated"),
+                "io.merklex.dcn.contracts"
+        );
+
+        CompileContract(
+                new File("src/main/resources/contracts/DCN.sol"),
+                new File("contracts-compiled/DCN")
+        );
+
+        CompileContract(
+                new File("src/main/resources/contracts/ERC20.sol"),
+                new File("contracts-compiled/ERC20")
+        );
     }
 }

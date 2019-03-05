@@ -2,7 +2,6 @@ package io.merklex.dcn;
 
 import io.merklex.dcn.models.Settlement;
 import org.agrona.MutableDirectBuffer;
-import org.web3j.utils.Numeric;
 
 public class Settlements extends Settlement.GroupsHeader {
     @Override
@@ -27,6 +26,26 @@ public class Settlements extends Settlement.GroupsHeader {
         );
     }
 
+    public String payload(int groups) {
+        return BufferToHex.ToHex(messageMemoryBuffer(), messageMemoryOffset(), bytes(groups, new Group()));
+    }
+
+    public int bytes(int groups, Group group) {
+        int settlements = 0;
+        firstGroup(group);
+
+        for (int i = 0; i < groups; i++) {
+            settlements += group.userCount();
+            group.nextGroup(group);
+        }
+
+        return bytes(groups, settlements);
+    }
+
+    public int bytes(int groups, int settlements) {
+        return BYTES + Group.BYTES * groups + SettlementData.BYTES * settlements;
+    }
+
     public static class Group extends Settlement.GroupHeader {
         @Override
         public Group clearToZeros() {
@@ -36,6 +55,11 @@ public class Settlements extends Settlement.GroupsHeader {
         @Override
         public Group wrap(MutableDirectBuffer buffer, int offset) {
             return (Group) super.wrap(buffer, offset);
+        }
+
+        @Override
+        public Group quoteAssetId(int value) {
+            return (Group) super.quoteAssetId(value);
         }
 
         @Override
@@ -56,11 +80,19 @@ public class Settlements extends Settlement.GroupsHeader {
             return (Group) super.userCount((byte) value);
         }
 
+        public SettlementData firstSettlement(SettlementData settlement) {
+            return settlement(settlement, 0);
+        }
+
         public SettlementData settlement(SettlementData settlement, int index) {
             return settlement.wrap(
                     this.messageMemoryBuffer(),
                     this.messageMemoryOffset() + Group.BYTES + SettlementData.BYTES * index
             );
+        }
+
+        public Group nextGroup(Group group) {
+            return group.wrap(messageMemoryBuffer(), messageMemoryOffset() + BYTES);
         }
 
         public int size() {
@@ -70,37 +102,18 @@ public class Settlements extends Settlement.GroupsHeader {
 
     public static class SettlementData extends Settlement.SettlementData {
         @Override
-        public SettlementData clearToZeros() {
-            return (SettlementData) super.clearToZeros();
-        }
-
-        @Override
         public SettlementData wrap(MutableDirectBuffer buffer, int offset) {
             return (SettlementData) super.wrap(buffer, offset);
         }
 
         @Override
-        public SettlementData userAddress(int pos, byte value) {
-            return (SettlementData) super.userAddress(pos, value);
+        public SettlementData clearToZeros() {
+            return (SettlementData) super.clearToZeros();
         }
 
         @Override
-        public SettlementData getUserAddress(byte[] value, int pos) {
-            return (SettlementData) super.getUserAddress(value, pos);
-        }
-
-        @Override
-        public SettlementData setUserAddress(byte[] value, int pos) {
-            return (SettlementData) super.setUserAddress(value, pos);
-        }
-
-        @Override
-        public SettlementData setUserAddress(byte[] value) {
-            return (SettlementData) super.setUserAddress(value);
-        }
-        
-        public SettlementData setUserAddress(String value) {
-            return (SettlementData) super.setUserAddress(Numeric.hexStringToByteArray(value));
+        public SettlementData userId(long value) {
+            return (SettlementData) super.userId(value);
         }
 
         @Override
@@ -116,6 +129,10 @@ public class Settlements extends Settlement.GroupsHeader {
         @Override
         public SettlementData fees(long value) {
             return (SettlementData) super.fees(value);
+        }
+
+        public SettlementData nextSettlement(SettlementData settlement) {
+            return settlement.wrap(messageMemoryBuffer(), messageMemoryOffset() + BYTES);
         }
     }
 }

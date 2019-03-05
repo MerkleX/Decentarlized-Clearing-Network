@@ -11,10 +11,10 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.exceptions.TransactionException;
 import org.web3j.tx.ChainId;
 import org.web3j.tx.FastRawTransactionManager;
-import org.web3j.tx.TransactionManager;
 import org.web3j.tx.response.PollingTransactionReceiptProcessor;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.math.BigInteger;
 import java.util.Optional;
 
@@ -24,7 +24,7 @@ public class EtherTransactions {
     private final Web3j web3j;
     private final Credentials credentials;
     private final PollingTransactionReceiptProcessor receiptProcessor;
-    private final TransactionManager transactionManager;
+    private final FastRawTransactionManager transactionManager;
 
     public EtherTransactions(Web3j web3j, Credentials credentials) {
         this(web3j, credentials, ChainId.NONE);
@@ -53,6 +53,12 @@ public class EtherTransactions {
         this.gasPrice = gasPrice;
         this.gasLimit = gasLimit;
         return this;
+    }
+
+    public void reloadNonce() throws Exception {
+        Field nonce = transactionManager.getClass().getDeclaredField("nonce");
+        nonce.setAccessible(true);
+        nonce.set(transactionManager, BigInteger.valueOf(-1));
     }
 
     public EthSendTransaction sendCall(String contractAddress, Function function, BigInteger weiValue) throws IOException {
@@ -102,7 +108,7 @@ public class EtherTransactions {
     }
 
     public EthSendTransaction sendDeployContract(BigInteger gasPrice, BigInteger gasLimit,
-                                 String contractData, BigInteger weiValue) throws IOException {
+                                                 String contractData, BigInteger weiValue) throws IOException {
         return sendCall(gasPrice, gasLimit, null, contractData, weiValue);
     }
 

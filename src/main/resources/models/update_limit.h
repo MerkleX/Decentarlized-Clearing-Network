@@ -1,16 +1,22 @@
 
 struct UpdateLimit {
-    u8 user_address[20];
-
+    u32 dcn_id;
+    u64 user_id;
     u32 exchange_id;
-    u32 asset_id;
-    u64 version;
-    u64 max_long_price;
-    u64 min_short_price;
+    u32 quote_asset_id;
+    u32 base_asset_id;
+    u64 fee_limit;
+
     i64 min_quote_qty;
     i64 min_base_qty;
-    i64 quote_shift;
-    i64 base_shift;
+    u64 long_max_price;
+    u64 short_min_price;
+
+    u64 limit_version;
+    u32 quote_shift_major;
+    u64 quote_shift;
+    u32 base_shift_major;
+    u64 base_shift;
 
     u8 sig_r[32];
     u8 sig_s[32];

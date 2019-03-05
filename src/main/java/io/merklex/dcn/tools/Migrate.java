@@ -1,4 +1,4 @@
-package io.merklex.dcn.dev;
+package io.merklex.dcn.tools;
 
 import io.merklex.dcn.contracts.DCN;
 import io.merklex.web3.EtherTransactions;
@@ -31,7 +31,7 @@ public class Migrate {
             System.out.println("Add asset: " + tx.getTransactionHash());
         }
 
-        tx = creator.sendCall(newContract, DCN.add_exchange("merklex ", 1, creator.getAddress()));
+        tx = creator.sendCall(newContract, DCN.add_exchange("merklex ", creator.getAddress()));
         System.out.println("Add exchange: " + tx.getTransactionHash());
     }
 }

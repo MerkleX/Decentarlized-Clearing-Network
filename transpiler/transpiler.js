@@ -100,17 +100,30 @@ module.exports = function(raw) {
         const pre = `\n${tab}${TAB}`;
         const data = `struct ${node.name} {${pre}${node.members.map(mem => {
           if (mem.typeName.type === 'ArrayTypeName') {
-            const { components } = mem.typeName.length;
-            if (components.length > 1) {
-              throw new Error('Only supports one dimentional arrays');
-            }
+            const array_length = mem.typeName.length;
 
             const type = mem.typeName.baseTypeName.name || mem.typeName.baseTypeName.namePath;
-            if (!type) {
-              throw new Error('type missing');
+            let length;
+
+            const { components } = array_length;
+            if (components) {
+              if (components.length > 1) {
+                throw new Error('Only supports one dimentional arrays');
+              }
+
+              if (!type) {
+                throw new Error('type missing');
+              }
+
+              length = evaluate(components[0]);
+            }
+            else if (array_length.type === 'NumberLiteral') {
+              length = BigInt(array_length.number);
+            }
+            else {
+              throw new Error('Unable to parse array length');
             }
 
-            const length = evaluate(components[0]);
 
             struct.push({ name: mem.name, type, length });
             return `${type}[${length}] ${mem.name};`;
@@ -157,10 +170,36 @@ module.exports = function(raw) {
       }
 
       if (node.type === 'StateVariableDeclaration'
+        || node.type === 'ElementaryTypeName'
+        || node.type === 'Identifier'
+        || node.type === 'NumberLiteral'
         || node.type === 'ReturnStatement'
-        || node.type === 'VariableDeclarationStatement'
         || node.type === 'StructDefinition') {
         return raw_input;
+      }
+
+      if (node.type === 'VariableDeclarationStatement') {
+        if (node.variables.length != 1) {
+          throw new Error('only support one var per var declaration statement');
+        }
+
+        const v = node.variables[0];
+        if (!v.typeName.length) {
+          return raw_input;
+        }
+
+        return `\n${tab}${print(v.typeName.baseTypeName)}[${print(v.typeName.length)}] ${v.storageLocation} ${v.name};`;
+      }
+
+      if (node.type === 'FunctionCall') {
+        if (node.expression.name === 'sizeof') {
+          if (node.arguments.length !== 1) {
+            throw new Error('sizeof expects one argument');
+          }
+
+          const arg = print(node.arguments[0], tab);
+          return typeSize(arg);
+        }
       }
 
       if (node.type === 'FunctionDefinition') {
@@ -181,9 +220,6 @@ module.exports = function(raw) {
         const items = node.statements || node.operations;
         if (items.length === 0) {
           return '{}';
-        }
-        if (items.length === 1) {
-          return '{ ' + print(items[0]) + ' }';
         }
         return `{${pre}${items.map(node => print(node, tab + TAB)).join(pre)}\n${tab}}`;
       }
@@ -221,7 +257,72 @@ module.exports = function(raw) {
           return `add(${offset}, mul(${words.toString()}, ${index}))`;
         }
 
-        if (node.functionName === 'build') {
+        if (node.functionName === 'pointer_attr') {
+          const [ struct_type, pointer, attr_name ] = node.arguments.map(print);
+
+          const struct = structs[struct_type];
+          if (!struct) {
+            throw new Error('Cannot build struct for ' + struct_type);
+          }
+
+          let total_size = 0n;
+          let found = false;
+
+          let i;
+          for (i = 0; i < struct.members.length; ++i) {
+            const member = struct.members[i];
+
+            if (member.name === attr_name) {
+              found = true;
+              break;
+            }
+
+            total_size += typeSize(member.type) * (member.length || 1n);
+          }
+
+          if (!found) {
+            throw new Error('failed to find ' + attr_name + ' in ' + struct_type);
+          }
+
+          if ((total_size % 32n) !== 0n) {
+            throw new Error('not on a word multiple');
+          }
+
+          return `add(${pointer}, ${total_size / 32n})`;
+        }
+
+        if (node.functionName === 'byte_offset') {
+          const [ struct_type, attr_name ] = node.arguments.map(print);
+
+          const struct = structs[struct_type];
+          if (!struct) {
+            throw new Error('Cannot build struct for ' + struct_type);
+          }
+
+          let total_size = 0n;
+          let found = false;
+
+          let i;
+          for (i = 0; i < struct.members.length; ++i) {
+            const member = struct.members[i];
+
+            if (member.name === attr_name) {
+              found = true;
+              break;
+            }
+
+            total_size += typeSize(member.type) * (member.length || 1n);
+          }
+
+          if (!found) {
+            throw new Error('failed to find ' + attr_name + ' in ' + struct_type);
+          }
+
+          return total_size;
+        }
+
+        if (node.functionName === 'build' || node.functionName === 'build_with_mask') {
+          const mask = node.functionName === 'build_with_mask';
           const args = node.arguments.map(print);
 
           const struct_type = args[0];
@@ -268,11 +369,22 @@ module.exports = function(raw) {
               continue;
             }
 
-            if (bits_remaining === 0n) {
-              parts.push(`/* ${member.name} */ ${arg}`);
+            if (mask) {
+              const arg_mask = '0x' + ((1n<<bits) - 1n).toString(16);
+              if (bits_remaining === 0n) {
+                parts.push(`/* ${member.name} */ and(${arg}, ${arg_mask})`);
+              }
+              else {
+                parts.push(`/* ${member.name} */ mul(and(${arg}, ${arg_mask}), 0x${(1n<<bits_remaining).toString(16)})`);
+              }
             }
             else {
-              parts.push(`/* ${member.name} */ mul(${arg}, 0x${(1n<<bits_remaining).toString(16)})`);
+              if (bits_remaining === 0n) {
+                parts.push(`/* ${member.name} */ ${arg}`);
+              }
+              else {
+                parts.push(`/* ${member.name} */ mul(${arg}, 0x${(1n<<bits_remaining).toString(16)})`);
+              }
             }
           }
 
@@ -465,6 +577,15 @@ module.exports = function(raw) {
           }, 0n);
         }
 
+        if (node.functionName === 'const_sub') {
+          const args = node.arguments.map(print);
+          if (args.length != 2) {
+            throw new Error('const_sub requires 2 args');
+          }
+
+          return BigInt(args[0]) - BigInt(args[1]);
+        }
+
         return node.functionName + '(' + node.arguments.map(arg => print(arg, tab)).join(', ') + ')';
       }
 
@@ -494,7 +615,7 @@ module.exports = function(raw) {
         }).join(`\n${tab}${TAB}`)}`;
       }
 
-      console.error(node);
+      console.error('Error', node.type, node);
       return '<error '+node.type+'>';
     }
 
