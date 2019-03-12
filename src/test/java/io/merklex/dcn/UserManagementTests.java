@@ -37,6 +37,9 @@ public class UserManagementTests {
             assertEquals(user1.getAddress(), user.trade_address);
             assertEquals(user1.getAddress(), user.withdraw_address);
             assertEquals(user1.getAddress(), user.recovery_address);
+
+            DCN.GetUserCountReturnValue data = query.query(DCN::query_get_user_count, DCN.get_user_count());
+            assertEquals(1, data.count);
         });
     }
 }

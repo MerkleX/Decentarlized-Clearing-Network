@@ -24,7 +24,8 @@ public class EtherDebugNet implements Web3Provider {
     private final HttpService httpServer;
     private final Web3j web3j;
 
-    public EtherDebugNet(int rpcPort, String rpcHost, Map<String, String> initialBalances, long blockGasLimit, int networkId) throws IOException, InterruptedException {
+    public EtherDebugNet(int rpcPort, String rpcHost, Map<String, String> initialBalances,
+                         long blockGasLimit, int networkId) throws IOException, InterruptedException {
         networkDir = Utils.TempDir();
         if (!networkDir.mkdirs()) {
             throw new IOException("Failed to create data dir");

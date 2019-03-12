@@ -388,7 +388,7 @@ contract DCN {
     assembly {
       let asset_ptr := ASSET_PTR_(asset_id)
       let asset_0 := sload(asset_ptr)
-      let asset_1 := sload(asset_ptr)
+      let asset_1 := sload(add(asset_ptr, 1))
 
       MSTORE_STR(return_value_mem, WORD_4, 4, asset_0)
       RETURN(WORD_1, attr(Asset, 0, asset_0, unit_scale))
@@ -449,6 +449,15 @@ contract DCN {
 
     assembly {
       RETURN_0(sload(asset_count_slot))
+      return(return_value_mem, WORD_1)
+    }
+  }
+
+  function get_user_count() public view returns (uint32 count) {
+    uint256[1] memory return_value_mem;
+
+    assembly {
+      RETURN_0(sload(user_count_slot))
       return(return_value_mem, WORD_1)
     }
   }
