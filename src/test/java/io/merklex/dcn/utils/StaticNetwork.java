@@ -1,7 +1,7 @@
 package io.merklex.dcn.utils;
 
 import io.merklex.dcn.contracts.DCN;
-import io.merklex.dcn.utils.ether_net.EtherDebugNet;
+import io.merklex.ether_net.EtherDebugNet;
 import io.merklex.web3.EtherTransactions;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;

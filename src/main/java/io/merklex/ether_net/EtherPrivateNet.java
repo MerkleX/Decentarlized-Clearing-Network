@@ -1,4 +1,4 @@
-package io.merklex.dcn.utils.ether_net;
+package io.merklex.ether_net;
 
 import io.merklex.web3.Utils;
 import org.web3j.crypto.Credentials;
