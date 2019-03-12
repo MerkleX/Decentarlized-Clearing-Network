@@ -390,7 +390,7 @@ contract DCN {
       let asset_0 := sload(asset_ptr)
       let asset_1 := sload(asset_ptr)
 
-      MSTORE_STR(return_value_mem, WORD_3, 4, asset_0)
+      MSTORE_STR(return_value_mem, WORD_4, 4, asset_0)
       RETURN(WORD_1, attr(Asset, 0, asset_0, unit_scale))
       RETURN(WORD_2, attr(Asset, 0, asset_0, contract_address))
       RETURN(WORD_3, attr(Asset, 1, asset_1, net_deposits))
