@@ -142,6 +142,9 @@ contract DCN {
     /* timestamp used to prevent user withdraws and allow settlements */
     uint256 unlock_at;
 
+    /* address used to interact with session */
+    uint256 trade_address;
+
     /* user balances locked with the exchange */
     SessionBalance[ASSET_COUNT] balances;
 
@@ -155,9 +158,6 @@ contract DCN {
 
     /* proposed address to update trade_address */
     uint256 trade_address_proposed;
-
-    /* a timeout to update trade address with proposed to ensure settlements can't be blocked */
-    uint256 trade_address_proposed_unlock_at;
 
     /* address used to withdraw funds */
     uint256 withdraw_address;
@@ -464,22 +464,21 @@ contract DCN {
 
   function get_user(uint64 user_id) public view
   returns (
-    address trade_address, address trade_address_proposed, uint256 trade_address_proposed_unlock_at,
+    address trade_address, address trade_address_proposed,
     address withdraw_address, address recovery_address, address recovery_address_proposed
   ) {
-    uint256[6] memory return_value_mem;
+    uint256[5] memory return_value_mem;
 
     assembly {
       let user_ptr := USER_PTR_(user_id)
 
       RETURN_0(      sload(pointer_attr(User, user_ptr, trade_address)))
       RETURN(WORD_1, sload(pointer_attr(User, user_ptr, trade_address_proposed)))
-      RETURN(WORD_2, sload(pointer_attr(User, user_ptr, trade_address_proposed_unlock_at)))
-      RETURN(WORD_3, sload(pointer_attr(User, user_ptr, withdraw_address)))
-      RETURN(WORD_4, sload(pointer_attr(User, user_ptr, recovery_address)))
-      RETURN(WORD_5, sload(pointer_attr(User, user_ptr, recovery_address_proposed)))
+      RETURN(WORD_2, sload(pointer_attr(User, user_ptr, withdraw_address)))
+      RETURN(WORD_3, sload(pointer_attr(User, user_ptr, recovery_address)))
+      RETURN(WORD_4, sload(pointer_attr(User, user_ptr, recovery_address_proposed)))
 
-      return(return_value_mem, WORD_6)
+      return(return_value_mem, WORD_5)
     }
   }
 
@@ -734,19 +733,6 @@ contract DCN {
       }
 
       sstore(pointer_attr(User, user_ptr, trade_address_proposed), trade_address)
-
-      let unlock_at_ptr := pointer_attr(User, user_ptr, trade_address_proposed_unlock_at)
-      let current_unlock_at := sload(unlock_at_ptr)
-
-      /*
-       * Set lock to max unlock_at + 2 hours. Because a proposed trade address
-       * change prevents set_unlock_at from running, there will be no open trade
-       * sessions when the address changes.
-       */
-      if iszero(current_unlock_at) {
-        let unlock_at := add(timestamp, const_add(MAX_UNLOCK_AT, TWO_HOURS))
-        sstore(unlock_at_ptr, unlock_at)
-      }
     }
   }
 
@@ -759,8 +745,6 @@ contract DCN {
         REVERT(1)
       }
 
-      sstore(pointer_attr(User, user_ptr, trade_address_proposed), 0)
-      sstore(pointer_attr(User, user_ptr, trade_address_proposed_unlock_at), 0)
     }
   }
 
@@ -769,19 +753,13 @@ contract DCN {
       let user_ptr := USER_PTR_(user_id)
 
       let proposed_ptr :=  pointer_attr(User, user_ptr, trade_address_proposed)
-      let unlock_at_ptr := pointer_attr(User, user_ptr, trade_address_proposed_unlock_at)
 
       let trade_address_proposed := sload(proposed_ptr)
       if iszero(eq(caller, trade_address_proposed)) {
         REVERT(1)
       }
 
-      if gt(unlock_at_ptr, timestamp) {
-        REVERT(2)
-      }
-
       sstore(proposed_ptr, 0)
-      sstore(unlock_at_ptr, 0)
       sstore(pointer_attr(User, user_ptr, trade_address), trade_address_proposed)
     }
   }
@@ -1152,9 +1130,14 @@ contract DCN {
       }
 
       let session_ptr := SESSION_PTR_(user_ptr, exchange_id)
-      sstore(pointer_attr(ExchangeSession, session_ptr, unlock_at), unlock_at)
 
-      log_event(UnlockAtUpdated, log_data_mem, caller, exchange_id)
+      let unlock_at_ptr := pointer_attr(ExchangeSession, session_ptr, unlock_at)
+      if lt(sload(unlock_at_ptr), timestamp) {
+        sstore(pointer_attr(ExchangeSession, session_ptr, trade_address), caller)
+      }
+
+      sstore(unlock_at_ptr, unlock_at)
+      log_event(UnlockAtUpdated, log_data_mem, user_id, exchange_id)
     }
   }
 
@@ -1782,7 +1765,8 @@ contract DCN {
 
         assembly {
           let user_ptr := USER_PTR_(LOAD(user_id))
-          let trade_address := sload(pointer_attr(User, user_ptr, trade_address))
+          let session_ptr := SESSION_PTR_(user_ptr, exchange_id)
+          let trade_address := sload(pointer_attr(ExchangeSession, session_ptr, trade_address))
 
           if iszero(eq(recovered_address, trade_address)) {
             REVERT(5)
