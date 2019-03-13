@@ -51,6 +51,17 @@ public class ApplySettlementsTests {
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
                     DCN.add_exchange("merklex    ", exchange.getAddress())));
 
+            BigInteger unlockAt = BigInteger.valueOf(
+                    System.currentTimeMillis() / 1000 + 28800 * 2
+            );
+
+            assertSuccess(user1.sendCall(StaticNetwork.DCN(),
+                    DCN.user_session_set_unlock_at(userId1, exchangeId, unlockAt)));
+            assertSuccess(user2.sendCall(StaticNetwork.DCN(),
+                    DCN.user_session_set_unlock_at(userId2, exchangeId, unlockAt)));
+            assertSuccess(user3.sendCall(StaticNetwork.DCN(),
+                    DCN.user_session_set_unlock_at(userId3, exchangeId, unlockAt)));
+
             BigInteger totalSupply = BigInteger.valueOf(1000000000);
             token.value = creator.deployContract(BigInteger.ZERO, StaticNetwork.GAS_LIMIT,
                     ERC20.DeployData(totalSupply, "T", 2, "TT"),

@@ -29,7 +29,6 @@ public class ExchangeSetLimitTests {
         EtherTransactions exchange = Accounts.getTx(1);
         EtherTransactions user1 = Accounts.getTx(2);
         EtherTransactions user2 = Accounts.getTx(3);
-        EtherTransactions user3 = Accounts.getTx(4);
         Box<String> token = new Box<>();
 
         QueryHelper query = new QueryHelper(StaticNetwork.DCN(), StaticNetwork.Web3());
@@ -46,10 +45,18 @@ public class ExchangeSetLimitTests {
                     DCN.user_create()));
             assertSuccess(user2.sendCall(StaticNetwork.DCN(),
                     DCN.user_create()));
-            assertSuccess(user3.sendCall(StaticNetwork.DCN(),
-                    DCN.user_create()));
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
                     DCN.add_exchange("merklex    ", exchange.getAddress())));
+
+
+            BigInteger unlockAt = BigInteger.valueOf(
+                    System.currentTimeMillis() / 1000 + 28800 * 2
+            );
+
+            assertSuccess(user1.sendCall(StaticNetwork.DCN(),
+                    DCN.user_session_set_unlock_at(userId1, exchangeId, unlockAt)));
+            assertSuccess(user2.sendCall(StaticNetwork.DCN(),
+                    DCN.user_session_set_unlock_at(userId2, exchangeId, unlockAt)));
 
             BigInteger totalSupply = BigInteger.valueOf(1000000000);
             token.value = creator.deployContract(BigInteger.ZERO, StaticNetwork.GAS_LIMIT,
