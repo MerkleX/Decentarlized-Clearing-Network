@@ -44,7 +44,7 @@ pragma solidity ^0.5.0;
 
 contract DCN {
   event UserCreated(uint64 user_id);
-  event UnlockAtUpdated(uint64 user_id, uint64 exchange_id);
+  event SessionUpdated(uint64 user_id, uint64 exchange_id);
   event ExchangeDeposit(uint64 user_id, uint64 exchange_id, uint32 asset_id);
 
   /* address allowed to update self and add assets and exchanges */
@@ -1137,7 +1137,7 @@ contract DCN {
       }
 
       sstore(unlock_at_ptr, unlock_at)
-      log_event(UnlockAtUpdated, log_data_mem, user_id, exchange_id)
+      log_event(SessionUpdated, log_data_mem, user_id, exchange_id)
     }
   }
 

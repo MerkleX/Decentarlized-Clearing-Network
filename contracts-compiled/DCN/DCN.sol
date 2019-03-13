@@ -1,7 +1,7 @@
 pragma solidity ^0.5.0;
 contract DCN {
   event UserCreated(uint64 user_id);
-  event UnlockAtUpdated(uint64 user_id, uint64 exchange_id);
+  event SessionUpdated(uint64 user_id, uint64 exchange_id);
   event ExchangeDeposit(uint64 user_id, uint64 exchange_id, uint32 asset_id);
   uint256 creator;
   uint256 creator_recovery;
@@ -873,10 +873,10 @@ contract DCN {
       }
       sstore(unlock_at_ptr, unlock_at)
       
-      /* Log event: UnlockAtUpdated */
+      /* Log event: SessionUpdated */
       mstore(log_data_mem, user_id)
       mstore(add(log_data_mem, 32), exchange_id)
-      log1(log_data_mem, 64, /* UnlockAtUpdated */ 0x63df31d073674141c50de7dfe71cf27c3e441a7af3004b5e0c53c90f74a0710c)
+      log1(log_data_mem, 64, /* SessionUpdated */ 0x1b0c381a98d9352dd527280acefa9a69d2c111b6a9d3aa3063aac6c2ec7f3163)
     }
   }
   
