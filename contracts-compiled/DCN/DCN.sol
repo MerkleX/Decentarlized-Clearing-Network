@@ -207,16 +207,16 @@ contract DCN {
     }
   }
   
-  function get_unlock_at(uint64 user_id, uint32 exchange_id) public view 
-  returns (uint256 unlock_at) {
+  function get_session(uint64 user_id, uint32 exchange_id) public view 
+  returns (uint256 unlock_at, address trade_address) {
     
-    uint256[1] memory return_value_mem;
+    uint256[2] memory return_value_mem;
     assembly {
       let user_ptr := add(users_slot, mul(237684487561239756867226304517, user_id))
       let session_ptr := add(add(user_ptr, 4294967301), mul(4294967299, exchange_id))
-      let session_0 := sload(session_ptr)
-      mstore(return_value_mem, session_0)
-      return(return_value_mem, 32)
+      mstore(return_value_mem, sload(add(session_ptr, 0)))
+      mstore(add(return_value_mem, 32), sload(add(session_ptr, 1)))
+      return(return_value_mem, 64)
     }
   }
   
