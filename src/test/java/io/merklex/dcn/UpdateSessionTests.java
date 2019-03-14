@@ -3,7 +3,7 @@
 //import com.greghaskins.spectrum.Spectrum;
 //import io.merklex.dcn.contracts.DCN;
 //import io.merklex.dcn.utils.Accounts;
-//import io.merklex.dcn.utils.RevertCodeExtractor;
+//import io.merklex.web3.RevertCodeExtractor;
 //import io.merklex.dcn.utils.StaticNetwork;
 //import io.merklex.web3.EtherTransactions;
 //import org.junit.Assert;

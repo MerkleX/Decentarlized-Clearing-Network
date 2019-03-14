@@ -5,7 +5,7 @@
 //import io.merklex.dcn.contracts.ERC20;
 //import io.merklex.dcn.utils.Accounts;
 //import io.merklex.dcn.utils.Box;
-//import io.merklex.dcn.utils.RevertCodeExtractor;
+//import io.merklex.web3.RevertCodeExtractor;
 //import io.merklex.dcn.utils.StaticNetwork;
 //import io.merklex.web3.EtherTransactions;
 //import io.merklex.web3.QueryHelper;

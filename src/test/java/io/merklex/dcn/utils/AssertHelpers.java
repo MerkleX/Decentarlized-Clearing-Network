@@ -1,5 +1,6 @@
 package io.merklex.dcn.utils;
 
+import io.merklex.web3.RevertCodeExtractor;
 import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.exceptions.TransactionException;

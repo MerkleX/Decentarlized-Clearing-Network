@@ -1,4 +1,4 @@
-package io.merklex.dcn.utils;
+package io.merklex.web3;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

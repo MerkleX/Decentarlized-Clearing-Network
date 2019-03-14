@@ -3,12 +3,10 @@ package io.merklex.dcn;
 import com.greghaskins.spectrum.Spectrum;
 import io.merklex.dcn.contracts.DCN;
 import io.merklex.dcn.utils.Accounts;
-import io.merklex.dcn.utils.RevertCodeExtractor;
 import io.merklex.dcn.utils.StaticNetwork;
 import io.merklex.web3.EtherTransactions;
 import io.merklex.web3.QueryHelper;
 import org.junit.runner.RunWith;
-import org.web3j.protocol.core.methods.response.EthSendTransaction;
 
 import java.math.BigInteger;
 
