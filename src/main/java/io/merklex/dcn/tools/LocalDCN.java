@@ -39,11 +39,12 @@ public class LocalDCN {
     public static class RunLocal {
         public static void main(String[] args) throws IOException, TransactionException {
             String dcn = "0x8b3c2b010ca7676add606a0b09ac2b53ffc38d10";
+            String erc20 = "0x603bc175a26c8f74eaf9bc6ef5dd288afb6fc4b8";
 
             Web3j web3j = Web3j.build(new HttpService("http://127.0.0.1:8545"));
             EtherTransactions tx = new EtherTransactions(web3j, Credentials.create(privateKey));
 //
-            String erc20 = tx.deployContract(
+            String erc20Actual = tx.deployContract(
                     BigInteger.ZERO,
                     BigInteger.valueOf(8_000_000),
                     ERC20.DeployData(
@@ -51,17 +52,23 @@ public class LocalDCN {
                     BigInteger.ZERO
             );
 
-            tx.sendCall(dcn, DCN.add_asset("test", 10, erc20));
+            if (!erc20.equals(erc20Actual)) {
+                System.out.println(erc20Actual);
+                throw new IllegalStateException();
+            }
 
-            tx.sendCall(dcn, DCN.user_create());
+            success(tx.sendCall(dcn, DCN.add_asset("test", 10, erc20)));
+
+            success(tx.sendCall(dcn, DCN.user_create()));
 
             success(tx.sendCall(dcn, DCN.add_exchange("merkleX    ", tx.getAddress())));
             success(tx.sendCall(dcn, DCN.user_session_set_unlock_at(0, 0, BigInteger.valueOf(System.currentTimeMillis() / 1000 + 28800 * 2))));
 
 
-//            String erc20 = "0x603bc175a26c8f74eaf9bc6ef5dd288afb6fc4b8";
             success(tx.sendCall(erc20, ERC20.approve(dcn, BigInteger.valueOf(10000000000L))));
             success(tx.sendCall(dcn, DCN.user_deposit_to_session(0, 0, 0, 100)));
+
+            success(tx.sendCall(dcn, DCN.add_asset("test", 10, erc20)));
         }
 
         private static void success(EthSendTransaction res) throws IOException {
