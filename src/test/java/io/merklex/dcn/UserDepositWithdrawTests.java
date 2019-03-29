@@ -106,7 +106,7 @@ public class UserDepositWithdrawTests {
         });
 
         it("user should not be able to withdraw more than balance", () -> {
-            assertRevert("0x02", bob.sendCall(StaticNetwork.DCN(),
+            assertRevert("0x03", bob.sendCall(StaticNetwork.DCN(),
                     DCN.user_withdraw(userId, assetId, bob.getAddress(), deposit.multiply(BigInteger.valueOf(3)))));
         });
 
@@ -128,7 +128,7 @@ public class UserDepositWithdrawTests {
 
         describe("only should be able to withdraw using withdraw address", () -> {
             it("should fail from other user", () -> {
-                assertRevert("0x01", creator.sendCall(StaticNetwork.DCN(),
+                assertRevert("0x02", creator.sendCall(StaticNetwork.DCN(),
                         DCN.user_withdraw(userId, assetId, bob.getAddress(), deposit)));
             });
 
@@ -136,7 +136,7 @@ public class UserDepositWithdrawTests {
                 assertSuccess(bob.sendCall(StaticNetwork.DCN(),
                         DCN.user_withdraw_address_update(userId, bobBackup.getAddress())));
 
-                assertRevert("0x01", bob.sendCall(StaticNetwork.DCN(),
+                assertRevert("0x02", bob.sendCall(StaticNetwork.DCN(),
                         DCN.user_withdraw(userId, assetId, bob.getAddress(), deposit)));
 
                 assertSuccess(bobBackup.sendCall(StaticNetwork.DCN(),

@@ -38,7 +38,6 @@ public class AssetTests {
                     assertEquals("", asset.symbol.trim());
                     assertEquals(0L, asset.unit_scale);
                     assertEquals("0x0000000000000000000000000000000000000000", asset.contract_address);
-                    assertEquals(BigInteger.ZERO, asset.net_deposits);
                 }
             });
         });
@@ -77,7 +76,6 @@ public class AssetTests {
                 assertEquals("1234", asset.symbol.trim());
                 assertEquals(1000L, asset.unit_scale);
                 assertEquals(bob.credentials().getAddress(), asset.contract_address);
-                assertEquals(BigInteger.ZERO, asset.net_deposits);
             });
 
             it("should not be able to create asset with 0 unit scale", () -> {

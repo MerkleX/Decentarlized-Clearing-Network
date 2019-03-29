@@ -80,13 +80,13 @@ contract DCN {
     /* address used to manage exchange */
     address owner;
 
-    /* backup address to change the owner address */
+    /* recovery address to change the owner address */
     uint256 recovery_address;
 
     /* a proposed address to change recovery_address */
     uint256 recovery_address_proposed;
 
-    /* asset balances (scaled) */
+    /* asset balances (in session balance units) */
     uint256[ASSET_COUNT] balances;
   }
 
@@ -97,9 +97,6 @@ contract DCN {
     uint64 unit_scale;
     /* address of the ERC-20 Token */
     address contract_address;
-
-    /* tracks total deposits, used to recover accidental transfers */
-    uint256 net_deposits;
   }
 
   struct MarketState {
@@ -155,9 +152,6 @@ contract DCN {
   struct User {
     /* address used to sign trading limits */
     uint256 trade_address;
-
-    /* proposed address to update trade_address */
-    uint256 trade_address_proposed;
 
     /* address used to withdraw funds */
     uint256 withdraw_address;
@@ -382,20 +376,19 @@ contract DCN {
   }
 
   function get_asset(uint32 asset_id) public view
-  returns (string memory symbol, uint64 unit_scale, address contract_address, uint256 net_deposits) {
-    uint256[6] memory return_value_mem;
+  returns (string memory symbol, uint64 unit_scale, address contract_address) {
+    uint256[5] memory return_value_mem;
 
     assembly {
       let asset_ptr := ASSET_PTR_(asset_id)
       let asset_0 := sload(asset_ptr)
       let asset_1 := sload(add(asset_ptr, 1))
 
-      MSTORE_STR(return_value_mem, WORD_4, 4, asset_0)
+      MSTORE_STR(return_value_mem, WORD_3, 4, asset_0)
       RETURN(WORD_1, attr(Asset, 0, asset_0, unit_scale))
       RETURN(WORD_2, attr(Asset, 0, asset_0, contract_address))
-      RETURN(WORD_3, attr(Asset, 1, asset_1, net_deposits))
 
-      return(return_value_mem, const_add(WORD_4, /* string header */ WORD_1 , /* string data */ 4))
+      return(return_value_mem, const_add(WORD_3, /* string header */ WORD_1 , /* string data */ 4))
     }
   }
 
@@ -464,21 +457,20 @@ contract DCN {
 
   function get_user(uint64 user_id) public view
   returns (
-    address trade_address, address trade_address_proposed,
+    address trade_address,
     address withdraw_address, address recovery_address, address recovery_address_proposed
   ) {
-    uint256[5] memory return_value_mem;
+    uint256[4] memory return_value_mem;
 
     assembly {
       let user_ptr := USER_PTR_(user_id)
 
       RETURN_0(      sload(pointer_attr(User, user_ptr, trade_address)))
-      RETURN(WORD_1, sload(pointer_attr(User, user_ptr, trade_address_proposed)))
-      RETURN(WORD_2, sload(pointer_attr(User, user_ptr, withdraw_address)))
-      RETURN(WORD_3, sload(pointer_attr(User, user_ptr, recovery_address)))
-      RETURN(WORD_4, sload(pointer_attr(User, user_ptr, recovery_address_proposed)))
+      RETURN(WORD_1, sload(pointer_attr(User, user_ptr, withdraw_address)))
+      RETURN(WORD_2, sload(pointer_attr(User, user_ptr, recovery_address)))
+      RETURN(WORD_3, sload(pointer_attr(User, user_ptr, recovery_address_proposed)))
 
-      return(return_value_mem, WORD_5)
+      return(return_value_mem, WORD_4)
     }
   }
 
@@ -581,7 +573,9 @@ contract DCN {
     }
   }
 
-  /* Security Feature Lock Management */
+  /************************************
+   * Security Feature Lock Management *
+   ************************************/
 
   #define CREATOR_REQUIRED(REVERT_1) \
     { \
@@ -591,16 +585,39 @@ contract DCN {
       } \
     }
 
+  /**
+   * Security Lock
+   *
+   * A security feature to allow the creator to turn off functions
+   * in case of a bug. Cannot prevent user's from withdrawing their funds.
+   *
+   * @param lock_features: bit flags for each feature to be locked
+   */
   function security_lock(uint256 lock_features) public {
     assembly {
       CREATOR_REQUIRED(1)
 
       let locked_features := sload(security_locked_features_slot)
       sstore(security_locked_features_slot, or(locked_features, lock_features))
+
+      /*
+       * Sets the proposal to block all features. This is done to
+       * ensure the proposal to undo feature cannot be immediately applied.
+       */
       sstore(security_locked_features_proposed_slot, FEATURE_ALL)
     }
   }
 
+  /**
+   * Security Propose
+   *
+   * A proposal for a new set of security locks. Primary use is to
+   * unlock features. The proposal is not directly applied. It can
+   * only be applied after a timeout is reached. This allows users
+   * to be aware of the change before it is applied.
+   *
+   * @param proposed_locked_features: bit flags for proposal
+   */
   function security_propose(uint256 proposed_locked_features) public {
     assembly {
       CREATOR_REQUIRED(1)
@@ -613,7 +630,7 @@ contract DCN {
       /*
        * Example: current_proposal = 0b11111111
        *         proposed_features = 0b00010000
-       *          differnces = XOR = 0b11101111
+       *         differences = XOR = 0b11101111
        */
 
       let current_proposal := sload(security_locked_features_proposed_slot)
@@ -636,6 +653,10 @@ contract DCN {
     }
   }
 
+  /** Security Set Proposed
+   *
+   * Applies the proposed security locks if the timestamp is met.
+   */
   function security_set_proposed() public {
     assembly {
       CREATOR_REQUIRED(1)
@@ -649,8 +670,17 @@ contract DCN {
     }
   }
 
-  /* Creator Management */
+  /**********************
+   * Creator Management *
+   **********************/
 
+  /**
+   * Creator Update
+   *
+   * Use the recovery address to update the creator address.
+   *
+   * @param new_creator
+   */
   function creator_update(address new_creator) public {
     assembly {
       let creator_recovery := sload(creator_recovery_slot)
@@ -662,6 +692,14 @@ contract DCN {
     }
   }
 
+  /**
+   * Creator Propose Recovery
+   *
+   * Updating the recovery address is done in two steps. This is to ensure
+   * the recovery address is correct and owned before applying.
+   *
+   * @param recovery: new recovery address
+   */
   function creator_propose_recovery(address recovery) public {
     assembly {
       let creator_recovery := sload(creator_recovery_slot)
@@ -673,6 +711,12 @@ contract DCN {
     }
   }
 
+  /**
+   * Creator Update Recovery
+   *
+   * Updates the recovery address. Requires the caller is the
+   * proposed recovery address. This is to ensure the address is valid.
+   */
   function creator_update_recovery() public {
     assembly {
       let creator_recovery_proposed := sload(creator_recovery_proposed_slot)
@@ -684,6 +728,14 @@ contract DCN {
     }
   }
 
+  /**
+   * Set Exchange Locked
+   *
+   * Allows the creator to lock down bad acting exchanges.
+   *
+   * @param exchange_id
+   * @param locked: the desired locked state
+   */
   function set_exchange_locked(uint32 exchange_id, bool locked) public {
     assembly {
       CREATOR_REQUIRED(1)
@@ -697,8 +749,16 @@ contract DCN {
     }
   }
 
-  /* User Management */
+  /*******************
+   * User Management *
+   *******************/
 
+  /**
+   * User Create
+   *
+   * An open function to create a new user. An event is
+   * emitted to determine the user_id.
+   */
   function user_create() public {
     uint256[2] memory log_data_mem;
 
@@ -723,7 +783,15 @@ contract DCN {
     }
   }
 
-  function user_trade_address_propose(uint64 user_id, address trade_address) public {
+  /**
+   * User Trade Address Update
+   *
+   * Updates the user's trade address. Requires user's recovery address.
+   *
+   * @param user_id
+   * @param trade_address
+   */
+  function user_trade_address_update(uint64 user_id, address trade_address) public {
     assembly {
       let user_ptr := USER_PTR_(user_id)
 
@@ -732,38 +800,18 @@ contract DCN {
         REVERT(1)
       }
 
-      sstore(pointer_attr(User, user_ptr, trade_address_proposed), trade_address)
+      sstore(pointer_attr(User, user_ptr, trade_address), trade_address)
     }
   }
 
-  function user_trade_address_propose_clear(uint64 user_id) public {
-    assembly {
-      let user_ptr := USER_PTR_(user_id)
-
-      let recovery_address := sload(pointer_attr(User, user_ptr, recovery_address))
-      if iszero(eq(caller, recovery_address)) {
-        REVERT(1)
-      }
-
-    }
-  }
-
-  function user_trade_address_update(uint64 user_id) public {
-    assembly {
-      let user_ptr := USER_PTR_(user_id)
-
-      let proposed_ptr :=  pointer_attr(User, user_ptr, trade_address_proposed)
-
-      let trade_address_proposed := sload(proposed_ptr)
-      if iszero(eq(caller, trade_address_proposed)) {
-        REVERT(1)
-      }
-
-      sstore(proposed_ptr, 0)
-      sstore(pointer_attr(User, user_ptr, trade_address), trade_address_proposed)
-    }
-  }
-
+  /**
+   * User Withdraw Address Update
+   *
+   * Updates the user's withdraw address. Requires user's recovery address.
+   *
+   * @param user_id
+   * @param withdraw_address
+   */
   function user_withdraw_address_update(uint64 user_id, address withdraw_address) public {
     assembly {
       let user_ptr := USER_PTR_(user_id)
@@ -777,6 +825,15 @@ contract DCN {
     }
   }
 
+  /**
+   * User Recovery Address Propose
+   *
+   * Propose a new recovery address. A two step process to
+   * ensure user proposed address is valid.
+   *
+   * @param user_id
+   * @param proposed: desired recovery address
+   */
   function user_recovery_address_propose(uint64 user_id, address proposed) public {
     assembly {
       let user_ptr := USER_PTR_(user_id)
@@ -790,6 +847,14 @@ contract DCN {
     }
   }
 
+  /**
+   * User Recovery Address Update
+   *
+   * Applies proposed recovery address. Requires caller to
+   * be proposed address.
+   *
+   * @param user_id
+   */
   function user_recovery_address_update(uint64 user_id) public {
     assembly {
       let user_ptr := USER_PTR_(user_id)
@@ -807,15 +872,23 @@ contract DCN {
 
   /* Exchange Management */
 
+  /**
+   * Exchange Update Owner
+   *
+   * Updates the exchange's owner address.
+   *
+   * @param exchange_id
+   * @param new_owner
+   */
   function exchange_update_owner(uint32 exchange_id, address new_owner) public {
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_UPDATE_OWNER, 0)
 
       let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-      let exchange_backup := attr(Exchange, 1, sload(add(exchange_ptr, 1)), recovery_address)
+      let exchange_recovery := sload(pointer_attr(Exchange, exchange_ptr, recovery_address))
 
-      /* ensure caller is backup */
-      if iszero(eq(exchange_backup, caller)) {
+      /* ensure caller is recovery */
+      if iszero(eq(exchange_recovery, caller)) {
         REVERT(1)
       }
 
@@ -827,42 +900,67 @@ contract DCN {
     }
   }
 
-  function exchange_propose_backup(uint32 exchange_id, address backup) public {
+  /**
+   * Exchange Propose Recovery
+   *
+   * Propose new recovery address
+   *
+   * @param exchange_id
+   * @param proposed: proposed recovery address
+   */
+  function exchange_propose_recovery(uint32 exchange_id, address proposed) public {
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_PROPOSE_RECOVERY, 0)
 
       let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-      let exchange_backup := attr(Exchange, 1, sload(add(exchange_ptr, 1)), recovery_address)
+      let exchange_recovery := sload(pointer_attr(Exchange, exchange_ptr, recovery_address))
 
-      /* ensure caller is backup */
-      if iszero(eq(exchange_backup, caller)) {
+      /* ensure caller is proposed */
+      if iszero(eq(exchange_recovery, caller)) {
         REVERT(1)
       }
 
       /* update proposed */
-      sstore(add(exchange_ptr, 2), backup)
+      sstore(pointer_attr(Exchange, exchange_ptr, recovery_address_proposed), proposed)
     }
   }
 
-  function exchange_set_backup(uint32 exchange_id) public {
+  /**
+   * Exchange Set Recovery
+   *
+   * Set proposed recovery address. Caller must be proposed address
+   * to ensure proposed is valid.
+   *
+   * @param exchange_id
+   */
+  function exchange_set_recovery(uint32 exchange_id) public {
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_SET_RECOVERY, 0)
 
       let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-      let exchange_backup_proposed := attr(Exchange, 2, sload(add(exchange_ptr, 2)), recovery_address_proposed)
+      let exchange_recovery_proposed := sload(pointer_attr(Exchange, exchange_ptr, recovery_address_proposed))
 
-      /* ensure caller is proposed backup */
-      if or(iszero(eq(exchange_backup_proposed, caller)), iszero(caller)) {
+      /* ensure caller is proposed recovery */
+      if or(iszero(eq(exchange_recovery_proposed, caller)), iszero(caller)) {
         REVERT(1)
       }
 
-      /* update backup */
-      sstore(add(exchange_ptr, 1), caller)
+      /* update recovery */
+      sstore(pointer_attr(Exchange, exchange_ptr, recovery_address), caller)
     }
   }
 
   /* Manage Registered Entities */
 
+  /**
+   * Add Asset
+   *
+   * Creator function to add a new asset. Note, two assets can have the same contract_address.
+   *
+   * @param symbol: 4 character symbol for asset
+   * @param unit_scale: (ERC20 balance) = unit_scale * (session balance)
+   * @param contract_address: address on the ERC20 token
+   */
   function add_asset(string memory symbol, uint64 unit_scale, address contract_address) public {
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_ADD_ASSET, 0)
@@ -891,6 +989,8 @@ contract DCN {
 
       let asset_symbol := mload(add(symbol, WORD_1 /* offset as first word is size */))
 
+      /* TODO: ensure asset_symbol has 0s after 4 character symbol in word */
+
       /* Note, symbol is already shifted not setting it in build */
       let asset_data := or(asset_symbol, build(Asset, 0, /* symbol */ 0, unit_scale, contract_address))
       let asset_ptr := ASSET_PTR_(asset_id)
@@ -900,6 +1000,14 @@ contract DCN {
     }
   }
 
+  /**
+   * Add Exchange
+   *
+   * Creator function, add new exchange.
+   *
+   * @param name: 11 character name of exchange
+   * @param addr: address of exchange
+   */
   function add_exchange(string memory name, address addr) public {
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_ADD_EXCHANGE, 0)
@@ -921,10 +1029,10 @@ contract DCN {
 
       /* 
        * name is at start of the word. After loading it is already shifted
-       * so use or to add it rather than shifting twice with build
+       * so add to it rather than shifting twice with build
        */
 
-      let name_data := mload(add(name, 32))
+      let name_data := mload(add(name, WORD_1 /* shift, first word is length */))
       let exchange_0 := or(
         name_data,
         build(Exchange, 0,
@@ -934,7 +1042,7 @@ contract DCN {
       )
       sstore(exchange_ptr, exchange_0)
 
-      /* Store owner backup */
+      /* Store owner recovery */
       sstore(pointer_attr(Exchange, exchange_ptr, recovery_address), addr)
 
       /* Update exchange count */
@@ -942,8 +1050,20 @@ contract DCN {
     }
   }
 
-  /* Manage Exchange Balance */
+  /***************************
+   * Manage Exchange Balance *
+   ***************************/
 
+  /**
+   * Exchange Withdraw
+   *
+   * Allow the exchange to withdraw its funds.
+   *
+   * @param exchange_id
+   * @param asset_id
+   * @param destination: where to send funds
+   * @param quantity: in session balance units
+   */
   function exchange_withdraw(uint32 exchange_id, uint32 asset_id,
                              address destination, uint64 quantity) public {
     uint256[3] memory transfer_in_mem;
@@ -986,6 +1106,13 @@ contract DCN {
     }
   }
 
+  /**
+   * Exchange Deposit
+   *
+   * @param exchange_id
+   * @param asset_id
+   * @param quantity: in session balance units
+   */
   function exchange_deposit(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
     uint256[3] memory transfer_in_mem;
     uint256[1] memory transfer_out_mem;
@@ -993,8 +1120,7 @@ contract DCN {
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_DEPOSIT, 0)
 
-      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-      let exchange_balance_ptr := EXCHANGE_BALANCE_PTR_(exchange_ptr, asset_id)
+      let exchange_balance_ptr := EXCHANGE_BALANCE_PTR_(EXCHANGE_PTR_(exchange_id), asset_id)
       let exchange_balance := sload(exchange_balance_ptr)
 
       let updated_balance := add(exchange_balance, quantity)
@@ -1021,6 +1147,15 @@ contract DCN {
     }
   }
 
+  /**
+   * User Deposit
+   *
+   * Deposit funds in the user's DCN balance
+   *
+   * @param user_id
+   * @param asset_id
+   * @param amount: in ERC20 balance units
+   */
   function user_deposit(uint64 user_id, uint32 asset_id, uint256 amount) public {
     uint256[4] memory transfer_in_mem;
     uint256[1] memory transfer_out_mem;
@@ -1059,6 +1194,16 @@ contract DCN {
     }
   }
 
+  /**
+   * User Withdraw
+   *
+   * Withdraw from user's DCN balance
+   *
+   * @param user_id
+   * @param asset_id
+   * @param destination
+   * @param amount: in ERC20 balance units
+   */
   function user_withdraw(uint64 user_id, uint32 asset_id, address destination, uint256 amount) public {
     uint256[3] memory transfer_in_mem;
     uint256[1] memory transfer_out_mem;
@@ -1074,7 +1219,7 @@ contract DCN {
       let withdraw_address := sload(pointer_attr(User, user_ptr, withdraw_address))
 
       if iszero(eq(caller, withdraw_address)) {
-        REVERT(1)
+        REVERT(2)
       }
 
       let balance_ptr := USER_BALANCE_PTR_(user_ptr, asset_id)
@@ -1082,7 +1227,7 @@ contract DCN {
 
       /* insufficient funds */
       if lt(current_balance, amount) {
-        REVERT(2)
+        REVERT(3)
       }
 
       sstore(balance_ptr, sub(current_balance, amount))
@@ -1094,12 +1239,23 @@ contract DCN {
         /* TOKEN_ADDRESS */ asset_address,
         /* TO_ADDRESS */ destination,
         /* AMOUNT */ amount,
-        /* REVERT_1 */ 2,
-        /* REVERT_2 */ 3
+        /* REVERT_1 */ 4,
+        /* REVERT_2 */ 5
       )
     }
   }
 
+  /**
+   * User Session Set Unlock At
+   *
+   * Update the unlock_at timestamp. Also updates the trade_address
+   * if the session is expired. Note, the trade_address should not be
+   * updatable when the session is active.
+   *
+   * @param user_id
+   * @param exchange_id
+   * @param unlock_at
+   */
   function user_session_set_unlock_at(uint64 user_id, uint32 exchange_id, uint256 unlock_at) public {
     uint256[3] memory log_data_mem;
 
@@ -1113,19 +1269,13 @@ contract DCN {
         REVERT(2)
       }
 
-      /* cannot set unlock_at if trade_address is going to change */
-      let proposed_addr := sload(pointer_attr(User, user_ptr, trade_address_proposed))
-      if proposed_addr {
-        REVERT(3)
-      }
-
       /* validate time range of unlock_at */
-      { 
+      {
         let fails_min_time := lt(unlock_at, add(timestamp, MIN_UNLOCK_AT))
         let fails_max_time := gt(unlock_at, add(timestamp, MAX_UNLOCK_AT))
 
         if or(fails_min_time, fails_max_time) {
-          REVERT(4)
+          REVERT(3)
         }
       }
 
@@ -1141,7 +1291,20 @@ contract DCN {
     }
   }
 
-  function user_market_reset(uint64 user_id, uint32 exchange_id, uint32 quote_asset_id, uint32 base_asset_id) public {
+  /**
+   * User Market Reset
+   *
+   * Allows the user to reset their session with an exchange.
+   * Only allowed when session in unlocked.
+   * Persists limit_version to prevent old limits from being applied.
+   *
+   * @param user_id
+   * @param exchange_id
+   * @param quote_asset_id: defines market for session
+   * @param base_asset_id: defines market for session
+   */
+  function user_market_reset(uint64 user_id, uint32 exchange_id,
+                             uint32 quote_asset_id, uint32 base_asset_id) public {
     assembly {
       VALID_EXCHANGE_ID(exchange_id, 1)
 
@@ -1171,6 +1334,16 @@ contract DCN {
     }
   }
 
+  /**
+   * Transfer To Session
+   *
+   * Transfer funds from DCN balance to trading session
+   *
+   * @param user_id
+   * @param exchange_id
+   * @param asset_id
+   * @param quantity
+   */
   function transfer_to_session(uint64 user_id, uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
     uint256[4] memory log_data_mem;
 
