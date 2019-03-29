@@ -2000,7 +2000,7 @@ contract DCN {
                   REVERT(10)
                 }
               }
-              /* long: quote_qty negative */
+              /* long: quote_qty negative or zero */
               case 1 {
                 let current_price := div(mul(sub(0, quote_qty), PRICE_UNITS), base_qty)
                 let long_max_price := attr(MarketState, 1, market_state_1, long_max_price)
@@ -2011,11 +2011,13 @@ contract DCN {
               }
               /* short: base_qty negative */
               case 2 {
-                let current_price := div(mul(quote_qty, PRICE_UNITS), sub(0, base_qty))
-                let short_min_price := attr(MarketState, 1, market_state_1, short_min_price)
+                if base_qty {
+                  let current_price := div(mul(quote_qty, PRICE_UNITS), sub(0, base_qty))
+                  let short_min_price := attr(MarketState, 1, market_state_1, short_min_price)
 
-                if lt(current_price, short_min_price) {
-                  REVERT(12)
+                  if lt(current_price, short_min_price) {
+                    REVERT(12)
+                  }
                 }
               }
             }
