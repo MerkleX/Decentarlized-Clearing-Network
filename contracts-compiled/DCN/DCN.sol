@@ -1595,7 +1595,7 @@ contract DCN {
             }
             market_state_0 := or(or(or(
               /* quote_qty */ mul(quote_qty, 0x1000000000000000000000000000000000000000000000000), 
-              /* base_qty */ mul(base_qty, 0x100000000000000000000000000000000)), 
+              /* base_qty */ mul(and(base_qty, 0xFFFFFFFFFFFFFFFF), 0x100000000000000000000000000000000)), 
               /* fee_used */ mul(fee_used, 0x10000000000000000)), 
               /* fee_limit */ fee_limit)
             let market_state_1 := sload(add(market_state_ptr, 1))

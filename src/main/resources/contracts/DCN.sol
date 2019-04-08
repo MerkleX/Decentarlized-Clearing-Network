@@ -2140,7 +2140,7 @@ contract DCN {
             market_state_0 := build(
               MarketState, 0,
               /* quote_qty */ quote_qty,
-              /* base_qty */ base_qty,
+              /* base_qty */ and(base_qty, U64_MASK),
               /* fee_used */ fee_used,
               /* fee_limit */ fee_limit
             )
