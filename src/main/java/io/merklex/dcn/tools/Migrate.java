@@ -31,7 +31,7 @@ public class Migrate {
             System.out.println("Add asset: " + tx.getTransactionHash());
         }
 
-        tx = creator.sendCall(newContract, DCN.add_exchange("merklex ", creator.getAddress()));
+        tx = creator.sendCall(newContract, DCN.add_exchange("merklex    ", creator.getAddress()));
         System.out.println("Add exchange: " + tx.getTransactionHash());
     }
 }
