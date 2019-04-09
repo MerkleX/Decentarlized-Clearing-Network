@@ -418,7 +418,7 @@ contract DCN {
     assembly {
       {
         let locked_features := sload(security_locked_features_slot)
-        if and(locked_features, 0x1000) {
+        if and(locked_features, 0x4) {
           mstore(32, 0)
           revert(63, 1)
         }
@@ -492,13 +492,6 @@ contract DCN {
   
   function exchange_update_owner(uint32 exchange_id, address new_owner) public  {
     assembly {
-      {
-        let locked_features := sload(security_locked_features_slot)
-        if and(locked_features, 0x200) {
-          mstore(32, 0)
-          revert(63, 1)
-        }
-      }
       let exchange_ptr := add(exchanges_slot, mul(4294967299, exchange_id))
       let exchange_recovery := sload(add(exchange_ptr, 1))
       if iszero(eq(exchange_recovery, caller)) {
@@ -513,13 +506,6 @@ contract DCN {
   
   function exchange_propose_recovery(uint32 exchange_id, address proposed) public  {
     assembly {
-      {
-        let locked_features := sload(security_locked_features_slot)
-        if and(locked_features, 0x400) {
-          mstore(32, 0)
-          revert(63, 1)
-        }
-      }
       let exchange_ptr := add(exchanges_slot, mul(4294967299, exchange_id))
       let exchange_recovery := sload(add(exchange_ptr, 1))
       if iszero(eq(exchange_recovery, caller)) {
@@ -532,13 +518,6 @@ contract DCN {
   
   function exchange_set_recovery(uint32 exchange_id) public  {
     assembly {
-      {
-        let locked_features := sload(security_locked_features_slot)
-        if and(locked_features, 0x800) {
-          mstore(32, 0)
-          revert(63, 1)
-        }
-      }
       let exchange_ptr := add(exchanges_slot, mul(4294967299, exchange_id))
       let exchange_recovery_proposed := sload(add(exchange_ptr, 2))
       if or(iszero(eq(exchange_recovery_proposed, caller)), iszero(caller)) {
@@ -678,7 +657,7 @@ contract DCN {
     assembly {
       {
         let locked_features := sload(security_locked_features_slot)
-        if and(locked_features, 0x4) {
+        if and(locked_features, 0x8) {
           mstore(32, 0)
           revert(63, 1)
         }
@@ -722,7 +701,7 @@ contract DCN {
     assembly {
       {
         let locked_features := sload(security_locked_features_slot)
-        if and(locked_features, 0x8) {
+        if and(locked_features, 0x10) {
           mstore(32, 0)
           revert(63, 1)
         }
@@ -886,12 +865,9 @@ contract DCN {
     
     uint256[4] memory log_data_mem;
     assembly {
-      if iszero(quantity) {
-        stop()
-      }
       {
         let locked_features := sload(security_locked_features_slot)
-        if and(locked_features, 0x10) {
+        if and(locked_features, 0x20) {
           mstore(32, 0)
           revert(63, 1)
         }
@@ -909,6 +885,9 @@ contract DCN {
           mstore(32, 2)
           revert(63, 1)
         }
+      }
+      if iszero(quantity) {
+        stop()
       }
       let asset_ptr := add(assets_slot, asset_id)
       let unit_scale := and(div(sload(asset_ptr), 0x10000000000000000000000000000000000000000), 0xffffffffffffffff)
@@ -1025,7 +1004,7 @@ contract DCN {
     assembly {
       {
         let locked_features := sload(security_locked_features_slot)
-        if and(locked_features, 0x20) {
+        if and(locked_features, 0x40) {
           mstore(32, 0)
           revert(63, 1)
         }
@@ -1159,7 +1138,7 @@ contract DCN {
     assembly {
       {
         let locked_features := sload(security_locked_features_slot)
-        if and(locked_features, 0x40) {
+        if and(locked_features, 0x80) {
           mstore(32, 0)
           revert(63, 1)
         }
@@ -1300,7 +1279,7 @@ contract DCN {
     assembly {
       {
         let locked_features := sload(security_locked_features_slot)
-        if and(locked_features, 0x80) {
+        if and(locked_features, 0x100) {
           mstore(32, 0)
           revert(63, 1)
         }
@@ -1511,7 +1490,7 @@ contract DCN {
     assembly {
       {
         let locked_features := sload(security_locked_features_slot)
-        if and(locked_features, 0x100) {
+        if and(locked_features, 0x200) {
           mstore(32, 0)
           revert(63, 1)
         }

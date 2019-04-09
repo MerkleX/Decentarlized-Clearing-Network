@@ -280,17 +280,14 @@ contract DCN {
 
   #define FEATURE_ADD_ASSET 0x1
   #define FEATURE_ADD_EXCHANGE 0x2
-  #define FEATURE_EXCHANGE_DEPOSIT 0x4
-  #define FEATURE_DEPOSIT 0x8
-  #define FEATURE_TRANSFER_TO_SESSION 0x10
-  #define FEATURE_DEPOSIT_ASSET_TO_SESSION 0x20
-  #define FEATURE_EXCHANGE_TRANSFER_FROM 0x40
-  #define FEATURE_EXCHANGE_SET_LIMITS 0x80
-  #define FEATURE_APPLY_SETTLEMENT_GROUPS 0x100
-  #define FEATURE_EXCHANGE_UPDATE_OWNER 0x200
-  #define FEATURE_EXCHANGE_PROPOSE_RECOVERY 0x400
-  #define FEATURE_EXCHANGE_SET_RECOVERY 0x800
-  #define FEATURE_CREATE_USER 0x1000
+  #define FEATURE_CREATE_USER 0x4
+  #define FEATURE_EXCHANGE_DEPOSIT 0x8
+  #define FEATURE_USER_DEPOSIT 0x10
+  #define FEATURE_TRANSFER_TO_SESSION 0x20
+  #define FEATURE_DEPOSIT_ASSET_TO_SESSION 0x40
+  #define FEATURE_EXCHANGE_TRANSFER_FROM 0x80
+  #define FEATURE_EXCHANGE_SET_LIMITS 0x100
+  #define FEATURE_APPLY_SETTLEMENT_GROUPS 0x200
   #define FEATURE_ALL U256_MAX
 
   #define SECURITY_FEATURE_CHECK(FEATURE, REVERT_1) \
@@ -883,8 +880,6 @@ contract DCN {
    */
   function exchange_update_owner(uint32 exchange_id, address new_owner) public {
     assembly {
-      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_UPDATE_OWNER, 0)
-
       let exchange_ptr := EXCHANGE_PTR_(exchange_id)
       let exchange_recovery := sload(pointer_attr(Exchange, exchange_ptr, recovery_address))
 
@@ -911,8 +906,6 @@ contract DCN {
    */
   function exchange_propose_recovery(uint32 exchange_id, address proposed) public {
     assembly {
-      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_PROPOSE_RECOVERY, 0)
-
       let exchange_ptr := EXCHANGE_PTR_(exchange_id)
       let exchange_recovery := sload(pointer_attr(Exchange, exchange_ptr, recovery_address))
 
@@ -936,8 +929,6 @@ contract DCN {
    */
   function exchange_set_recovery(uint32 exchange_id) public {
     assembly {
-      SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_SET_RECOVERY, 0)
-
       let exchange_ptr := EXCHANGE_PTR_(exchange_id)
       let exchange_recovery_proposed := sload(pointer_attr(Exchange, exchange_ptr, recovery_address_proposed))
 
@@ -1162,7 +1153,7 @@ contract DCN {
     uint256[1] memory transfer_out_mem;
 
     assembly {
-      SECURITY_FEATURE_CHECK(FEATURE_DEPOSIT, 0)
+      SECURITY_FEATURE_CHECK(FEATURE_USER_DEPOSIT, 0)
       VALID_ASSET_ID(asset_id, 1)
 
       if iszero(amount) {
@@ -1349,13 +1340,13 @@ contract DCN {
     uint256[4] memory log_data_mem;
 
     assembly {
-      if iszero(quantity) {
-        stop()
-      }
-
       SECURITY_FEATURE_CHECK(FEATURE_TRANSFER_TO_SESSION, 0)
       VALID_EXCHANGE_ID(exchange_id, 1)
       VALID_ASSET_ID(asset_id, 2)
+
+      if iszero(quantity) {
+        stop()
+      }
 
       let asset_ptr := ASSET_PTR_(asset_id)
       let unit_scale := attr(Asset, 0, sload(asset_ptr), unit_scale)

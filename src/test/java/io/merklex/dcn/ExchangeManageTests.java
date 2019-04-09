@@ -14,7 +14,7 @@ import static io.merklex.dcn.utils.AssertHelpers.assertSuccess;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(Spectrum.class)
-public class ExchangeTests {
+public class ExchangeManageTests {
     {
         StaticNetwork.DescribeCheckpoint();
 
@@ -38,6 +38,9 @@ public class ExchangeTests {
             assertEquals(exchangeOwner.getAddress(), exchange.owner);
             assertEquals(exchangeOwner.getAddress(), exchange.recovery_address);
             assertEquals("0x0000000000000000000000000000000000000000", exchange.recovery_address_proposed);
+        });
+
+        it("should be able to update owner", () -> {
         });
 
 //        describe("add exchange", () -> {
