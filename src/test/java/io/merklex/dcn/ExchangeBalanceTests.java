@@ -11,8 +11,7 @@ import org.junit.runner.RunWith;
 
 import java.math.BigInteger;
 
-import static com.greghaskins.spectrum.Spectrum.beforeAll;
-import static com.greghaskins.spectrum.Spectrum.it;
+import static com.greghaskins.spectrum.Spectrum.*;
 import static io.merklex.dcn.utils.AssertHelpers.assertRevert;
 import static io.merklex.dcn.utils.AssertHelpers.assertSuccess;
 import static org.junit.Assert.assertEquals;
@@ -27,7 +26,7 @@ public class ExchangeBalanceTests {
 
         Box<String> token = new Box<>();
 
-        BigInteger totalSupply = BigInteger.valueOf(2).pow(255);
+        BigInteger totalSupply = BigInteger.valueOf(3).pow(64);
 
         beforeAll(() -> {
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
@@ -59,18 +58,52 @@ public class ExchangeBalanceTests {
 
             assertEquals(BigInteger.valueOf(5000),
                     balance.exchange_balance);
+
+            ERC20.BalanceofReturnValue tokenBalance;
+
+            tokenBalance = ERC20.query_balanceOf(token.value, creator.getWeb3(),
+                    ERC20.balanceOf(creator.getAddress()));
+            assertEquals(totalSupply.subtract(BigInteger.valueOf(50000)), tokenBalance.balance);
+
+            tokenBalance = ERC20.query_balanceOf(token.value, creator.getWeb3(),
+                    ERC20.balanceOf(StaticNetwork.DCN()));
+            assertEquals(BigInteger.valueOf(50000), tokenBalance.balance);
         });
 
-        it("should not be able to overflow deposit", () -> {
-            assertRevert("0x01", creator.sendCall(StaticNetwork.DCN(),
-                    DCN.exchange_deposit(0, 0, -5000)));
+        describe("should not be able to overflow", () -> {
+            StaticNetwork.DescribeCheckpointForEach();
 
-//            DCN.GetExchangeBalanceReturnValue balance;
-//            balance = DCN.query_get_exchange_balance(StaticNetwork.DCN(), creator.getWeb3(),
-//                    DCN.get_exchange_balance(0, 0));
-//
-//            assertEquals(BigInteger.valueOf(2).shiftLeft(64).subtract(BigInteger.valueOf(100)),
-//                    balance.exchange_balance);
+            it("should pass", () -> {
+                creator.reloadNonce();
+                assertSuccess(creator.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_deposit(0, 0, -5001)));
+            });
+
+            it("should fail", () -> {
+                creator.reloadNonce();
+                assertRevert("0x01", creator.sendCall(StaticNetwork.DCN(),
+                        DCN.exchange_deposit(0, 0, -5000)));
+            });
+        });
+
+        it("should only be able to withdraw from exchange with owner", () -> {
+            creator.reloadNonce();
+
+            assertRevert("0x01", creator.sendCall(StaticNetwork.DCN(),
+                    DCN.exchange_withdraw(0, 0, creator.getAddress(), 500)));
+
+            assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
+                    DCN.exchange_withdraw(0, 0, exchange.getAddress(), 500)));
+
+            ERC20.BalanceofReturnValue tokenBalance;
+
+            tokenBalance = ERC20.query_balanceOf(token.value, creator.getWeb3(),
+                    ERC20.balanceOf(StaticNetwork.DCN()));
+            assertEquals(BigInteger.valueOf(50000 - 5000), tokenBalance.balance);
+
+            tokenBalance = ERC20.query_balanceOf(token.value, creator.getWeb3(),
+                    ERC20.balanceOf(exchange.getAddress()));
+            assertEquals(BigInteger.valueOf(5000), tokenBalance.balance);
         });
     }
 }
