@@ -112,7 +112,7 @@ public class ExchangeSetLimitTests {
         it("only exchange should be able update limit", () -> {
             String payload = Numeric.toHexString(bytes, 0, updateLimits.bytes(1), true);
 
-            assertRevert("0x02", creator.sendCall(StaticNetwork.DCN(),
+            assertRevert("0x01", creator.sendCall(StaticNetwork.DCN(),
                     DCN.exchange_set_limits(payload)));
 
             assertSuccess(exchange.sendCall(StaticNetwork.DCN(),

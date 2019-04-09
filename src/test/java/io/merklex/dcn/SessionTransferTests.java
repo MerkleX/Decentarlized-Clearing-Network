@@ -184,7 +184,7 @@ public class SessionTransferTests {
 
                 String payload = Numeric.toHexString(bytes, 0, transfers.bytes(1, group), true);
 
-                assertRevert("0x03", bob.sendCall(StaticNetwork.DCN(),
+                assertRevert("0x02", bob.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_transfer_from(payload)));
 
                 assertSuccess(creator.sendCall(StaticNetwork.DCN(),
