@@ -311,7 +311,7 @@ public class ExchangeSetLimitTests {
 //            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
 //
 //            Assert.assertTrue(ethSendTransaction.hasError());
-//            assertEquals("0x03", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+//            assertEquals("0x03", RevertCodeExtractor.GetRevert(ethSendTransaction.getError()));
 //
 //            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
 //            assertEquals("0x0", call.getStatus());
@@ -335,7 +335,7 @@ public class ExchangeSetLimitTests {
 //            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
 //
 //            Assert.assertTrue(ethSendTransaction.hasError());
-//            assertEquals("0x03", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+//            assertEquals("0x03", RevertCodeExtractor.GetRevert(ethSendTransaction.getError()));
 //
 //            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
 //            assertEquals("0x0", call.getStatus());
@@ -358,7 +358,7 @@ public class ExchangeSetLimitTests {
 //            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
 //
 //            Assert.assertTrue(ethSendTransaction.hasError());
-//            assertEquals("0x05", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+//            assertEquals("0x05", RevertCodeExtractor.GetRevert(ethSendTransaction.getError()));
 //
 //            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
 //            assertEquals("0x0", call.getStatus());
@@ -461,7 +461,7 @@ public class ExchangeSetLimitTests {
 //            EthSendTransaction ethSendTransaction = exchange.sendCall(StaticNetwork.DCN(), DCN.set_limit(payload));
 //
 //            Assert.assertTrue(ethSendTransaction.hasError());
-//            assertEquals("0x05", RevertCodeExtractor.Get(ethSendTransaction.getError()));
+//            assertEquals("0x05", RevertCodeExtractor.GetRevert(ethSendTransaction.getError()));
 //
 //            TransactionReceipt call = exchange.waitForResult(ethSendTransaction);
 //            assertEquals("0x0", call.getStatus());

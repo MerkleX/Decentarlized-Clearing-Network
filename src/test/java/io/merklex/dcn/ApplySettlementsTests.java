@@ -1121,7 +1121,7 @@ public class ApplySettlementsTests {
 //
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x01", RevertCodeExtractor.GetRevert(tx.getError()));
 //                assertEquals("0x0", creator.waitForResult(tx).getStatus());
 //
 //                settlements.exchangeId(oldExchangeId);
@@ -1130,21 +1130,21 @@ public class ApplySettlementsTests {
 //            it("should fail with non creator as caller", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = buyer.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x02", RevertCodeExtractor.GetRevert(tx.getError()));
 //                assertEquals("0x0", buyer.waitForResult(tx).getStatus());
 //            });
 //
 //            it("should fail if missing data for settlement group", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size() - 1);
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x03", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x03", RevertCodeExtractor.GetRevert(tx.getError()));
 //                assertEquals("0x0", creator.waitForResult(tx).getStatus());
 //            });
 //
 //            it("should fail with buyer not locking session", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x04", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x04", RevertCodeExtractor.GetRevert(tx.getError()));
 //                assertEquals("0x0", creator.waitForResult(tx).getStatus());
 //            });
 //
@@ -1157,7 +1157,7 @@ public class ApplySettlementsTests {
 //
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x05", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x05", RevertCodeExtractor.GetRevert(tx.getError()));
 //                assertEquals("0x0", creator.waitForResult(tx).getStatus());
 //
 //                entry.quoteDelta(initialQuoteSpend);
@@ -1175,7 +1175,7 @@ public class ApplySettlementsTests {
 //
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x05", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x05", RevertCodeExtractor.GetRevert(tx.getError()));
 //                assertEquals("0x0", creator.waitForResult(tx).getStatus());
 //
 //                entry
@@ -1186,7 +1186,7 @@ public class ApplySettlementsTests {
 //            it("should fail because of fee limit", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x06", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x06", RevertCodeExtractor.GetRevert(tx.getError()));
 //                assertEquals("0x0", creator.waitForResult(tx).getStatus());
 //            });
 //
@@ -1199,7 +1199,7 @@ public class ApplySettlementsTests {
 //
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x07", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x07", RevertCodeExtractor.GetRevert(tx.getError()));
 //                assertEquals("0x0", creator.waitForResult(tx).getStatus());
 //
 //                entry.baseDelta(oldBaseDelta);
@@ -1208,7 +1208,7 @@ public class ApplySettlementsTests {
 //            it("should fail because min quote is violated", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x09", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x09", RevertCodeExtractor.GetRevert(tx.getError()));
 //                assertEquals("0x0", creator.waitForResult(tx).getStatus());
 //            });
 //
@@ -1238,7 +1238,7 @@ public class ApplySettlementsTests {
 //            it("should fail because long_max_price is too low", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x0c", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x0c", RevertCodeExtractor.GetRevert(tx.getError()));
 //                assertEquals("0x0", creator.waitForResult(tx).getStatus());
 //            });
 //
@@ -1268,7 +1268,7 @@ public class ApplySettlementsTests {
 //            it("should fail because seller session is not setup", () -> {
 //                String payload = Hex.toHexString(data, 0, Settlements.BYTES + group.size());
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
-//                assertEquals("0x04", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x04", RevertCodeExtractor.GetRevert(tx.getError()));
 //                assertEquals("0x0", creator.waitForResult(tx).getStatus());
 //            });
 //
@@ -1345,21 +1345,21 @@ public class ApplySettlementsTests {
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(), DCN.apply_settlement_groups(payload));
 //
 //                Assert.assertTrue(tx.hasError());
-//                assertEquals("0x64", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x64", RevertCodeExtractor.GetRevert(tx.getError()));
 //            });
 //
 //            it("non exchange should not be able to withdraw fee", () -> {
 //                EthSendTransaction tx = buyer.sendCall(StaticNetwork.DCN(),
 //                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 11));
 //                Assert.assertTrue(tx.hasError());
-//                assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x01", RevertCodeExtractor.GetRevert(tx.getError()));
 //            });
 //
 //            it("exchange should not be able to withdraw more than fee", () -> {
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(),
 //                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 11));
 //                Assert.assertTrue(tx.hasError());
-//                assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x02", RevertCodeExtractor.GetRevert(tx.getError()));
 //            });
 //
 //            it("should be able to withdraw fee 50", () -> {
@@ -1402,7 +1402,7 @@ public class ApplySettlementsTests {
 //                EthSendTransaction tx = creator.sendCall(StaticNetwork.DCN(),
 //                        DCN.exchange_withdraw_fees(0, creator.getAddress(), 1));
 //                Assert.assertTrue(tx.hasError());
-//                assertEquals("0x02", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x02", RevertCodeExtractor.GetRevert(tx.getError()));
 //            });
 //        });
     }

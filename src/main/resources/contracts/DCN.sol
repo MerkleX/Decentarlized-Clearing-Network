@@ -739,6 +739,7 @@ contract DCN {
   function set_exchange_locked(uint32 exchange_id, bool locked) public {
     assembly {
       CREATOR_REQUIRED(1)
+      VALID_EXCHANGE_ID(exchange_id, 2)
 
       let exchange_ptr := EXCHANGE_PTR_(exchange_id)
       let exchange_0 := sload(exchange_ptr)
@@ -1644,12 +1645,17 @@ contract DCN {
       /* load exchange_id */
       let header_0 := CURSOR_LOAD(ExchangeTransfersHeader, 1)
       let exchange_id := attr(ExchangeTransfersHeader, 0, header_0, exchange_id)
-      VALID_EXCHANGE_ID(exchange_id, 2)
+      VALID_EXCHANGE_ID(exchange_id, 1)
 
-      /* ensure exchange is caller */
       {
+        /* ensure exchange is caller */
         let exchange_data := sload(EXCHANGE_PTR_(exchange_id))
         if iszero(eq(caller, attr(Exchange, 0, exchange_data, owner))) {
+          REVERT(2)
+        }
+
+        /* ensure exchange is not locked */
+        if attr(Exchange, 0, exchange_data, locked) {
           REVERT(3)
         }
       }
@@ -1662,7 +1668,7 @@ contract DCN {
 
         /* Validate asset id */
         if iszero(lt(asset_id, asset_count)) {
-          REVERT(5)
+          REVERT(4)
         }
 
         let disallow_overdraft := iszero(attr(ExchangeTransferGroup, 0, group_0, allow_overdraft))
@@ -1673,7 +1679,7 @@ contract DCN {
 
         /* ensure data fits in input */
         if gt(cursor_group_end, cursor_end) {
-          REVERT(6)
+          REVERT(5)
         }
 
         let exchange_balance_ptr := EXCHANGE_BALANCE_PTR_(EXCHANGE_PTR_(exchange_id), asset_id)
@@ -1701,14 +1707,14 @@ contract DCN {
            */
           if gt(session_balance_updated, session_balance) {
             if disallow_overdraft {
-              REVERT(7)
+              REVERT(6)
             }
 
             exchange_balance_used := sub(quantity, session_balance)
             session_balance_updated := 0
 
             if gt(exchange_balance_used, exchange_balance_remaining) {
-              REVERT(8)
+              REVERT(7)
             }
 
             exchange_balance_remaining := sub(exchange_balance_remaining, exchange_balance_used)
@@ -1722,7 +1728,7 @@ contract DCN {
           let updated_user_balance := add(user_balance, quantity_scaled)
           /* prevent overflow */
           if gt(user_balance, updated_user_balance) {
-            REVERT(9)
+            REVERT(8)
           }
 
           let unsettled_withdraw_total_updated := add(
@@ -1825,6 +1831,11 @@ contract DCN {
 
       /* ensure caller is the exchange owner */
       if iszero(eq(caller, exchange_owner)) {
+        REVERT(1)
+      }
+
+      /* ensure exchange is not locked */
+      if attr(Exchange, 0, exchange_0, locked) {
         REVERT(2)
       }
     }
@@ -2048,13 +2059,18 @@ contract DCN {
       let exchange_id := attr(ExchangeId, 0, exchange_id_0, exchange_id)
       VALID_EXCHANGE_ID(exchange_id, 2)
 
-      /* caller must be exchange owner */
       {
         let exchange_ptr := EXCHANGE_PTR_(exchange_id)
         let exchange_0 := sload(exchange_ptr)
 
+        /* caller must be exchange owner */
         if iszero(eq(caller, attr(Exchange, 0, exchange_0, owner))) {
           REVERT(3)
+        }
+
+        /* exchange must not be locked */
+        if attr(Exchange, 0, exchange_0, locked) {
+          REVERT(4)
         }
       }
 

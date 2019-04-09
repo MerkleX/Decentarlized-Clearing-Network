@@ -11,7 +11,7 @@ import java.util.Map;
 public class RevertCodeExtractor {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public static String Get(Response.Error error) throws IOException {
+    public static String GetRevert(Response.Error error) throws IOException {
         String data = error.getData();
         JsonNode jsonNode = MAPPER.readTree(data);
         Iterator<Map.Entry<String, JsonNode>> fields = jsonNode.fields();

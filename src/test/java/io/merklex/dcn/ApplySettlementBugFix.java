@@ -23,13 +23,30 @@ import static org.junit.Assert.assertEquals;
 public class ApplySettlementBugFix {
     private static EtherTransactions creator = Accounts.getTx(0);
 
-    private static EtherTransactions user1 = new EtherTransactions(StaticNetwork.Web3(),
+    public static final EtherTransactions user1 = new EtherTransactions(StaticNetwork.Web3(),
             Credentials.create("A150C1069C8EC0BA140281E6CBEB6A036B95943FDA74E5BE9903C22F409DD0A3"))
             .withGas(BigInteger.ZERO, StaticNetwork.GAS_LIMIT);
 
-    private static EtherTransactions user2 = new EtherTransactions(StaticNetwork.Web3(),
+    public static final EtherTransactions user2 = new EtherTransactions(StaticNetwork.Web3(),
             Credentials.create("D66409126462E7AE60F3A656513D994E60C0654FB27A0FE2DD64D956002593E9"))
             .withGas(BigInteger.ZERO, StaticNetwork.GAS_LIMIT);
+
+    public static final String APPLY_LIMIT_TX = "0xec3b84f0000000000000000000000000000000000000000000000000000000000000002" +
+            "00000000000000000000000000000000000000000000000000000000000000146000000000" +
+            "000000000000000000000010000000000000001000000030000000000000000ffffffffff6d" +
+            "8400000000000000000000000000003d0900fffd5b44d6db000000000000000000020000000" +
+            "000000000000000000000000000000000000000009190b608793260a67804f71b23b956f6b8" +
+            "52f0afcc08053426ad169ea83ba5ff36eb058c5c7651c00b5330464bf754cc76cab45da73f70" +
+            "3305e706fac1baf59b1c0000000000000000000000020000000000000001000000030000000" +
+            "000000000ffffffffff676980ffffffffc465360000000000000f424000000000002dc6c000" +
+            "00000000000002000000000000000000000000000000000000000000000000119bf9db38f8b" +
+            "fb449493147f3842d0b7a43e8acd4b41c74bcf5479766c187c301f06d82d3f487770121e2ec" +
+            "da8cd8674e3b0ae27c88823df53c8606ad304bd71b000000000000000000000000000000000" +
+            "0000000000000000000";
+
+    public static final String APPLY_SETTLEMENT_PAYLOAD = "0x000000000000000100000003020000000000000001ffffffffff" +
+            "6d8400000000001312d000000000000000000000000000000000020" +
+            "000000000927c00ffffffffeced30000000000000000000";
 
     {
         StaticNetwork.DescribeCheckpoint();
@@ -89,18 +106,7 @@ public class ApplySettlementBugFix {
 
         it("apply set limit", () -> {
             assertSuccess(creator.sendCall(BigInteger.ZERO, StaticNetwork.GAS_LIMIT, StaticNetwork.DCN(),
-                    "0xec3b84f0000000000000000000000000000000000000000000000000000000000000002" +
-                            "00000000000000000000000000000000000000000000000000000000000000146000000000" +
-                            "000000000000000000000010000000000000001000000030000000000000000ffffffffff6d" +
-                            "8400000000000000000000000000003d0900fffd5b44d6db000000000000000000020000000" +
-                            "000000000000000000000000000000000000000009190b608793260a67804f71b23b956f6b8" +
-                            "52f0afcc08053426ad169ea83ba5ff36eb058c5c7651c00b5330464bf754cc76cab45da73f70" +
-                            "3305e706fac1baf59b1c0000000000000000000000020000000000000001000000030000000" +
-                            "000000000ffffffffff676980ffffffffc465360000000000000f424000000000002dc6c000" +
-                            "00000000000002000000000000000000000000000000000000000000000000119bf9db38f8b" +
-                            "fb449493147f3842d0b7a43e8acd4b41c74bcf5479766c187c301f06d82d3f487770121e2ec" +
-                            "da8cd8674e3b0ae27c88823df53c8606ad304bd71b000000000000000000000000000000000" +
-                            "0000000000000000000", BigInteger.ZERO));
+                    APPLY_LIMIT_TX, BigInteger.ZERO));
 
             DCN.GetMarketStateReturnValue state;
 
@@ -115,10 +121,7 @@ public class ApplySettlementBugFix {
             assertEquals(0, state.base_qty);
         });
 
-        String settleData = "0x000000000000000100000003020000000000000001ffffffffff" +
-                "6d8400000000001312d000000000000000000000000000000000020" +
-                "000000000927c00ffffffffeced30000000000000000000";
-        ApplySettlement("should apply settlement", settleData);
+        ApplySettlement("should apply settlement", APPLY_SETTLEMENT_PAYLOAD);
     }
 
     private static void ApplySettlement(String name, String settleData) {

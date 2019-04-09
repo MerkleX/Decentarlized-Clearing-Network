@@ -69,7 +69,7 @@
 //                    DCN.withdraw_from_session_to_account(0, 0, user.getAddress(), 100));
 //
 //            Assert.assertTrue(tx.hasError());
-//            Assert.assertEquivalent("0x01", RevertCodeExtractor.Get(tx.getError()));
+//            Assert.assertEquivalent("0x01", RevertCodeExtractor.GetRevert(tx.getError()));
 //
 //            Assert.assertEquivalent("0x0", user.waitForResult(tx).getStatus());
 //        });
@@ -99,7 +99,7 @@
 //                    DCN.withdraw_from_session_to_account(0, 0, user.getAddress(), 901));
 //
 //            Assert.assertTrue(tx.hasError());
-//            Assert.assertEquivalent("0x02", RevertCodeExtractor.Get(tx.getError()));
+//            Assert.assertEquivalent("0x02", RevertCodeExtractor.GetRevert(tx.getError()));
 //
 //            Assert.assertEquivalent("0x0", user.waitForResult(tx).getStatus());
 //        });

@@ -60,7 +60,7 @@
 //            EthSendTransaction tx = user.sendCall(StaticNetwork.DCN(),
 //                    DCN.transfer_to_session(0, 0, 1001));
 //
-//            assertEquivalent("0x01", RevertCodeExtractor.Get(tx.getError()));
+//            assertEquivalent("0x01", RevertCodeExtractor.GetRevert(tx.getError()));
 //            assertEquivalent("0x0", user.waitForResult(tx).getStatus());
 //        });
 //

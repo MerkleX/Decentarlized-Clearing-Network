@@ -73,7 +73,7 @@ public class LocalDCN {
 
         private static void success(EthSendTransaction res) throws IOException {
             if (res.hasError()) {
-                System.out.println(RevertCodeExtractor.Get(res.getError()));
+                System.out.println(RevertCodeExtractor.GetRevert(res.getError()));
             }
             else {
                 System.out.println(res.getTransactionHash());

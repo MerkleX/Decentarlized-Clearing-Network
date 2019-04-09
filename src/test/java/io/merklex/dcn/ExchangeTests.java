@@ -56,7 +56,7 @@ public class ExchangeTests {
 //                        StaticNetwork.DCN(),
 //                        DCN.add_exchange("merklex ", 0, exchangeOwner0.credentials().getAddress())
 //                );
-//                assertEquals("0x03", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x03", RevertCodeExtractor.GetRevert(tx.getError()));
 //                assertEquals("0x0", creator.waitForResult(tx).getStatus());
 //            });
 //
@@ -95,7 +95,7 @@ public class ExchangeTests {
 //                        DCN.add_exchange("bobs network", 0, exchangeOwner0.credentials().getAddress())
 //                );
 //                Assert.assertTrue(tx.hasError());
-//                assertEquals("0x01", RevertCodeExtractor.Get(tx.getError()));
+//                assertEquals("0x01", RevertCodeExtractor.GetRevert(tx.getError()));
 //
 //                TransactionReceipt receipt = exchangeOwner0.waitForResult(tx);
 //                assertEquals("0x0", receipt.getStatus());

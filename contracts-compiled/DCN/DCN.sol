@@ -398,6 +398,13 @@ contract DCN {
           revert(63, 1)
         }
       }
+      {
+        let exchange_count := sload(exchange_count_slot)
+        if iszero(lt(exchange_id, exchange_count)) {
+          mstore(32, 2)
+          revert(63, 1)
+        }
+      }
       let exchange_ptr := add(exchanges_slot, mul(4294967299, exchange_id))
       let exchange_0 := sload(exchange_ptr)
       sstore(exchange_ptr, or(and(0xffffffffffffffffffffff00ffffffffffffffffffffffffffffffffffffffff, exchange_0), 
@@ -1170,13 +1177,17 @@ contract DCN {
       {
         let exchange_count := sload(exchange_count_slot)
         if iszero(lt(exchange_id, exchange_count)) {
-          mstore(32, 2)
+          mstore(32, 1)
           revert(63, 1)
         }
       }
       {
         let exchange_data := sload(add(exchanges_slot, mul(4294967299, exchange_id)))
         if iszero(eq(caller, and(exchange_data, 0xffffffffffffffffffffffffffffffffffffffff))) {
+          mstore(32, 2)
+          revert(63, 1)
+        }
+        if and(div(exchange_data, 0x10000000000000000000000000000000000000000), 0xff) {
           mstore(32, 3)
           revert(63, 1)
         }
@@ -1191,13 +1202,13 @@ contract DCN {
         }
         let asset_id := and(div(group_0, 0x100000000000000000000000000000000000000000000000000000000), 0xffffffff)
         if iszero(lt(asset_id, asset_count)) {
-          mstore(32, 5)
+          mstore(32, 4)
           revert(63, 1)
         }
         let disallow_overdraft := iszero(and(div(group_0, 0x1000000000000000000000000000000000000000000000000000000), 0xff))
         let cursor_group_end := add(cursor, mul(and(div(group_0, 0x10000000000000000000000000000000000000000000000000000), 0xff), 16))
         if gt(cursor_group_end, cursor_end) {
-          mstore(32, 6)
+          mstore(32, 5)
           revert(63, 1)
         }
         let exchange_balance_ptr := add(add(add(exchanges_slot, mul(4294967299, exchange_id)), 3), asset_id)
@@ -1216,13 +1227,13 @@ contract DCN {
           let session_balance_updated := sub(session_balance, quantity)
           if gt(session_balance_updated, session_balance) {
             if disallow_overdraft {
-              mstore(32, 7)
+              mstore(32, 6)
               revert(63, 1)
             }
             exchange_balance_used := sub(quantity, session_balance)
             session_balance_updated := 0
             if gt(exchange_balance_used, exchange_balance_remaining) {
-              mstore(32, 8)
+              mstore(32, 7)
               revert(63, 1)
             }
             exchange_balance_remaining := sub(exchange_balance_remaining, exchange_balance_used)
@@ -1232,7 +1243,7 @@ contract DCN {
           let user_balance := sload(user_balance_ptr)
           let updated_user_balance := add(user_balance, quantity_scaled)
           if gt(user_balance, updated_user_balance) {
-            mstore(32, 9)
+            mstore(32, 8)
             revert(63, 1)
           }
           let unsettled_withdraw_total_updated := add(and(div(session_balance_0, 0x10000000000000000), 0xffffffffffffffff), exchange_balance_used)
@@ -1307,6 +1318,10 @@ contract DCN {
       let exchange_0 := sload(add(exchanges_slot, mul(4294967299, exchange_id)))
       let exchange_owner := and(exchange_0, 0xffffffffffffffffffffffffffffffffffffffff)
       if iszero(eq(caller, exchange_owner)) {
+        mstore(32, 1)
+        revert(63, 1)
+      }
+      if and(div(exchange_0, 0x10000000000000000000000000000000000000000), 0xff) {
         mstore(32, 2)
         revert(63, 1)
       }
@@ -1523,6 +1538,10 @@ contract DCN {
         let exchange_0 := sload(exchange_ptr)
         if iszero(eq(caller, and(exchange_0, 0xffffffffffffffffffffffffffffffffffffffff))) {
           mstore(32, 3)
+          revert(63, 1)
+        }
+        if and(div(exchange_0, 0x10000000000000000000000000000000000000000), 0xff) {
+          mstore(32, 4)
           revert(63, 1)
         }
       }
