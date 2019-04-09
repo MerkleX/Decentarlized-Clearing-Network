@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.Writer;
 
 public class GenerateContractCode {
+    private static final String SOLC_PATH = "solc";
+
     public static void CompileContract(File contractSource, File outputDir) throws IOException, InterruptedException {
         if (!outputDir.exists() && !outputDir.mkdirs()) {
             throw new IOException("Failed to create output directory");
@@ -26,7 +28,7 @@ public class GenerateContractCode {
             writer.write(contractSourceData);
         }
 
-        ProcessBuilder compile = new ProcessBuilder("solc",
+        ProcessBuilder compile = new ProcessBuilder(SOLC_PATH,
                 solidityContractFile.getAbsolutePath(), "--bin", "--abi", "--optimize", "--overwrite",
                 "-o", outputDir.getAbsolutePath());
 
