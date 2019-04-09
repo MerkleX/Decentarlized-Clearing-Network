@@ -20,10 +20,11 @@ public class UserManagementTests {
     {
         StaticNetwork.DescribeCheckpoint();
 
-        EtherTransactions user0 = Accounts.getTx(10);
-        EtherTransactions user0Trade = Accounts.getTx(30);
-        EtherTransactions user0Withdraw = Accounts.getTx(30);
-        EtherTransactions user0Recover = Accounts.getTx(30);
+        EtherTransactions user0 = Accounts.getTx(1);
+        EtherTransactions user0Trade = Accounts.getTx(2);
+        EtherTransactions user0Withdraw = Accounts.getTx(3);
+        EtherTransactions user0Recover = Accounts.getTx(4);
+        EtherTransactions notUser = Accounts.getTx(10);
 
         QueryHelper query = new QueryHelper(StaticNetwork.DCN(), StaticNetwork.Web3());
 
@@ -46,6 +47,9 @@ public class UserManagementTests {
         });
 
         it("should be able to update trade address", () -> {
+            assertRevert("0x01", notUser.sendCall(StaticNetwork.DCN(),
+                    DCN.user_trade_address_update(0, user0Trade.getAddress())));
+
             assertSuccess(user0.sendCall(StaticNetwork.DCN(),
                     DCN.user_trade_address_update(0, user0Trade.getAddress())));
 
@@ -57,6 +61,9 @@ public class UserManagementTests {
         });
 
         it("should be able to update withdraw address", () -> {
+            assertRevert("0x01", notUser.sendCall(StaticNetwork.DCN(),
+                    DCN.user_withdraw_address_update(0, user0Withdraw.getAddress())));
+
             assertSuccess(user0.sendCall(StaticNetwork.DCN(),
                     DCN.user_withdraw_address_update(0, user0Withdraw.getAddress())));
 
@@ -68,6 +75,9 @@ public class UserManagementTests {
         });
 
         it("should be able to propose recovery address", () -> {
+            assertRevert("0x01", notUser.sendCall(StaticNetwork.DCN(),
+                    DCN.user_recovery_address_propose(0, user0Recover.getAddress())));
+
             assertSuccess(user0.sendCall(StaticNetwork.DCN(),
                     DCN.user_recovery_address_propose(0, user0Recover.getAddress())));
 
