@@ -8,8 +8,6 @@ import io.merklex.web3.EtherTransactions;
 import org.junit.runner.RunWith;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
-import java.math.BigInteger;
-
 import static com.greghaskins.spectrum.dsl.specification.Specification.describe;
 import static com.greghaskins.spectrum.dsl.specification.Specification.it;
 import static junit.framework.TestCase.assertEquals;
