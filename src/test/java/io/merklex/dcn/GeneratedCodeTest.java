@@ -1,6 +1,6 @@
 package io.merklex.dcn;
 
-import io.merklex.web3.Utils;
+import io.merklex.web3.FileUtils;
 import io.merklex.web3.gen.GenerateContractCode;
 import org.junit.Assert;
 import org.junit.Test;
@@ -11,7 +11,7 @@ import java.util.Arrays;
 public class GeneratedCodeTest {
     @Test
     public void generatedCodeShouldBeLatest() throws IOException {
-        File compareOut = Utils.TempDir();
+        File compareOut = FileUtils.TempDir();
 
         try {
             GenerateContractCode.ContractToJava(
@@ -24,23 +24,23 @@ public class GeneratedCodeTest {
             assert files != null;
             File contractPath = files[0];
 
-            String expected = Utils.ReadAll(new FileInputStream(contractPath));
+            String expected = FileUtils.ReadAll(new FileInputStream(contractPath));
             expected = expected.replaceFirst("package [\\w_.]+;", "");
             expected = expected.replaceFirst("(static final String BINARY = \"[0-9abcdef]+)[0-9abcdef]{68}(\";)", "$1$2");
 
-            String actual = Utils.ReadAll(new FileInputStream("src/main/generated/io/merklex/dcn/contracts/DCN.java"));
+            String actual = FileUtils.ReadAll(new FileInputStream("src/main/generated/io/merklex/dcn/contracts/DCN.java"));
             actual = actual.replaceFirst("package [\\w_.]+;", "");
             actual = actual.replaceFirst("(static final String BINARY = \"[0-9abcdef]+)[0-9abcdef]{68}(\";)", "$1$2");
 
             Assert.assertEquals(expected, actual);
         } finally {
-            Utils.DeleteDir(compareOut);
+            FileUtils.DeleteDir(compareOut);
         }
     }
 
     @Test
     public void compiledOutputShouldBeLatest() throws IOException, InterruptedException {
-        File compareOut = Utils.TempDir();
+        File compareOut = FileUtils.TempDir();
 
         try {
             GenerateContractCode.CompileContract(
@@ -62,8 +62,8 @@ public class GeneratedCodeTest {
             for (int i = 0; i < expectedFiles.length; i++) {
                 try (FileInputStream expectedStream = new FileInputStream(expectedFiles[i]);
                      FileInputStream actualStream = new FileInputStream(actualFiles[i])) {
-                    String expectedData = Utils.ReadAll(expectedStream);
-                    String actualData = Utils.ReadAll(actualStream);
+                    String expectedData = FileUtils.ReadAll(expectedStream);
+                    String actualData = FileUtils.ReadAll(actualStream);
 
                     if (expectedFiles[i].getName().endsWith(".bin")) {
                         expectedData = expectedData.substring(0, expectedData.length() - 68);
@@ -74,7 +74,7 @@ public class GeneratedCodeTest {
                 }
             }
         } finally {
-            Utils.DeleteDir(compareOut);
+            FileUtils.DeleteDir(compareOut);
         }
     }
 }

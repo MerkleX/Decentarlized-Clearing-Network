@@ -1,6 +1,6 @@
 package io.merklex.ether_net;
 
-import io.merklex.web3.Utils;
+import io.merklex.web3.FileUtils;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.admin.methods.response.BooleanResponse;
 import org.web3j.protocol.core.Request;
@@ -26,7 +26,7 @@ public class EtherDebugNet implements Web3Provider {
 
     public EtherDebugNet(int rpcPort, String rpcHost, Map<String, String> initialBalances,
                          long blockGasLimit, int networkId) throws IOException, InterruptedException {
-        networkDir = Utils.TempDir();
+        networkDir = FileUtils.TempDir();
         if (!networkDir.mkdirs()) {
             throw new IOException("Failed to create data dir");
         }
@@ -131,6 +131,6 @@ public class EtherDebugNet implements Web3Provider {
             ganache.destroyForcibly();
         }
 
-        Utils.DeleteDir(networkDir);
+        FileUtils.DeleteDir(networkDir);
     }
 }

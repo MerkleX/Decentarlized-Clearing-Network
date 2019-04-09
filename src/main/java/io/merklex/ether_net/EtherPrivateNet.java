@@ -1,6 +1,6 @@
 package io.merklex.ether_net;
 
-import io.merklex.web3.Utils;
+import io.merklex.web3.FileUtils;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.ipc.UnixIpcService;
@@ -23,8 +23,8 @@ public class EtherPrivateNet implements Web3Provider {
     private final StringBuilder logs = new StringBuilder();
 
     public EtherPrivateNet(int rpcPort, String rpcHost, Map<String, String> initialBalances, long blockGasLimit, int networkId) throws IOException, InterruptedException {
-        networkDir = Utils.TempDir();
-        String ipcPath = Utils.TempDir().getAbsolutePath();
+        networkDir = FileUtils.TempDir();
+        String ipcPath = FileUtils.TempDir().getAbsolutePath();
 
         File genesis = File.createTempFile("genesis", ".json");
         genesis.deleteOnExit();
@@ -62,7 +62,7 @@ public class EtherPrivateNet implements Web3Provider {
 
         Process setupNetworkProcess = setupNetwork.start();
         if (setupNetworkProcess.waitFor() != 0) {
-            throw new RuntimeException("Failed to init genesis block: " + Utils.ReadAll(setupNetworkProcess.getErrorStream()));
+            throw new RuntimeException("Failed to init genesis block: " + FileUtils.ReadAll(setupNetworkProcess.getErrorStream()));
         }
 
         ArrayList<String> commandParts = new ArrayList<>(Arrays.asList(
@@ -132,6 +132,6 @@ public class EtherPrivateNet implements Web3Provider {
         } catch (InterruptedException e) {
             geth.destroyForcibly();
         }
-        Utils.DeleteDir(networkDir);
+        FileUtils.DeleteDir(networkDir);
     }
 }

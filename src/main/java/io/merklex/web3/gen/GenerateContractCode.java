@@ -1,6 +1,6 @@
 package io.merklex.web3.gen;
 
-import io.merklex.web3.Utils;
+import io.merklex.web3.FileUtils;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -18,9 +18,9 @@ public class GenerateContractCode {
         ProcessBuilder transpiler = new ProcessBuilder("node", "transpiler/run.js", contractSource.getAbsolutePath());
         Process transpilerProcess = transpiler.start();
 
-        String contractSourceData = Utils.ReadAll(transpilerProcess.getInputStream());
+        String contractSourceData = FileUtils.ReadAll(transpilerProcess.getInputStream());
         if (transpilerProcess.waitFor() != 0) {
-            throw new RuntimeException("Failed to transpile: " + Utils.ReadAll(transpilerProcess.getErrorStream()));
+            throw new RuntimeException("Failed to transpile: " + FileUtils.ReadAll(transpilerProcess.getErrorStream()));
         }
 
         File solidityContractFile = new File(outputDir, contractSource.getName());
@@ -33,7 +33,7 @@ public class GenerateContractCode {
                 "-o", outputDir.getAbsolutePath());
 
         Process compileProcess = compile.start();
-        String errorData = Utils.ReadAll(compileProcess.getErrorStream());
+        String errorData = FileUtils.ReadAll(compileProcess.getErrorStream());
 
         if (compileProcess.waitFor() != 0) {
             throw new RuntimeException(errorData);
@@ -64,7 +64,7 @@ public class GenerateContractCode {
     public static void ContractToJava(File contractPath, File javaOutput, String packageName) {
         File compileOut;
         try {
-            compileOut = Utils.TempDir();
+            compileOut = FileUtils.TempDir();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -75,7 +75,7 @@ public class GenerateContractCode {
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
-            Utils.DeleteDir(compileOut);
+            FileUtils.DeleteDir(compileOut);
         }
     }
 

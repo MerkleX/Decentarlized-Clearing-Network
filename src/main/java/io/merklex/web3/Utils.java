@@ -1,82 +1,53 @@
 package io.merklex.web3;
 
-import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Comparator;
+import java.math.BigInteger;
 
-/**
- * @author plorio
- */
 public class Utils {
-    public static String ReadAll(File stream) throws IOException {
-        return ReadAll(new FileInputStream(stream));
+    public static final BigInteger U64 = BigInteger.valueOf(2).shiftLeft(64);
+    public static final BigInteger U32 = BigInteger.valueOf(2).shiftLeft(32);
+    public static final BigInteger U16 = BigInteger.valueOf(2).shiftLeft(16);
+    public static final BigInteger U8 = BigInteger.valueOf(2).shiftLeft(8);
+
+    public static BigInteger ToUnsigned(int bits, long number) {
+        BigInteger rotate = BigInteger.valueOf(2).shiftLeft(bits);
+        if (number < 0) {
+            return rotate.add(BigInteger.valueOf(number));
+        }
+        return BigInteger.valueOf(number);
     }
 
-    public static String ReadAll(InputStream stream) throws IOException {
-        StringBuilder stringBuffer = new StringBuilder();
-        byte[] buffer = new byte[1024];
-
-        while (true) {
-            int read = stream.read(buffer);
-            if (read < 0) {
-                break;
-            }
-            stringBuffer.append(new String(buffer, 0, read));
+    public static BigInteger ToUnsigned(long number) {
+        if (number < 0) {
+            return U64.add(BigInteger.valueOf(number));
         }
-        return stringBuffer.toString();
+        return BigInteger.valueOf(number);
     }
 
-    public static void Write(String content, File file) throws IOException {
-        try (FileOutputStream out = new FileOutputStream(file)) {
-            out.write(content.getBytes());
+    public static BigInteger ToUnsigned(int number) {
+        if (number < 0) {
+            return U32.add(BigInteger.valueOf(number));
         }
+        return BigInteger.valueOf(number);
     }
 
-    public static String Offset(ArrayList<String> offset) {
-        if (offset.size() == 0) {
-            return "0";
+    public static BigInteger ToUnsigned(short number) {
+        if (number < 0) {
+            return U16.add(BigInteger.valueOf(number));
         }
-        ArrayList<String> groupped = new ArrayList<>();
-
-        int total = 0;
-
-        for (String s : offset) {
-            try {
-                total += Integer.parseInt(s);
-            } catch (Exception ignore) {
-                groupped.add(s);
-            }
-        }
-
-        if (total != 0) {
-            groupped.add(String.valueOf(total));
-        }
-
-        return String.join(" + ", groupped);
+        return BigInteger.valueOf(number);
     }
 
-    public static File TempDir() throws IOException {
-        File dir = File.createTempFile("out", "out");
-        boolean success = dir.delete();
-        assert success;
-
-        return dir;
+    public static BigInteger ToUnsigned(byte number) {
+        if (number < 0) {
+            return U8.add(BigInteger.valueOf(number));
+        }
+        return BigInteger.valueOf(number);
     }
 
-    public static void DeleteDir(File file) {
-        if (!file.exists()) {
-            return;
+    public static BigInteger ToUnsigned(BigInteger number) {
+        if (number.compareTo(BigInteger.ZERO) < 0) {
+            throw new IllegalStateException();
         }
-        try {
-            Files.walk(file.toPath())
-                    .sorted(Comparator.reverseOrder())
-                    .map(Path::toFile)
-                    .forEach(File::delete);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        return number;
     }
-
 }

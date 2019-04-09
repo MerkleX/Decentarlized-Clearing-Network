@@ -2,7 +2,7 @@ package io.merklex.web3.gen;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.merklex.web3.Utils;
+import io.merklex.web3.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,7 +16,7 @@ public class JavaContractGenerator {
 
     public JavaContractGenerator(File abiPath, File binaryPath) throws IOException {
         abi = MAPPER.readTree(abiPath);
-        binaryData = Utils.ReadAll(binaryPath).trim();
+        binaryData = FileUtils.ReadAll(binaryPath).trim();
     }
 
     private static class ConstantFunctionReturn {
@@ -187,6 +187,15 @@ public class JavaContractGenerator {
             return "Collections.emptyList";
         }
         return "Arrays.asList";
+    }
+
+    public static String ABITypeConstructor(String solidityType, String arg) {
+        if (solidityType.startsWith("uint") && !solidityType.equals("uint")) {
+            int bits = Integer.parseInt(solidityType.substring("uint".length()));
+            return "UnsignedNumberType(" + bits + ", " + arg + ")";
+        }
+
+        return ABIGeneratedType(solidityType) + "(" + cast(arg, solidityType) + ")";
     }
 
     private static String ABIGeneratedType(String solidityType) {
@@ -370,7 +379,7 @@ public class JavaContractGenerator {
             if (i != 0) {
                 line.append(", ");
             }
-            line.append("new ").append(ABIGeneratedType(type)).append("(").append(cast(or(name, "arg" + i), type)).append(")");
+            line.append("new ").append(ABITypeConstructor(type, or(name, "arg" + i)));
             line.end();
         }
 
