@@ -92,7 +92,7 @@ public class Settlements extends Settlement.GroupsHeader {
         }
 
         public Group nextGroup(Group group) {
-            return group.wrap(messageMemoryBuffer(), messageMemoryOffset() + BYTES);
+            return group.wrap(messageMemoryBuffer(), messageMemoryOffset() + size());
         }
 
         public int size() {
