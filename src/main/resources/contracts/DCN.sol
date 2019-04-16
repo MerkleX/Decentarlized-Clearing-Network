@@ -67,10 +67,10 @@ contract DCN {
   uint256 security_proposed_unlock_timestamp;
 
   /* maximum values */
-  #define EXCHANGE_COUNT (2**32) /* 2^32 */
-  #define ASSET_COUNT (2**32)    /* 2^32 */
-  #define USER_COUNT (2**64)    /* 2^64 */
-  #define MARKET_COUNT (2**64)   /* 2^64 (2^32 * 2^32 every asset combination) */
+  #define EXCHANGE_COUNT 4294967296             /* 2^32 */
+  #define ASSET_COUNT    4294967296             /* 2^32 */
+  #define USER_COUNT     18446744073709551616   /* 2^64 */
+  #define MARKET_COUNT   18446744073709551616   /* 2^64 (2^32 * 2^32 every asset combination) */
 
   struct Exchange {
     /* 11 byte name of the exchange */
@@ -172,12 +172,6 @@ contract DCN {
   User[USER_COUNT] users;
   Asset[ASSET_COUNT] assets;
   Exchange[EXCHANGE_COUNT] exchanges;
-
-  /* Change constants for assembly */
-  #define EXCHANGE_COUNT exp(2, 32)
-  #define ASSET_COUNT exp(2, 32)
-  #define USER_COUNT exp(2, 64)
-  #define EXCHANGE_COUNT exp(2, 64)
 
   constructor() public {
     assembly {
