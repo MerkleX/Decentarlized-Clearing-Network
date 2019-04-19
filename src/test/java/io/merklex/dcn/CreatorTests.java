@@ -101,13 +101,13 @@ public class CreatorTests {
 
         it("only proposed should be able to update recovery", () -> {
             assertRevert("0x01", account30.sendCall(query.contractAddress,
-                    DCN.creator_update_recovery()));
+                    DCN.creator_set_recovery()));
 
             assertRevert("0x01", account10.sendCall(query.contractAddress,
-                    DCN.creator_update_recovery()));
+                    DCN.creator_set_recovery()));
 
             assertSuccess(account20.sendCall(query.contractAddress,
-                    DCN.creator_update_recovery()));
+                    DCN.creator_set_recovery()));
 
             DCN.GetCreatorReturnValue creator = query.query(DCN::query_get_creator, DCN.get_creator());
             assertEquals(account30.getAddress(), creator.dcn_creator);

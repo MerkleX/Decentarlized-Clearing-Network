@@ -377,7 +377,7 @@ contract DCN {
     }
   }
   
-  function creator_update_recovery() public  {
+  function creator_set_recovery() public  {
     assembly {
       let creator_recovery_proposed := sload(creator_recovery_proposed_slot)
       if or(iszero(eq(creator_recovery_proposed, caller)), iszero(caller)) {
@@ -440,7 +440,7 @@ contract DCN {
     }
   }
   
-  function user_trade_address_update(uint64 user_id, address trade_address) public  {
+  function user_set_trade_address(uint64 user_id, address trade_address) public  {
     assembly {
       let user_ptr := add(users_slot, mul(237684487561239756867226304516, user_id))
       let recovery_address := sload(add(user_ptr, 2))
@@ -452,7 +452,7 @@ contract DCN {
     }
   }
   
-  function user_withdraw_address_update(uint64 user_id, address withdraw_address) public  {
+  function user_set_withdraw_address(uint64 user_id, address withdraw_address) public  {
     assembly {
       let user_ptr := add(users_slot, mul(237684487561239756867226304516, user_id))
       let recovery_address := sload(add(user_ptr, 2))
@@ -464,7 +464,7 @@ contract DCN {
     }
   }
   
-  function user_recovery_address_propose(uint64 user_id, address proposed) public  {
+  function user_propose_recovery_address(uint64 user_id, address proposed) public  {
     assembly {
       let user_ptr := add(users_slot, mul(237684487561239756867226304516, user_id))
       let recovery_address := sload(add(user_ptr, 2))
@@ -476,7 +476,7 @@ contract DCN {
     }
   }
   
-  function user_recovery_address_update(uint64 user_id) public  {
+  function user_set_recovery_address(uint64 user_id) public  {
     assembly {
       let user_ptr := add(users_slot, mul(237684487561239756867226304516, user_id))
       let proposed_ptr := add(user_ptr, 3)
@@ -490,7 +490,7 @@ contract DCN {
     }
   }
   
-  function exchange_update_owner(uint32 exchange_id, address new_owner) public  {
+  function exchange_set_owner(uint32 exchange_id, address new_owner) public  {
     assembly {
       let exchange_ptr := add(exchanges_slot, mul(4294967299, exchange_id))
       let exchange_recovery := sload(add(exchange_ptr, 1))
@@ -595,7 +595,7 @@ contract DCN {
       }
       let exchange_id := sload(exchange_count_slot)
       if iszero(lt(exchange_id, 4294967296)) {
-        mstore(32, 4)
+        mstore(32, 3)
         revert(63, 1)
       }
       let exchange_ptr := add(exchanges_slot, mul(4294967299, exchange_id))
@@ -1156,18 +1156,18 @@ contract DCN {
       {
         let exchange_count := sload(exchange_count_slot)
         if iszero(lt(exchange_id, exchange_count)) {
-          mstore(32, 1)
+          mstore(32, 2)
           revert(63, 1)
         }
       }
       {
         let exchange_data := sload(add(exchanges_slot, mul(4294967299, exchange_id)))
         if iszero(eq(caller, and(exchange_data, 0xffffffffffffffffffffffffffffffffffffffff))) {
-          mstore(32, 2)
+          mstore(32, 3)
           revert(63, 1)
         }
         if and(div(exchange_data, 0x10000000000000000000000000000000000000000), 0xff) {
-          mstore(32, 3)
+          mstore(32, 4)
           revert(63, 1)
         }
       }
@@ -1176,18 +1176,18 @@ contract DCN {
         let group_0 := mload(cursor)
         cursor := add(cursor, 6)
         if gt(cursor, cursor_end) {
-          mstore(32, 4)
+          mstore(32, 5)
           revert(63, 1)
         }
         let asset_id := and(div(group_0, 0x100000000000000000000000000000000000000000000000000000000), 0xffffffff)
         if iszero(lt(asset_id, asset_count)) {
-          mstore(32, 4)
+          mstore(32, 6)
           revert(63, 1)
         }
         let disallow_overdraft := iszero(and(div(group_0, 0x1000000000000000000000000000000000000000000000000000000), 0xff))
         let cursor_group_end := add(cursor, mul(and(div(group_0, 0x10000000000000000000000000000000000000000000000000000), 0xff), 16))
         if gt(cursor_group_end, cursor_end) {
-          mstore(32, 5)
+          mstore(32, 7)
           revert(63, 1)
         }
         let exchange_balance_ptr := add(add(add(exchanges_slot, mul(4294967299, exchange_id)), 3), asset_id)
@@ -1206,13 +1206,13 @@ contract DCN {
           let session_balance_updated := sub(session_balance, quantity)
           if gt(session_balance_updated, session_balance) {
             if disallow_overdraft {
-              mstore(32, 6)
+              mstore(32, 8)
               revert(63, 1)
             }
             exchange_balance_used := sub(quantity, session_balance)
             session_balance_updated := 0
             if gt(exchange_balance_used, exchange_balance_remaining) {
-              mstore(32, 7)
+              mstore(32, 9)
               revert(63, 1)
             }
             exchange_balance_remaining := sub(exchange_balance_remaining, exchange_balance_used)
@@ -1222,10 +1222,14 @@ contract DCN {
           let user_balance := sload(user_balance_ptr)
           let updated_user_balance := add(user_balance, quantity_scaled)
           if gt(user_balance, updated_user_balance) {
-            mstore(32, 8)
+            mstore(32, 10)
             revert(63, 1)
           }
           let unsettled_withdraw_total_updated := add(and(div(session_balance_0, 0x10000000000000000), 0xffffffffffffffff), exchange_balance_used)
+          if gt(unsettled_withdraw_total_updated, 0xFFFFFFFFFFFFFFFF) {
+            mstore(32, 11)
+            revert(63, 1)
+          }
           sstore(session_balance_ptr, or(and(0xffffffffffffffffffffffffffffffff00000000000000000000000000000000, session_balance_0), or(
             /* unsettled_withdraw_total */ mul(unsettled_withdraw_total_updated, 0x10000000000000000), 
             /* asset_balance */ session_balance_updated)))
@@ -1297,11 +1301,11 @@ contract DCN {
       let exchange_0 := sload(add(exchanges_slot, mul(4294967299, exchange_id)))
       let exchange_owner := and(exchange_0, 0xffffffffffffffffffffffffffffffffffffffff)
       if iszero(eq(caller, exchange_owner)) {
-        mstore(32, 1)
+        mstore(32, 2)
         revert(63, 1)
       }
       if and(div(exchange_0, 0x10000000000000000000000000000000000000000), 0xff) {
-        mstore(32, 2)
+        mstore(32, 3)
         revert(63, 1)
       }
     }
@@ -1320,7 +1324,7 @@ contract DCN {
           update_limit_2 := mload(add(cursor, 64))
           cursor := add(cursor, 96)
           if gt(cursor, cursor_end) {
-            mstore(32, 3)
+            mstore(32, 4)
             revert(63, 1)
           }
           {
@@ -1387,7 +1391,7 @@ contract DCN {
             sig_v := and(div(mload(add(cursor, 64)), 0x100000000000000000000000000000000000000000000000000000000000000), 0xff)
             cursor := add(cursor, 65)
             if gt(cursor, cursor_end) {
-              mstore(32, 4)
+              mstore(32, 5)
               revert(63, 1)
             }
           }
@@ -1402,7 +1406,7 @@ contract DCN {
             let session_ptr := add(add(user_ptr, 4294967300), mul(4294967299, exchange_id))
             let trade_address := sload(add(session_ptr, 1))
             if iszero(eq(recovered_address, trade_address)) {
-              mstore(32, 5)
+              mstore(32, 6)
               revert(63, 1)
             }
           }
@@ -1410,7 +1414,7 @@ contract DCN {
         assembly {
           {
             if iszero(eq(mload(add(set_limit_memory_space, 32)), exchange_id)) {
-              mstore(32, 6)
+              mstore(32, 7)
               revert(63, 1)
             }
           }
@@ -1423,7 +1427,7 @@ contract DCN {
           {
             let current_limit_version := and(div(market_state_2, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
             if iszero(gt(mload(add(set_limit_memory_space, 128)), current_limit_version)) {
-              mstore(32, 7)
+              mstore(32, 8)
               revert(63, 1)
             }
           }
@@ -1443,7 +1447,7 @@ contract DCN {
             let new_shift := mload(add(set_limit_memory_space, 160))
             quote_qty := add(quote_qty, sub(new_shift, current_shift))
             if or(slt(quote_qty, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF8000000000000000), sgt(quote_qty, 0x7FFFFFFFFFFFFFFF)) {
-              mstore(32, 8)
+              mstore(32, 9)
               revert(63, 1)
             }
           }
@@ -1455,7 +1459,7 @@ contract DCN {
             let new_shift := mload(add(set_limit_memory_space, 192))
             base_qty := add(base_qty, sub(new_shift, current_shift))
             if or(slt(base_qty, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF8000000000000000), sgt(base_qty, 0x7FFFFFFFFFFFFFFF)) {
-              mstore(32, 9)
+              mstore(32, 10)
               revert(63, 1)
             }
           }
@@ -1516,11 +1520,11 @@ contract DCN {
         let exchange_ptr := add(exchanges_slot, mul(4294967299, exchange_id))
         let exchange_0 := sload(exchange_ptr)
         if iszero(eq(caller, and(exchange_0, 0xffffffffffffffffffffffffffffffffffffffff))) {
-          mstore(32, 3)
+          mstore(32, 2)
           revert(63, 1)
         }
         if and(div(exchange_0, 0x10000000000000000000000000000000000000000), 0xff) {
-          mstore(32, 4)
+          mstore(32, 3)
           revert(63, 1)
         }
       }

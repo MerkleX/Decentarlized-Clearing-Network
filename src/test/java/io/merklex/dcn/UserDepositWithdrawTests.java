@@ -134,7 +134,7 @@ public class UserDepositWithdrawTests {
 
             it("should fail from user's trade_address and word with withdraw", () -> {
                 assertSuccess(bob.sendCall(StaticNetwork.DCN(),
-                        DCN.user_withdraw_address_update(userId, bobBackup.getAddress())));
+                        DCN.user_set_withdraw_address(userId, bobBackup.getAddress())));
 
                 assertRevert("0x02", bob.sendCall(StaticNetwork.DCN(),
                         DCN.user_withdraw(userId, assetId, bob.getAddress(), deposit)));

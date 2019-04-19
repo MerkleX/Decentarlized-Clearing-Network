@@ -63,7 +63,7 @@ public class ExchangeLockedTests {
             it("exchange_set_limits should be blocked", () -> {
                 creator.reloadNonce();
 
-                assertRevert("0x02", creator.sendCall(
+                assertRevert("0x03", creator.sendCall(
                         BigInteger.ZERO, StaticNetwork.GAS_LIMIT, StaticNetwork.DCN(),
                         APPLY_LIMIT_TX, BigInteger.ZERO)
                 );
@@ -79,7 +79,7 @@ public class ExchangeLockedTests {
             it("exchange_apply_settlement_group should be blocked", () -> {
                 creator.reloadNonce();
 
-                assertRevert("0x04", creator.sendCall(StaticNetwork.DCN(),
+                assertRevert("0x03", creator.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_apply_settlement_groups(APPLY_SETTLEMENT_PAYLOAD)));
 
                 assertSuccess(creator.sendCall(StaticNetwork.DCN(),
@@ -110,7 +110,7 @@ public class ExchangeLockedTests {
 
                 String payload = Numeric.toHexString(bytes, 0, transfers.bytes(1, group), true);
 
-                assertRevert("0x03", creator.sendCall(StaticNetwork.DCN(),
+                assertRevert("0x04", creator.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_transfer_from(payload)));
 
                 assertSuccess(creator.sendCall(StaticNetwork.DCN(),

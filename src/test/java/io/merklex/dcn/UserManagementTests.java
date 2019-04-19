@@ -49,10 +49,10 @@ public class UserManagementTests {
 
         it("should be able to propose recovery address", () -> {
             assertRevert("0x01", notUser.sendCall(StaticNetwork.DCN(),
-                    DCN.user_recovery_address_propose(0, user0Recover.getAddress())));
+                    DCN.user_propose_recovery_address(0, user0Recover.getAddress())));
 
             assertSuccess(user0.sendCall(StaticNetwork.DCN(),
-                    DCN.user_recovery_address_propose(0, user0Recover.getAddress())));
+                    DCN.user_propose_recovery_address(0, user0Recover.getAddress())));
 
             DCN.GetUserReturnValue user = query.query(DCN::query_get_user, DCN.get_user(0));
             assertEquals(user0.getAddress(), user.trade_address);
@@ -63,10 +63,10 @@ public class UserManagementTests {
 
         it("should only be able to set recovery address using recovery address", () -> {
             assertRevert("0x01", user0.sendCall(StaticNetwork.DCN(),
-                    DCN.user_recovery_address_update(0)));
+                    DCN.user_set_recovery_address(0)));
 
             assertSuccess(user0Recover.sendCall(StaticNetwork.DCN(),
-                    DCN.user_recovery_address_update(0)));
+                    DCN.user_set_recovery_address(0)));
 
             DCN.GetUserReturnValue user = query.query(DCN::query_get_user, DCN.get_user(0));
             assertEquals(user0.getAddress(), user.trade_address);
@@ -77,10 +77,10 @@ public class UserManagementTests {
 
         it("should be able to update trade address", () -> {
             assertRevert("0x01", notUser.sendCall(StaticNetwork.DCN(),
-                    DCN.user_trade_address_update(0, user0Trade.getAddress())));
+                    DCN.user_set_trade_address(0, user0Trade.getAddress())));
 
             assertSuccess(user0Recover.sendCall(StaticNetwork.DCN(),
-                    DCN.user_trade_address_update(0, user0Trade.getAddress())));
+                    DCN.user_set_trade_address(0, user0Trade.getAddress())));
 
             DCN.GetUserReturnValue user = query.query(DCN::query_get_user, DCN.get_user(0));
             assertEquals(user0Trade.getAddress(), user.trade_address);
@@ -91,10 +91,10 @@ public class UserManagementTests {
 
         it("should be able to update withdraw address", () -> {
             assertRevert("0x01", notUser.sendCall(StaticNetwork.DCN(),
-                    DCN.user_withdraw_address_update(0, user0Withdraw.getAddress())));
+                    DCN.user_set_withdraw_address(0, user0Withdraw.getAddress())));
 
             assertSuccess(user0Recover.sendCall(StaticNetwork.DCN(),
-                    DCN.user_withdraw_address_update(0, user0Withdraw.getAddress())));
+                    DCN.user_set_withdraw_address(0, user0Withdraw.getAddress())));
 
             DCN.GetUserReturnValue user = query.query(DCN::query_get_user, DCN.get_user(0));
             assertEquals(user0Trade.getAddress(), user.trade_address);

@@ -44,10 +44,10 @@ public class ExchangeManageTests {
 
         it("should be able to update owner", () -> {
             assertRevert("0x01", notExchange.sendCall(StaticNetwork.DCN(),
-                    DCN.exchange_update_owner(0, updatedExchangeOwner.getAddress())));
+                    DCN.exchange_set_owner(0, updatedExchangeOwner.getAddress())));
 
             assertSuccess(exchangeOwner.sendCall(StaticNetwork.DCN(),
-                    DCN.exchange_update_owner(0, updatedExchangeOwner.getAddress())));
+                    DCN.exchange_set_owner(0, updatedExchangeOwner.getAddress())));
 
             DCN.GetExchangeReturnValue exchange = query.query(DCN::query_get_exchange,
                     DCN.get_exchange(0));
@@ -89,10 +89,10 @@ public class ExchangeManageTests {
 
         it("recovery address should set owner", () -> {
             assertRevert("0x01", updatedExchangeOwner.sendCall(StaticNetwork.DCN(),
-                    DCN.exchange_update_owner(0, exchangeOwner.getAddress())));
+                    DCN.exchange_set_owner(0, exchangeOwner.getAddress())));
 
             assertSuccess(updatedExchangeRecover.sendCall(StaticNetwork.DCN(),
-                    DCN.exchange_update_owner(0, exchangeOwner.getAddress())));
+                    DCN.exchange_set_owner(0, exchangeOwner.getAddress())));
 
             DCN.GetExchangeReturnValue exchange = query.query(DCN::query_get_exchange,
                     DCN.get_exchange(0));
