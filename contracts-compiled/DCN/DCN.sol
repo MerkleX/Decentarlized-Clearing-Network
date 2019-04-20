@@ -662,11 +662,25 @@ contract DCN {
           revert(63, 1)
         }
       }
+      {
+        let exchange_count := sload(exchange_count_slot)
+        if iszero(lt(exchange_id, exchange_count)) {
+          mstore(32, 1)
+          revert(63, 1)
+        }
+      }
+      {
+        let asset_count := sload(asset_count_slot)
+        if iszero(lt(asset_id, asset_count)) {
+          mstore(32, 2)
+          revert(63, 1)
+        }
+      }
       let exchange_balance_ptr := add(add(add(exchanges_slot, mul(4294967299, exchange_id)), 3), asset_id)
       let exchange_balance := sload(exchange_balance_ptr)
       let updated_balance := add(exchange_balance, quantity)
       if gt(updated_balance, 0xFFFFFFFFFFFFFFFF) {
-        mstore(32, 1)
+        mstore(32, 3)
         revert(63, 1)
       }
       let asset_0 := sload(add(assets_slot, asset_id))
@@ -680,12 +694,12 @@ contract DCN {
       {
         let success := call(gas, asset_address, 0, transfer_in_mem, 100, transfer_out_mem, 32)
         if iszero(success) {
-          mstore(32, 2)
+          mstore(32, 4)
           revert(63, 1)
         }
         let result := mload(transfer_out_mem)
         if iszero(result) {
-          mstore(32, 3)
+          mstore(32, 5)
           revert(63, 1)
         }
       }
@@ -707,9 +721,16 @@ contract DCN {
         }
       }
       {
+        let user_counts := sload(user_count_slot)
+        if iszero(lt(user_id, user_counts)) {
+          mstore(32, 1)
+          revert(63, 1)
+        }
+      }
+      {
         let asset_count := sload(asset_count_slot)
         if iszero(lt(asset_id, asset_count)) {
-          mstore(32, 1)
+          mstore(32, 2)
           revert(63, 1)
         }
       }
@@ -720,7 +741,7 @@ contract DCN {
       let current_balance := sload(balance_ptr)
       let proposed_balance := add(current_balance, amount)
       if lt(proposed_balance, current_balance) {
-        mstore(32, 2)
+        mstore(32, 3)
         revert(63, 1)
       }
       let asset_0 := sload(add(assets_slot, asset_id))
@@ -732,12 +753,12 @@ contract DCN {
       {
         let success := call(gas, asset_address, 0, transfer_in_mem, 100, transfer_out_mem, 32)
         if iszero(success) {
-          mstore(32, 3)
+          mstore(32, 4)
           revert(63, 1)
         }
         let result := mload(transfer_out_mem)
         if iszero(result) {
-          mstore(32, 4)
+          mstore(32, 5)
           revert(63, 1)
         }
       }

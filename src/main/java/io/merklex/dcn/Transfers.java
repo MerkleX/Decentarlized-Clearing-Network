@@ -90,7 +90,7 @@ public class Transfers extends ExchangeTransferFrom.ExchangeTransfersHeader {
 
         public Group nextGroup(Group group) {
             return group.wrap(messageMemoryBuffer(), messageMemoryOffset()
-                    + Byte.toUnsignedInt(transferCount()) * Transfer.BYTES);
+                    + Group.BYTES + Byte.toUnsignedInt(transferCount()) * Transfer.BYTES);
         }
     }
 }

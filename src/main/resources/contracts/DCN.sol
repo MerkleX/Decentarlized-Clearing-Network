@@ -203,6 +203,14 @@ contract DCN {
   #define RETURN(WORD, VALUE) \
     mstore(add(return_value_mem, WORD), VALUE)
 
+  #define VALID_USER_ID(USER_ID, REVERT_1) \
+    { \
+      let user_counts := sload(user_count_slot) \
+      if iszero(lt(USER_ID, user_counts)) { \
+        REVERT(REVERT_1) \
+      } \
+    }
+
   #define VALID_ASSET_ID(asset_id, REVERT_1) \
     { \
       let asset_count := sload(asset_count_slot) \
@@ -922,7 +930,7 @@ contract DCN {
    * Add Asset
    *
    * caller = creator
-   * Add a new asset. Note, is possible for two assets to have the same contract_address.
+   * Note, it is possible for two assets to have the same contract_address.
    *
    * @param symbol: 4 character symbol for asset
    * @param unit_scale: (ERC20 balance) = unit_scale * (session balance)
@@ -957,8 +965,6 @@ contract DCN {
 
       let asset_symbol := mload(add(symbol, WORD_1 /* offset as first word is size */))
 
-      /* TODO: ensure asset_symbol has 0s after 4 character symbol in word */
-
       /* Note, symbol is already shifted not setting it in build */
       let asset_data := or(asset_symbol, build(Asset, 0, /* symbol */ 0, unit_scale, contract_address))
       let asset_ptr := ASSET_PTR_(asset_id)
@@ -971,7 +977,7 @@ contract DCN {
   /**
    * Add Exchange
    *
-   * Creator function, add new exchange.
+   * caller = creator
    *
    * @param name: 11 character name of exchange
    * @param addr: address of exchange
@@ -1022,9 +1028,6 @@ contract DCN {
   /**
    * Exchange Withdraw
    *
-   * @param exchange_id
-   * @param asset_id
-   * @param destination: where to send funds
    * @param quantity: in session balance units
    */
   function exchange_withdraw(uint32 exchange_id, uint32 asset_id,
@@ -1072,8 +1075,6 @@ contract DCN {
   /**
    * Exchange Deposit
    *
-   * @param exchange_id
-   * @param asset_id
    * @param quantity: in session balance units
    */
   function exchange_deposit(uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
@@ -1082,13 +1083,15 @@ contract DCN {
 
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_DEPOSIT, /* REVERT(0) */ 0)
+      VALID_EXCHANGE_ID(exchange_id, /* REVERT(1) */ 1)
+      VALID_ASSET_ID(asset_id, /* REVERT(2) */ 2)
 
       let exchange_balance_ptr := EXCHANGE_BALANCE_PTR_(EXCHANGE_PTR_(exchange_id), asset_id)
       let exchange_balance := sload(exchange_balance_ptr)
 
       let updated_balance := add(exchange_balance, quantity)
       if U64_OVERFLOW(updated_balance) {
-        REVERT(1)
+        REVERT(3)
       }
 
       let asset_0 := sload(ASSET_PTR_(asset_id))
@@ -1102,8 +1105,8 @@ contract DCN {
         /* FROM_ADDRESS */ caller,
         /* TO_ADDRESS */ address,
         /* AMOUNT */ deposit,
-        /* REVERT(2) */ 2,
-        /* REVERT(3) */ 3
+        /* REVERT(4) */ 4,
+        /* REVERT(5) */ 5
       )
 
       sstore(exchange_balance_ptr, updated_balance)
@@ -1115,8 +1118,6 @@ contract DCN {
    *
    * Deposit funds in the user's DCN balance
    *
-   * @param user_id
-   * @param asset_id
    * @param amount: in ERC20 balance units
    */
   function user_deposit(uint64 user_id, uint32 asset_id, uint256 amount) public {
@@ -1125,7 +1126,8 @@ contract DCN {
 
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_USER_DEPOSIT, /* REVERT(0) */ 0)
-      VALID_ASSET_ID(asset_id, /* REVERT(1) */ 1)
+      VALID_USER_ID(user_id, /* REVERT(1) */ 1)
+      VALID_ASSET_ID(asset_id, /* REVERT(2) */ 2)
 
       if iszero(amount) {
         stop()
@@ -1138,7 +1140,7 @@ contract DCN {
 
       /* Prevent overflow */
       if lt(proposed_balance, current_balance) {
-        REVERT(2)
+        REVERT(3)
       }
 
       let asset_0 := sload(ASSET_PTR_(asset_id))
@@ -1149,8 +1151,8 @@ contract DCN {
         /* FROM_ADDRESS */ caller,
         /* TO_ADDRESS */ address,
         /* AMOUNT */ amount,
-        /* REVERT(3) */ 3,
-        /* REVERT(4) */ 4
+        /* REVERT(4) */ 4,
+        /* REVERT(5) */ 5
       )
 
       sstore(balance_ptr, proposed_balance)
@@ -1160,11 +1162,10 @@ contract DCN {
   /**
    * User Withdraw
    *
+   * caller = user's withdraw_address
+   *
    * Withdraw from user's DCN balance
    *
-   * @param user_id
-   * @param asset_id
-   * @param destination
    * @param amount: in ERC20 balance units
    */
   function user_withdraw(uint64 user_id, uint32 asset_id, address destination, uint256 amount) public {
@@ -1211,13 +1212,11 @@ contract DCN {
   /**
    * User Session Set Unlock At
    *
+   * caller = user's trade_address
+   *
    * Update the unlock_at timestamp. Also updates the trade_address
    * if the session is expired. Note, the trade_address should not be
    * updatable when the session is active.
-   *
-   * @param user_id
-   * @param exchange_id
-   * @param unlock_at
    */
   function user_session_set_unlock_at(uint64 user_id, uint32 exchange_id, uint256 unlock_at) public {
     uint256[3] memory log_data_mem;
@@ -1257,14 +1256,11 @@ contract DCN {
   /**
    * User Market Reset
    *
+   * caller = user's trade_address
+   *
    * Allows the user to reset their session with an exchange.
    * Only allowed when session in unlocked.
    * Persists limit_version to prevent old limits from being applied.
-   *
-   * @param user_id
-   * @param exchange_id
-   * @param quote_asset_id: defines market for session
-   * @param base_asset_id: defines market for session
    */
   function user_market_reset(uint64 user_id, uint32 exchange_id,
                              uint32 quote_asset_id, uint32 base_asset_id) public {
@@ -1300,12 +1296,11 @@ contract DCN {
   /**
    * Transfer To Session
    *
+   * caller = user's withdraw_address
+   *
    * Transfer funds from DCN balance to trading session
    *
-   * @param user_id
-   * @param exchange_id
-   * @param asset_id
-   * @param quantity
+   * @param quantity: in session balance units
    */
   function transfer_to_session(uint64 user_id, uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
     uint256[4] memory log_data_mem;
@@ -1369,6 +1364,15 @@ contract DCN {
     }
   }
 
+  /**
+   * Transfer From Session
+   *
+   * caller = user's trade_address
+   *
+   * When session is unlocked, allow transfer funds from trading session to DCN balance.
+   *
+   * @param quantity: in session balance units
+   */
   function transfer_from_session(uint64 user_id, uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
     uint256[4] memory log_data_mem;
 
@@ -1444,6 +1448,13 @@ contract DCN {
     }
   }
 
+  /**
+   * User Deposit To Session
+   *
+   * Deposits funds directly into a trading session with an exchange.
+   *
+   * @param quantity: in session balance units
+   */
   function user_deposit_to_session(uint64 user_id, uint32 exchange_id, uint32 asset_id, uint64 quantity) public {
     uint256[4] memory transfer_in_mem;
     uint256[1] memory transfer_out_mem;
@@ -1507,6 +1518,21 @@ contract DCN {
     uint64 user_id;
   }
 
+  /**
+   * Recover Unsettled Withdraws
+   *
+   * exchange_transfer_from allows users to pull unsettled
+   * funds from the exchange's balance. This is tracked by
+   * unsettled_withdraw_total in SessionBalance. This function
+   * returns funds to the Exchange.
+   *
+   * @param data, a binary payload
+   *    - UnsettledWithdrawHeader
+   *    - 1st UnsettledWithdrawUser
+   *    - 2nd UnsettledWithdrawUser
+   *    - ...
+   *    - (UnsettledWithdrawHeader.user_count)th UnsettledWithdrawUser
+   */
   function recover_unsettled_withdraws(bytes memory data) public {
     assembly {
       let data_len := mload(data)
@@ -1596,6 +1622,35 @@ contract DCN {
       REVERT(REVERT_1) \
     }
 
+  /**
+   * Exchange Transfer From
+   *
+   * caller = exchange owner
+   *
+   * Gives the exchange the ability to move funds from a user's
+   * trading session into the user's DCN balance. This should be
+   * the only way funds can be withdrawn from a trading session
+   * while it is locked.
+   *
+   * Exchange has the option to allow_overdraft. If the user's
+   * balance in the tradng_session is not enough to cover the
+   * target withdraw quantity, the exchange's funds will be used.
+   * These funds can be repaid with a call to recover_unsettled_withdraws.
+   *
+   * @param data, a binary payload
+   *    - ExchangeTransfersHeader
+   *    - 1st ExchangeTransferGroup
+   *      - 1st ExchangeTransfer
+   *      - 2nd ExchangeTransfer
+   *      - ...
+   *      - (ExchangeTransferGroup.transfer_count)th ExchangeTransfer
+   *    - 2nd ExchangeTransferGroup
+   *      - 1st ExchangeTransfer
+   *      - 2nd ExchangeTransfer
+   *      - ...
+   *      - (ExchangeTransferGroup.transfer_count)th ExchangeTransfer
+   *    - ...
+   */
   function exchange_transfer_from(bytes memory data) public {
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_EXCHANGE_TRANSFER_FROM, /* REVERT(0) */ 0)

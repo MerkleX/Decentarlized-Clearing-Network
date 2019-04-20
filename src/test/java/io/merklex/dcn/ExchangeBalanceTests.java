@@ -81,7 +81,7 @@ public class ExchangeBalanceTests {
 
             it("should fail", () -> {
                 creator.reloadNonce();
-                assertRevert("0x01", creator.sendCall(StaticNetwork.DCN(),
+                assertRevert("0x03", creator.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_deposit(0, 0, -5000)));
             });
         });

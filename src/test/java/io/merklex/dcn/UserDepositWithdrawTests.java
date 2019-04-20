@@ -63,7 +63,7 @@ public class UserDepositWithdrawTests {
 
 
         it("should fail without allowance", () -> {
-            assertRevert("0x03", bob.sendCall(StaticNetwork.DCN(),
+            assertRevert("0x04", bob.sendCall(StaticNetwork.DCN(),
                     DCN.user_deposit(userId, assetId, deposit)));
         });
 
