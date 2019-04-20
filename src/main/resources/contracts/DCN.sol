@@ -1817,6 +1817,22 @@ contract DCN {
     uint256 base_shift;
   }
 
+  /**
+   * Exchange Set Limits
+   *
+   * caller = exchange owner
+   *
+   * Update trading limits for an exchange's session. Requires
+   *  - proper signature
+   *  - exchange_id is for exchange
+   *  - limit_version is an increase (prevents replays)
+   *
+   * @param data, a binary payload
+   *    - SetLimitsHeader
+   *    - 1st Signature + UpdateLimit
+   *    - 2nd Signature + UpdateLimit
+   *    - ...
+   */
   function exchange_set_limits(bytes memory data) public {
     uint256[14] memory to_hash_mem;
 
@@ -2066,6 +2082,29 @@ contract DCN {
     uint64 fees;
   }
 
+  /**
+   * Exchange Apply Settlement Groups
+   *
+   * caller = exchange owner
+   *
+   * Apply quote & base delta to session balances. Deltas must net to zero
+   * to ensure no funds are created or destroyed. Session's balance should
+   * only apply if the net result fits within the session's trading limit.
+   *
+   * @param data, a binary payload
+   *    - ExchangeId
+   *    - 1st GroupHeader
+   *      - 1st Settlement
+   *      - 2nd Settlement
+   *      - ...
+   *      - (GroupHeader.user_count)th Settlement
+   *    - 2nd GroupHeader
+   *      - 1st Settlement
+   *      - 2nd Settlement
+   *      - ...
+   *      - (GroupHeader.user_count)th Settlement
+   *    - ...
+   */
   function exchange_apply_settlement_groups(bytes memory data) public {
     uint256[6] memory variables;
     
