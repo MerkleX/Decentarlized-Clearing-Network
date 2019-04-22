@@ -1,4 +1,4 @@
-pragma solidity ^0.5.0;
+pragma solidity 0.5.7;
 contract DCN {
   event UserCreated(uint64 user_id);
   event SessionUpdated(uint64 user_id, uint64 exchange_id);
