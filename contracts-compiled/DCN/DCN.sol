@@ -254,32 +254,24 @@ contract DCN {
       let state_data_2 := sload(add(exchange_state_ptr, 2))
       {
         let tmp := and(div(state_data_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
-        if and(tmp, 0x8000000000000000) {
-          tmp := or(tmp, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-        }
+        tmp := signextend(7, tmp)
         mstore(add(return_value_mem, 0), tmp)
       }
       {
         let tmp := and(div(state_data_0, 0x100000000000000000000000000000000), 0xffffffffffffffff)
-        if and(tmp, 0x8000000000000000) {
-          tmp := or(tmp, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-        }
+        tmp := signextend(7, tmp)
         mstore(add(return_value_mem, 32), tmp)
       }
       mstore(add(return_value_mem, 64), and(div(state_data_0, 0x10000000000000000), 0xffffffffffffffff))
       mstore(add(return_value_mem, 96), and(state_data_0, 0xffffffffffffffff))
       {
         let tmp := and(div(state_data_1, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
-        if and(tmp, 0x8000000000000000) {
-          tmp := or(tmp, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-        }
+        tmp := signextend(7, tmp)
         mstore(add(return_value_mem, 128), tmp)
       }
       {
         let tmp := and(div(state_data_1, 0x100000000000000000000000000000000), 0xffffffffffffffff)
-        if and(tmp, 0x8000000000000000) {
-          tmp := or(tmp, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-        }
+        tmp := signextend(7, tmp)
         mstore(add(return_value_mem, 160), tmp)
       }
       mstore(add(return_value_mem, 192), and(div(state_data_1, 0x10000000000000000), 0xffffffffffffffff))
@@ -287,16 +279,12 @@ contract DCN {
       mstore(add(return_value_mem, 256), and(div(state_data_2, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff))
       {
         let tmp := and(div(state_data_2, 0x1000000000000000000000000), 0xffffffffffffffffffffffff)
-        if and(tmp, 0x800000000000000000000000) {
-          tmp := or(tmp, 0xffffffffffffffffffffffffffffffffffffffff000000000000000000000000)
-        }
+        tmp := signextend(11, tmp)
         mstore(add(return_value_mem, 288), tmp)
       }
       {
         let tmp := and(state_data_2, 0xffffffffffffffffffffffff)
-        if and(tmp, 0x800000000000000000000000) {
-          tmp := or(tmp, 0xffffffffffffffffffffffffffffffffffffffff000000000000000000000000)
-        }
+        tmp := signextend(11, tmp)
         mstore(add(return_value_mem, 320), tmp)
       }
       return(return_value_mem, 352)
@@ -1367,14 +1355,10 @@ contract DCN {
             temp_var := and(update_limit_0, 0xffffffffffffffff)
             mstore(add(to_hash_mem, 192), temp_var)
             temp_var := and(div(update_limit_1, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
-            if and(temp_var, 0x8000000000000000) {
-              temp_var := or(temp_var, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-            }
+            temp_var := signextend(7, temp_var)
             mstore(add(to_hash_mem, 224), temp_var)
             temp_var := and(div(update_limit_1, 0x100000000000000000000000000000000), 0xffffffffffffffff)
-            if and(temp_var, 0x8000000000000000) {
-              temp_var := or(temp_var, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-            }
+            temp_var := signextend(7, temp_var)
             mstore(add(to_hash_mem, 256), temp_var)
             temp_var := and(div(update_limit_1, 0x10000000000000000), 0xffffffffffffffff)
             mstore(add(to_hash_mem, 288), temp_var)
@@ -1384,15 +1368,11 @@ contract DCN {
             mstore(add(to_hash_mem, 352), temp_var)
             mstore(add(set_limit_memory_space, 128), temp_var)
             temp_var := and(div(update_limit_2, 0x1000000000000000000000000), 0xffffffffffffffffffffffff)
-            if and(temp_var, 0x800000000000000000000000) {
-              temp_var := or(temp_var, 0xffffffffffffffffffffffffffffffffffffffff000000000000000000000000)
-            }
+            temp_var := signextend(11, temp_var)
             mstore(add(to_hash_mem, 384), temp_var)
             mstore(add(set_limit_memory_space, 160), temp_var)
             temp_var := and(update_limit_2, 0xffffffffffffffffffffffff)
-            if and(temp_var, 0x800000000000000000000000) {
-              temp_var := or(temp_var, 0xffffffffffffffffffffffffffffffffffffffff000000000000000000000000)
-            }
+            temp_var := signextend(11, temp_var)
             mstore(add(to_hash_mem, 416), temp_var)
             mstore(add(set_limit_memory_space, 192), temp_var)
           }
@@ -1453,18 +1433,12 @@ contract DCN {
             }
           }
           let quote_qty := and(div(market_state_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
-          if and(quote_qty, 0x8000000000000000) {
-            quote_qty := or(quote_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-          }
+          quote_qty := signextend(7, quote_qty)
           let base_qty := and(div(market_state_0, 0x100000000000000000000000000000000), 0xffffffffffffffff)
-          if and(base_qty, 0x8000000000000000) {
-            base_qty := or(base_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-          }
+          base_qty := signextend(7, base_qty)
           {
             let current_shift := and(div(market_state_2, 0x1000000000000000000000000), 0xffffffffffffffffffffffff)
-            if and(current_shift, 0x800000000000000000000000) {
-              current_shift := or(current_shift, 0xffffffffffffffffffffffffffffffffffffffff000000000000000000000000)
-            }
+            current_shift := signextend(11, current_shift)
             let new_shift := mload(add(set_limit_memory_space, 160))
             quote_qty := add(quote_qty, sub(new_shift, current_shift))
             if or(slt(quote_qty, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF8000000000000000), sgt(quote_qty, 0x7FFFFFFFFFFFFFFF)) {
@@ -1474,9 +1448,7 @@ contract DCN {
           }
           {
             let current_shift := and(market_state_2, 0xffffffffffffffffffffffff)
-            if and(current_shift, 0x800000000000000000000000) {
-              current_shift := or(current_shift, 0xffffffffffffffffffffffffffffffffffffffff000000000000000000000000)
-            }
+            current_shift := signextend(11, current_shift)
             let new_shift := mload(add(set_limit_memory_space, 192))
             base_qty := add(base_qty, sub(new_shift, current_shift))
             if or(slt(base_qty, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF8000000000000000), sgt(base_qty, 0x7FFFFFFFFFFFFFFF)) {
@@ -1583,13 +1555,9 @@ contract DCN {
           let session_ptr := add(add(user_ptr, 4294967300), mul(4294967299, exchange_id))
           let market_state_ptr := add(add(session_ptr, 4294967298), mul(3, add(mul(quote_asset_id, 4294967296), base_asset_id)))
           let quote_delta := and(div(settlement_0, 0x100000000000000000000000000000000), 0xffffffffffffffff)
-          if and(quote_delta, 0x8000000000000000) {
-            quote_delta := or(quote_delta, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-          }
+          quote_delta := signextend(7, quote_delta)
           let base_delta := and(div(settlement_0, 0x10000000000000000), 0xffffffffffffffff)
-          if and(base_delta, 0x8000000000000000) {
-            base_delta := or(base_delta, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-          }
+          base_delta := signextend(7, base_delta)
           quote_net := add(quote_net, quote_delta)
           base_net := add(base_net, base_delta)
           let fees := and(settlement_0, 0xffffffffffffffff)
@@ -1597,13 +1565,9 @@ contract DCN {
           let market_state_0 := sload(market_state_ptr)
           {
             let quote_qty := and(div(market_state_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
-            if and(quote_qty, 0x8000000000000000) {
-              quote_qty := or(quote_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-            }
+            quote_qty := signextend(7, quote_qty)
             let base_qty := and(div(market_state_0, 0x100000000000000000000000000000000), 0xffffffffffffffff)
-            if and(base_qty, 0x8000000000000000) {
-              base_qty := or(base_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-            }
+            base_qty := signextend(7, base_qty)
             quote_qty := add(quote_qty, quote_delta)
             base_qty := add(base_qty, base_delta)
             if or(or(slt(quote_qty, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF8000000000000000), sgt(quote_qty, 0x7FFFFFFFFFFFFFFF)), or(slt(base_qty, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF8000000000000000), sgt(base_qty, 0x7FFFFFFFFFFFFFFF))) {
@@ -1624,13 +1588,9 @@ contract DCN {
             let market_state_1 := sload(add(market_state_ptr, 1))
             {
               let min_quote_qty := and(div(market_state_1, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)
-              if and(min_quote_qty, 0x8000000000000000) {
-                min_quote_qty := or(min_quote_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-              }
+              min_quote_qty := signextend(7, min_quote_qty)
               let min_base_qty := and(div(market_state_1, 0x100000000000000000000000000000000), 0xffffffffffffffff)
-              if and(min_base_qty, 0x8000000000000000) {
-                min_base_qty := or(min_base_qty, 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000)
-              }
+              min_base_qty := signextend(7, min_base_qty)
               if or(slt(quote_qty, min_quote_qty), slt(base_qty, min_base_qty)) {
                 mstore(32, 9)
                 revert(63, 1)

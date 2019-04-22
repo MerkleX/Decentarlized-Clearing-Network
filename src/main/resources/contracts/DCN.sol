@@ -229,21 +229,11 @@ contract DCN {
 
   /* math macros */
 
-  #define I64_NEG_BIT 0x8000000000000000
-  #define I64_TO_NEG 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000
-
   #define CAST_64_NEG(variable) \
-      if and(variable, I64_NEG_BIT) { \
-        variable := or(variable, I64_TO_NEG) \
-      }
-
-  #define I96_NEG_BIT 0x800000000000000000000000
-  #define I96_TO_NEG 0xffffffffffffffffffffffffffffffffffffffff000000000000000000000000
+      variable := signextend(7, variable)
 
   #define CAST_96_NEG(variable) \
-      if and(variable, I96_NEG_BIT) { \
-        variable := or(variable, I96_TO_NEG) \
-      }
+      variable := signextend(11, variable)
 
   #define U64_OVERFLOW(NUMBER) \
     gt(NUMBER, U64_MAX)
