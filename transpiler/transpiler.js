@@ -619,6 +619,12 @@ module.exports = function(raw) {
       return '<error '+node.type+'>';
     }
 
-    return print(ast);
+    const result = print(ast);
+
+    Object.keys(structs).forEach(struct => {
+      console.error('Struct size:', struct, typeSize(struct));
+    });
+
+    return result;
   });
 };

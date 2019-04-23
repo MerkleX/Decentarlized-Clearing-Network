@@ -1090,6 +1090,8 @@ contract DCN {
 
       let deposit := mul(quantity, unit_scale)
 
+      sstore(exchange_balance_ptr, updated_balance)
+
       ERC_20_DEPOSIT(
         /* TOKEN_ADDRESS */ asset_address,
         /* FROM_ADDRESS */ caller,
@@ -1098,8 +1100,6 @@ contract DCN {
         /* REVERT(4) */ 4,
         /* REVERT(5) */ 5
       )
-
-      sstore(exchange_balance_ptr, updated_balance)
     }
   }
 
@@ -1136,6 +1136,8 @@ contract DCN {
       let asset_0 := sload(ASSET_PTR_(asset_id))
       let asset_address := attr(Asset, 0, asset_0, contract_address)
 
+      sstore(balance_ptr, proposed_balance)
+
       ERC_20_DEPOSIT(
         /* TOKEN_ADDRESS */ asset_address,
         /* FROM_ADDRESS */ caller,
@@ -1144,8 +1146,6 @@ contract DCN {
         /* REVERT(4) */ 4,
         /* REVERT(5) */ 5
       )
-
-      sstore(balance_ptr, proposed_balance)
     }
   }
 
@@ -1474,15 +1474,6 @@ contract DCN {
 
       let scaled_quantity := mul(quantity, unit_scale)
 
-      ERC_20_DEPOSIT(
-        /* TOKEN_ADDRESS */ asset_address,
-        /* FROM_ADDRESS */ caller,
-        /* TO_ADDRESS */ address,
-        /* AMOUNT */ scaled_quantity,
-        /* REVERT(4) */ 4,
-        /* REVERT(5) */ 5
-      )
-
       let updated_total_deposit := add(attr(SessionBalance, 0, session_balance_0, total_deposit), quantity)
 
       /* update exchange balance */
@@ -1493,6 +1484,15 @@ contract DCN {
               /* unsettled_withdraw_total */ 0,
               /* asset_balance */ updated_exchange_balance)
       ))
+
+      ERC_20_DEPOSIT(
+        /* TOKEN_ADDRESS */ asset_address,
+        /* FROM_ADDRESS */ caller,
+        /* TO_ADDRESS */ address,
+        /* AMOUNT */ scaled_quantity,
+        /* REVERT(4) */ 4,
+        /* REVERT(5) */ 5
+      )
 
       log_event(ExchangeDeposit, log_data_mem, user_id, exchange_id, asset_id)
     }

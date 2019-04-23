@@ -675,6 +675,7 @@ contract DCN {
       let unit_scale := and(div(asset_0, 0x10000000000000000000000000000000000000000), 0xffffffffffffffff)
       let asset_address := and(asset_0, 0xffffffffffffffffffffffffffffffffffffffff)
       let deposit := mul(quantity, unit_scale)
+      sstore(exchange_balance_ptr, updated_balance)
       mstore(transfer_in_mem, /* fn_hash("transferFrom(address,address,uint256)") */ 0x23b872dd00000000000000000000000000000000000000000000000000000000)
       mstore(add(transfer_in_mem, 4), caller)
       mstore(add(transfer_in_mem, 36), address)
@@ -691,7 +692,6 @@ contract DCN {
           revert(63, 1)
         }
       }
-      sstore(exchange_balance_ptr, updated_balance)
     }
   }
   
@@ -734,6 +734,7 @@ contract DCN {
       }
       let asset_0 := sload(add(assets_slot, asset_id))
       let asset_address := and(asset_0, 0xffffffffffffffffffffffffffffffffffffffff)
+      sstore(balance_ptr, proposed_balance)
       mstore(transfer_in_mem, /* fn_hash("transferFrom(address,address,uint256)") */ 0x23b872dd00000000000000000000000000000000000000000000000000000000)
       mstore(add(transfer_in_mem, 4), caller)
       mstore(add(transfer_in_mem, 36), address)
@@ -750,7 +751,6 @@ contract DCN {
           revert(63, 1)
         }
       }
-      sstore(balance_ptr, proposed_balance)
     }
   }
   
@@ -1046,6 +1046,10 @@ contract DCN {
       let asset_address := and(asset_0, 0xffffffffffffffffffffffffffffffffffffffff)
       let unit_scale := and(div(asset_0, 0x10000000000000000000000000000000000000000), 0xffffffffffffffff)
       let scaled_quantity := mul(quantity, unit_scale)
+      let updated_total_deposit := add(and(div(session_balance_0, 0x100000000000000000000000000000000), 0xffffffffffffffffffffffffffffffff), quantity)
+      sstore(session_balance_ptr, or(and(0xffffffffffffffff0000000000000000, session_balance_0), or(
+        /* total_deposit */ mul(updated_total_deposit, 0x100000000000000000000000000000000), 
+        /* asset_balance */ updated_exchange_balance)))
       mstore(transfer_in_mem, /* fn_hash("transferFrom(address,address,uint256)") */ 0x23b872dd00000000000000000000000000000000000000000000000000000000)
       mstore(add(transfer_in_mem, 4), caller)
       mstore(add(transfer_in_mem, 36), address)
@@ -1062,10 +1066,6 @@ contract DCN {
           revert(63, 1)
         }
       }
-      let updated_total_deposit := add(and(div(session_balance_0, 0x100000000000000000000000000000000), 0xffffffffffffffffffffffffffffffff), quantity)
-      sstore(session_balance_ptr, or(and(0xffffffffffffffff0000000000000000, session_balance_0), or(
-        /* total_deposit */ mul(updated_total_deposit, 0x100000000000000000000000000000000), 
-        /* asset_balance */ updated_exchange_balance)))
       
       /* Log event: ExchangeDeposit */
       mstore(log_data_mem, user_id)
