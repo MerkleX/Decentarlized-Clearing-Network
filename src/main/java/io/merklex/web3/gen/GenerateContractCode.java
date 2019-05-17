@@ -29,7 +29,7 @@ public class GenerateContractCode {
         }
 
         ProcessBuilder compile = new ProcessBuilder(SOLC_PATH,
-                solidityContractFile.getAbsolutePath(), "--bin", "--abi", "--optimize", "--overwrite",
+                solidityContractFile.getAbsolutePath(), "--bin", "--abi", "--overwrite",
                 "-o", outputDir.getAbsolutePath());
 
         Process compileProcess = compile.start();
