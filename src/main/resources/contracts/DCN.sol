@@ -256,7 +256,7 @@ contract DCN {
     pointer(u256, pointer_attr(User, USER_PTR, balances), ASSET_ID)
 
   #define SESSION_PTR_(USER_PTR, EXCHANGE_ID) \
-    pointer(Exchange, pointer_attr(User, USER_PTR, exchange_sessions), EXCHANGE_ID)
+    pointer(ExchangeSession, pointer_attr(User, USER_PTR, exchange_sessions), EXCHANGE_ID)
 
   #define SESSION_BALANCE_PTR_(SESSION_PTR, ASSET_ID) \
     pointer(SessionBalance, pointer_attr(ExchangeSession, SESSION_PTR, balances), ASSET_ID)
