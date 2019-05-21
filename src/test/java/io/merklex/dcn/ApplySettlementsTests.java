@@ -1008,6 +1008,39 @@ public class ApplySettlementsTests {
             assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
                     DCN.exchange_apply_settlement_groups(settlements.payload(1))));
         });
+
+        it("should fail to settle with same asset id", () -> {
+            exchange.reloadNonce();
+
+            settlements
+                    .exchangeId(exchangeId)
+
+                    .firstGroup(settlementGroup)
+                    .quoteAssetId(baseAssetId)
+                    .baseAssetId(baseAssetId)
+                    .userCount(3)
+
+                    .firstSettlement(settlementData)
+                    .userId(userId1)
+                    .quoteDelta(1)
+                    .baseDelta(-1)
+                    .fees(0)
+
+                    .nextSettlement(settlementData)
+                    .userId(userId2)
+                    .quoteDelta(2)
+                    .baseDelta(-2)
+                    .fees(0)
+
+                    .nextSettlement(settlementData)
+                    .userId(userId3)
+                    .quoteDelta(-10)
+                    .baseDelta(3)
+                    .fees(0);
+
+            assertRevert("0x10", exchange.sendCall(StaticNetwork.DCN(),
+                    DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+        });
     }
 
     private static Consumer<UpdateLimits.LimitUpdate> setDefault(long userId) {

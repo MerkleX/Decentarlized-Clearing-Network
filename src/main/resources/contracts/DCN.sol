@@ -2131,6 +2131,11 @@ contract DCN {
 
         let quote_asset_id := attr(GroupHeader, 0, header_0, quote_asset_id)
         let base_asset_id := attr(GroupHeader, 0, header_0, base_asset_id)
+
+        if eq(quote_asset_id, base_asset_id) {
+          REVERT(16)
+        }
+
         let group_end := add(cursor, mul(
           attr(GroupHeader, 0, header_0 /* GroupHeader */, user_count),
           sizeof(Settlement)

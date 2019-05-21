@@ -1530,6 +1530,10 @@ contract DCN {
         }
         let quote_asset_id := and(div(header_0, 0x100000000000000000000000000000000000000000000000000000000), 0xffffffff)
         let base_asset_id := and(div(header_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffff)
+        if eq(quote_asset_id, base_asset_id) {
+          mstore(32, 16)
+          revert(63, 1)
+        }
         let group_end := add(cursor, mul(and(div(header_0, 0x10000000000000000000000000000000000000000000000), 0xff), 32))
         {
           let asset_count := sload(asset_count_slot)
