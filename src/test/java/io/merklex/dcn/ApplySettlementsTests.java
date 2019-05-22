@@ -17,6 +17,7 @@ import java.util.function.Consumer;
 import static com.greghaskins.spectrum.Spectrum.*;
 import static io.merklex.dcn.utils.AssertHelpers.assertRevert;
 import static io.merklex.dcn.utils.AssertHelpers.assertSuccess;
+import static org.junit.Assert.assertEquals;
 
 @RunWith(Spectrum.class)
 public class ApplySettlementsTests {
@@ -570,6 +571,15 @@ public class ApplySettlementsTests {
                 assertRevert("0x08", exchange.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_apply_settlement_groups(settlements.payload(1))));
 
+
+                DCN.GetExchangeBalanceReturnValue exchangeBalance = query.query(DCN::query_get_exchange_balance,
+                        DCN.get_exchange_balance(exchangeId, quoteAssetId));
+                assertEquals(BigInteger.ZERO, exchangeBalance.exchange_balance);
+
+                DCN.GetSessionBalanceReturnValue feeUserBalance = query.query(DCN::query_get_session_balance,
+                        DCN.get_session_balance(userId1, exchangeId, quoteAssetId));
+                assertEquals(1000, feeUserBalance.asset_balance);
+
                 settlements
                         .exchangeId(exchangeId)
 
@@ -592,6 +602,15 @@ public class ApplySettlementsTests {
 
                 assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+
+                exchangeBalance = DCN.query_get_exchange_balance(StaticNetwork.DCN(),
+                        exchange.getWeb3(), DCN.get_exchange_balance(exchangeId, quoteAssetId));
+                assertEquals(BigInteger.valueOf(100), exchangeBalance.exchange_balance);
+
+                feeUserBalance = query.query(DCN::query_get_session_balance,
+                        DCN.get_session_balance(userId1, exchangeId, quoteAssetId));
+                assertEquals(1000 + 3 - 100, feeUserBalance.asset_balance);
             });
 
             it("negative position", () -> {

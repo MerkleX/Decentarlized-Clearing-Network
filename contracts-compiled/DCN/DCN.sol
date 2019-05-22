@@ -1635,6 +1635,7 @@ contract DCN {
           let base_session_balance_0 := sload(base_session_balance_ptr)
           let quote_balance := and(quote_session_balance_0, 0xffffffffffffffff)
           quote_balance := add(quote_balance, quote_delta)
+          quote_balance := sub(quote_balance, fees)
           if gt(quote_balance, 0xFFFFFFFFFFFFFFFF) {
             mstore(32, 13)
             revert(63, 1)

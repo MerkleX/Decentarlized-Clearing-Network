@@ -2276,6 +2276,8 @@ contract DCN {
 
           let quote_balance := attr(SessionBalance, 0, quote_session_balance_0, asset_balance)
           quote_balance := add(quote_balance, quote_delta)
+          quote_balance := sub(quote_balance, fees)
+
           if U64_OVERFLOW(quote_balance) {
             REVERT(13)
           }
