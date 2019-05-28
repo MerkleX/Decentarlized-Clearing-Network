@@ -415,7 +415,8 @@ contract DCN {
     }
   }
   
-  function user_create() public  {
+  function user_create() public 
+  returns (uint64 user_id) {
     
     uint256[2] memory log_data_mem;
     assembly {
@@ -426,7 +427,7 @@ contract DCN {
           revert(63, 1)
         }
       }
-      let user_id := sload(user_count_slot)
+      user_id := sload(user_count_slot)
       if iszero(lt(user_id, 18446744073709551616)) {
         mstore(32, 1)
         revert(63, 1)
@@ -531,7 +532,8 @@ contract DCN {
     }
   }
   
-  function add_asset(string memory symbol, uint192 unit_scale, address contract_address) public  {
+  function add_asset(string memory symbol, uint192 unit_scale, address contract_address) public 
+  returns (uint64 asset_id) {
     assembly {
       {
         let locked_features := sload(security_locked_features_slot)
@@ -547,7 +549,7 @@ contract DCN {
           revert(63, 1)
         }
       }
-      let asset_id := sload(asset_count_slot)
+      asset_id := sload(asset_count_slot)
       if iszero(lt(asset_id, 4294967296)) {
         mstore(32, 2)
         revert(63, 1)
@@ -575,7 +577,8 @@ contract DCN {
     }
   }
   
-  function add_exchange(string memory name, address addr) public  {
+  function add_exchange(string memory name, address addr) public 
+  returns (uint64 exchange_id) {
     assembly {
       {
         let locked_features := sload(security_locked_features_slot)
@@ -596,7 +599,7 @@ contract DCN {
         mstore(32, 2)
         revert(63, 1)
       }
-      let exchange_id := sload(exchange_count_slot)
+      exchange_id := sload(exchange_count_slot)
       if iszero(lt(exchange_id, 4294967296)) {
         mstore(32, 3)
         revert(63, 1)

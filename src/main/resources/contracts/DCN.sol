@@ -785,13 +785,13 @@ contract DCN {
    * Unrestricted function to create a new user. An event is
    * emitted to determine the user_id.
    */
-  function user_create() public {
+  function user_create() public returns (uint64 user_id) {
     uint256[2] memory log_data_mem;
 
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_CREATE_USER, /* REVERT(0) */ 0)
 
-      let user_id := sload(user_count_slot)
+      user_id := sload(user_count_slot)
       if iszero(lt(user_id, USER_COUNT)) {
         REVERT(1)
       }
@@ -963,13 +963,13 @@ contract DCN {
    * @param unit_scale: (ERC20 balance) = unit_scale * (session balance)
    * @param contract_address: address on the ERC20 token
    */
-  function add_asset(string memory symbol, uint192 unit_scale, address contract_address) public {
+  function add_asset(string memory symbol, uint192 unit_scale, address contract_address) public returns (uint64 asset_id) {
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_ADD_ASSET, /* REVERT(0) */ 0)
       CREATOR_REQUIRED(/* REVERT(1) */ 1)
 
       /* do not want to overflow assets array */
-      let asset_id := sload(asset_count_slot)
+      asset_id := sload(asset_count_slot)
       if iszero(lt(asset_id, ASSET_COUNT)) {
         REVERT(2)
       }
@@ -1010,7 +1010,7 @@ contract DCN {
    * @param name: 11 character name of exchange
    * @param addr: address of exchange
    */
-  function add_exchange(string memory name, address addr) public {
+  function add_exchange(string memory name, address addr) public returns (uint64 exchange_id) {
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_ADD_EXCHANGE, /* REVERT(0) */ 0)
       CREATOR_REQUIRED(/* REVERT(1) */ 1)
@@ -1022,7 +1022,7 @@ contract DCN {
       }
 
       /* Do not overflow exchanges */
-      let exchange_id := sload(exchange_count_slot)
+      exchange_id := sload(exchange_count_slot)
       if iszero(lt(exchange_id, EXCHANGE_COUNT)) {
         REVERT(3)
       }
