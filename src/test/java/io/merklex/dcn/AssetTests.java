@@ -10,12 +10,16 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import static com.greghaskins.spectrum.dsl.specification.Specification.describe;
 import static com.greghaskins.spectrum.dsl.specification.Specification.it;
+import static io.merklex.dcn.utils.AssertHelpers.assertRevert;
 import static junit.framework.TestCase.assertEquals;
 
 @RunWith(Spectrum.class)
 public class AssetTests {
     {
         StaticNetwork.DescribeCheckpoint();
+
+        EtherTransactions creator = Accounts.getTx(0);
+        EtherTransactions bob = Accounts.getTx(1);
 
         describe("initial state checks", () -> {
             it("asset count should be zero", () -> {
@@ -26,22 +30,12 @@ public class AssetTests {
                 assertEquals(0, count);
             });
 
-            it("non allocated assets should be empty", () -> {
+            it("non allocated assets should revert", () -> {
                 for (int i = 0; i < 10; i++) {
-                    DCN.GetAssetReturnValue asset = DCN.query_get_asset(
-                            StaticNetwork.DCN(), StaticNetwork.Web3(),
-                            DCN.get_asset(i)
-                    );
-
-                    assertEquals("", asset.symbol.trim());
-                    assertEquals(0L, asset.unit_scale);
-                    assertEquals("0x0000000000000000000000000000000000000000", asset.contract_address);
+                    assertRevert("0x01", bob.sendCall(StaticNetwork.DCN(), DCN.get_asset(i)));
                 }
             });
         });
-
-        EtherTransactions creator = Accounts.getTx(0);
-        EtherTransactions bob = Accounts.getTx(1);
 
         describe("add assets", () -> {
             it("non creator should not be able to add asset", () -> {

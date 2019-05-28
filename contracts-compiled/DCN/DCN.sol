@@ -97,6 +97,11 @@ contract DCN {
     
     uint256[5] memory return_value_mem;
     assembly {
+      let asset_count := sload(asset_count_slot)
+      if iszero(lt(asset_id, asset_count)) {
+        mstore(32, 1)
+        revert(63, 1)
+      }
       let asset_ptr := add(assets_slot, asset_id)
       let asset_0 := sload(asset_ptr)
       let asset_1 := sload(add(asset_ptr, 1))
@@ -117,6 +122,11 @@ contract DCN {
     
     uint256[7] memory return_value_mem;
     assembly {
+      let exchange_count := sload(exchange_count_slot)
+      if iszero(lt(exchange_id, exchange_count)) {
+        mstore(32, 1)
+        revert(63, 1)
+      }
       let exchange_ptr := add(exchanges_slot, mul(4294967299, exchange_id))
       let exchange_0 := sload(exchange_ptr)
       let exchange_1 := sload(add(exchange_ptr, 1))
@@ -182,6 +192,11 @@ contract DCN {
     
     uint256[4] memory return_value_mem;
     assembly {
+      let user_count := sload(user_count_slot)
+      if iszero(lt(user_id, user_count)) {
+        mstore(32, 1)
+        revert(63, 1)
+      }
       let user_ptr := add(users_slot, mul(237684487561239756867226304516, user_id))
       mstore(return_value_mem, sload(add(user_ptr, 0)))
       mstore(add(return_value_mem, 32), sload(add(user_ptr, 1)))
