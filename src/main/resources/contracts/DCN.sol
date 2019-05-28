@@ -294,25 +294,37 @@ contract DCN {
       mstore(transfer_in_mem, fn_hash("transfer(address,uint256)")) \
       mstore(add(transfer_in_mem, 4), TO_ADDRESS) \
       mstore(add(transfer_in_mem, 36), AMOUNT) \
-      \
-      let success := call( \
-        gas, \
-        TOKEN_ADDRESS, \
-        /* don't send any ether */ 0, \
-        transfer_in_mem, \
-        /* transfer_in_mem size (bytes) */ 68, \
-        transfer_out_mem, \
-        /* transfer_out_mem size (bytes) */ 32 \
-      ) \
-      \
-      if iszero(success) { \
-        REVERT(REVERT_1) \
-      } \
-      \
-      let result := mload(transfer_out_mem) \
-      if iszero(result) { \
-        REVERT(REVERT_2) \
-      } \
+      /* call external contract */ \
+      { \
+        let success := call( \
+          gas, \
+          TOKEN_ADDRESS, \
+          /* don't send any ether */ 0, \
+          transfer_in_mem, \
+          /* transfer_in_mem size (bytes) */ 68, \
+          transfer_out_mem, \
+          /* transfer_out_mem size (bytes) */ 32 \
+        ) \
+        \
+        if iszero(success) { \
+          REVERT(REVERT_1) \
+        } \
+        \
+        switch returndatasize() \
+        /* invalid ERC-20 Token, doesn't return anything and didn't revert: success */ \
+        case 0 { } \
+        /* valid ERC-20 Token, has return value */ \
+        case 32 { \ 
+          let result := mload(transfer_out_mem) \
+          if iszero(result) { \
+            REVERT(REVERT_2) \
+          } \
+        } \
+        /* returned a non standard amount of data: fail */ \
+        default { \
+          REVERT(REVERT_2) \
+        } \
+      }
 
   #define ERC_20_DEPOSIT(TOKEN_ADDRESS, FROM_ADDRESS, TO_ADDRESS, AMOUNT, REVERT_1, REVERT_2) \
       mstore(transfer_in_mem, /* transferFrom(address,address,uint256) */ fn_hash("transferFrom(address,address,uint256)")) \
@@ -333,12 +345,21 @@ contract DCN {
         if iszero(success) { \
           REVERT(REVERT_1) \
         } \
-        let result := mload(transfer_out_mem) \
-        if iszero(result) { \
+        switch returndatasize() \
+        /* invalid ERC-20 Token, doesn't return anything and didn't revert: success */ \
+        case 0 { } \
+        /* valid ERC-20 Token, has return value */ \
+        case 32 { \ 
+          let result := mload(transfer_out_mem) \
+          if iszero(result) { \
+            REVERT(REVERT_2) \
+          } \
+        } \
+        /* returned a non standard amount of data: fail */ \
+        default { \
           REVERT(REVERT_2) \
         } \
       }
-
 
   function get_security_state() public view
   returns (uint256 locked_features, uint256 locked_features_proposed, uint256 proposed_unlock_timestamp) {

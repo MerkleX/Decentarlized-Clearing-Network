@@ -624,15 +624,25 @@ contract DCN {
       mstore(transfer_in_mem, /* fn_hash("transfer(address,uint256)") */ 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
       mstore(add(transfer_in_mem, 4), destination)
       mstore(add(transfer_in_mem, 36), withdraw)
-      let success := call(gas, asset_address, 0, transfer_in_mem, 68, transfer_out_mem, 32)
-      if iszero(success) {
-        mstore(32, 3)
-        revert(63, 1)
-      }
-      let result := mload(transfer_out_mem)
-      if iszero(result) {
-        mstore(32, 4)
-        revert(63, 1)
+      {
+        let success := call(gas, asset_address, 0, transfer_in_mem, 68, transfer_out_mem, 32)
+        if iszero(success) {
+          mstore(32, 3)
+          revert(63, 1)
+        }
+        switch returndatasize
+          case 0 {}
+          case 32 {
+            let result := mload(transfer_out_mem)
+            if iszero(result) {
+              mstore(32, 4)
+              revert(63, 1)
+            }
+          }
+          default {
+            mstore(32, 4)
+            revert(63, 1)
+          }
       }
     }
   }
@@ -686,11 +696,19 @@ contract DCN {
           mstore(32, 4)
           revert(63, 1)
         }
-        let result := mload(transfer_out_mem)
-        if iszero(result) {
-          mstore(32, 5)
-          revert(63, 1)
-        }
+        switch returndatasize
+          case 0 {}
+          case 32 {
+            let result := mload(transfer_out_mem)
+            if iszero(result) {
+              mstore(32, 5)
+              revert(63, 1)
+            }
+          }
+          default {
+            mstore(32, 5)
+            revert(63, 1)
+          }
       }
     }
   }
@@ -745,11 +763,19 @@ contract DCN {
           mstore(32, 4)
           revert(63, 1)
         }
-        let result := mload(transfer_out_mem)
-        if iszero(result) {
-          mstore(32, 5)
-          revert(63, 1)
-        }
+        switch returndatasize
+          case 0 {}
+          case 32 {
+            let result := mload(transfer_out_mem)
+            if iszero(result) {
+              mstore(32, 5)
+              revert(63, 1)
+            }
+          }
+          default {
+            mstore(32, 5)
+            revert(63, 1)
+          }
       }
     }
   }
@@ -788,15 +814,25 @@ contract DCN {
       mstore(transfer_in_mem, /* fn_hash("transfer(address,uint256)") */ 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
       mstore(add(transfer_in_mem, 4), destination)
       mstore(add(transfer_in_mem, 36), amount)
-      let success := call(gas, asset_address, 0, transfer_in_mem, 68, transfer_out_mem, 32)
-      if iszero(success) {
-        mstore(32, 4)
-        revert(63, 1)
-      }
-      let result := mload(transfer_out_mem)
-      if iszero(result) {
-        mstore(32, 5)
-        revert(63, 1)
+      {
+        let success := call(gas, asset_address, 0, transfer_in_mem, 68, transfer_out_mem, 32)
+        if iszero(success) {
+          mstore(32, 4)
+          revert(63, 1)
+        }
+        switch returndatasize
+          case 0 {}
+          case 32 {
+            let result := mload(transfer_out_mem)
+            if iszero(result) {
+              mstore(32, 5)
+              revert(63, 1)
+            }
+          }
+          default {
+            mstore(32, 5)
+            revert(63, 1)
+          }
       }
     }
   }
@@ -1060,11 +1096,19 @@ contract DCN {
           mstore(32, 4)
           revert(63, 1)
         }
-        let result := mload(transfer_out_mem)
-        if iszero(result) {
-          mstore(32, 5)
-          revert(63, 1)
-        }
+        switch returndatasize
+          case 0 {}
+          case 32 {
+            let result := mload(transfer_out_mem)
+            if iszero(result) {
+              mstore(32, 5)
+              revert(63, 1)
+            }
+          }
+          default {
+            mstore(32, 5)
+            revert(63, 1)
+          }
       }
       
       /* Log event: ExchangeDeposit */

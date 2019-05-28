@@ -611,6 +611,9 @@ module.exports = function(raw) {
 
       if (node.type === 'AssemblySwitch') {
         return `switch ${print(node.expression)}\n${tab}${TAB}${node.cases.map(c => {
+          if (c.default) {
+            return `default ${print(c.block, tab + TAB)}`;
+          }
           return `case ${print(c.value)} ${print(c.block, tab + TAB)}`;
         }).join(`\n${tab}${TAB}`)}`;
       }
