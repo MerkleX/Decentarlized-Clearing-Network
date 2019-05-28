@@ -64,9 +64,9 @@ public class ExchangeSetLimitTests {
                     BigInteger.ZERO);
 
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_asset("abcd", 1, token.value)));
+                    DCN.add_asset("abcd1234", 1, token.value)));
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_asset("abce", 1, token.value)));
+                    DCN.add_asset("abce1234", 1, token.value)));
 
             assertSuccess(creator.sendCall(token.value,
                     ERC20.approve(StaticNetwork.DCN(), totalSupply)));

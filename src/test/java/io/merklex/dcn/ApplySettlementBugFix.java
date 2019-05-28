@@ -79,13 +79,13 @@ public class ApplySettlementBugFix {
                     DCN.user_create()));
 
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_asset("test", 1, token1.value)));
+                    DCN.add_asset("test1234", 1, token1.value)));
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_asset("test", 1, token2.value)));
+                    DCN.add_asset("test1234", 1, token2.value)));
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_asset("test", 1, token2.value)));
+                    DCN.add_asset("test1234", 1, token2.value)));
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_asset("test", 1, token1.value)));
+                    DCN.add_asset("test1234", 1, token1.value)));
 
             assertSuccess(user1.sendCall(StaticNetwork.DCN(),
                     DCN.user_session_set_unlock_at(1, 0,

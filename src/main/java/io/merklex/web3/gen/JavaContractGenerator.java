@@ -6,6 +6,7 @@ import io.merklex.web3.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.ArrayList;
 
 public class JavaContractGenerator {
@@ -255,6 +256,67 @@ public class JavaContractGenerator {
 
         fn.line().append(");").end();
         fn.end();
+
+        {
+            int unsignedBigInts = 0;
+            int signedBigInts = 0;
+            for (JsonNode input : inputs) {
+                String type = input.get("type").asText();
+                if (IntSize(type) > 64) {
+                    if (type.startsWith("u")) {
+                        unsignedBigInts++;
+                    }
+                    else {
+                        signedBigInts++;
+                    }
+                }
+            }
+
+            /* support simplified caller */
+            if (unsignedBigInts > 0 && signedBigInts == 0) {
+                {
+                    args = block.publicStaticMethod(fnName, "Function");
+                    for (int i = 0; i < inputs.size(); i++) {
+                        JsonNode input = inputs.get(i);
+                        String type = input.get("type").asText();
+                        String name = input.get("name").asText();
+
+                        if (IntSize(type) > 64) {
+                            args.arg(or(name, "arg" + i), "long");
+                        }
+                        else {
+                            args.arg(or(name, "arg" + i), ToJavaType(type));
+                        }
+                    }
+                    fn = args.end();
+                }
+
+                body = fn.line().append("return ").append(fnName).append("(").end().tabbed();
+                for (int i = 0; i < inputs.size(); i++) {
+                    JsonNode input = inputs.get(i);
+                    JavaCodeGen.Line line = body.line();
+
+                    String type = input.get("type").asText();
+                    String name = input.get("name").asText();
+
+                    if (i > 0) {
+                        line.append(", ");
+                    }
+
+                    if (IntSize(type) > 64) {
+                        line.append("new BigInteger(Long.toUnsignedString(").append(or(name, "arg" + i)).append("))");
+                    }
+                    else {
+                        line.append(or(name, "arg" + i));
+                    }
+
+                    line.end();
+                }
+
+                fn.line().append(");").end();
+                fn.end();
+            }
+        }
     }
 
     private void arguments(JavaCodeGen.Arguments args, JsonNode inputs) {

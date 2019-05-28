@@ -54,10 +54,10 @@ public class CreatorTests {
 
         it("only creator not be able to add asset", () -> {
             assertRevert("0x01", account20.sendCall(query.contractAddress,
-                    DCN.add_asset("1234", 1, account10.getAddress())));
+                    DCN.add_asset("12341234", 1, account10.getAddress())));
 
             assertSuccess(account10.sendCall(query.contractAddress,
-                    DCN.add_asset("1234", 1, account10.getAddress())));
+                    DCN.add_asset("12341234", 1, account10.getAddress())));
         });
 
         it("only creator should be able to update address", () -> {

@@ -58,7 +58,7 @@ public class ExchangeTransferFromTests {
             );
 
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_asset("TK1 ", unitScale, token.value)));
+                    DCN.add_asset("TK1 1234", unitScale, token.value)));
             assertSuccess(bob.sendCall(StaticNetwork.DCN(),
                     DCN.user_create()));
             assertSuccess(bob.sendCall(StaticNetwork.DCN(),

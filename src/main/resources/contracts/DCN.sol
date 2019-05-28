@@ -91,12 +91,13 @@ contract DCN {
   }
 
   struct Asset {
-    /* 4 byte symbol of the asset */
-    uint32 symbol;
+    /* 8 byte symbol of the asset */
+    uint64 symbol;
     /* used to scale between wallet and state balances */
-    uint64 unit_scale;
+    uint192 unit_scale;
+
     /* address of the ERC-20 Token */
-    address contract_address;
+    uint256 contract_address;
   }
 
   struct MarketState {
@@ -386,7 +387,7 @@ contract DCN {
   }
 
   function get_asset(uint32 asset_id) public view
-  returns (string memory symbol, uint64 unit_scale, address contract_address) {
+  returns (string memory symbol, uint192 unit_scale, address contract_address) {
     uint256[5] memory return_value_mem;
 
     assembly {
@@ -399,11 +400,11 @@ contract DCN {
       let asset_0 := sload(asset_ptr)
       let asset_1 := sload(add(asset_ptr, 1))
 
-      MSTORE_STR(return_value_mem, WORD_3, 4, asset_0)
+      MSTORE_STR(return_value_mem, WORD_3, 8, asset_0)
       RETURN(WORD_1, attr(Asset, 0, asset_0, unit_scale))
-      RETURN(WORD_2, attr(Asset, 0, asset_0, contract_address))
+      RETURN(WORD_2, attr(Asset, 1, asset_1, contract_address))
 
-      return(return_value_mem, const_add(WORD_3, /* string header */ WORD_1 , /* string data */ 4))
+      return(return_value_mem, const_add(WORD_3, /* string header */ WORD_1 , /* string data */ 8))
     }
   }
 
@@ -962,7 +963,7 @@ contract DCN {
    * @param unit_scale: (ERC20 balance) = unit_scale * (session balance)
    * @param contract_address: address on the ERC20 token
    */
-  function add_asset(string memory symbol, uint64 unit_scale, address contract_address) public {
+  function add_asset(string memory symbol, uint192 unit_scale, address contract_address) public {
     assembly {
       SECURITY_FEATURE_CHECK(FEATURE_ADD_ASSET, /* REVERT(0) */ 0)
       CREATOR_REQUIRED(/* REVERT(1) */ 1)
@@ -973,9 +974,9 @@ contract DCN {
         REVERT(2)
       }
 
-      /* Symbol must be 4 characters */
+      /* Symbol must be 8 characters */
       let symbol_len := mload(symbol)
-      if iszero(eq(symbol_len, 4)) {
+      if iszero(eq(symbol_len, 8)) {
         REVERT(3)
       }
 
@@ -992,10 +993,11 @@ contract DCN {
       let asset_symbol := mload(add(symbol, WORD_1 /* offset as first word is size */))
 
       /* Note, symbol is already shifted not setting it in build */
-      let asset_data := or(asset_symbol, build(Asset, 0, /* symbol */ 0, unit_scale, contract_address))
+      let asset_data_0 := or(asset_symbol, build(Asset, 0, /* symbol */ 0, unit_scale))
       let asset_ptr := ASSET_PTR_(asset_id)
 
-      sstore(asset_ptr, asset_data)
+      sstore(asset_ptr, asset_data_0)
+      sstore(add(asset_ptr, 1), contract_address)
       sstore(asset_count_slot, add(asset_id, 1))
     }
   }
@@ -1082,9 +1084,9 @@ contract DCN {
       /* decrement balance */
       sstore(exchange_balance_ptr, sub(exchange_balance, quantity))
 
-      let asset_0 := sload(ASSET_PTR_(asset_id))
-      let unit_scale := attr(Asset, 0, asset_0, unit_scale)
-      let asset_address := attr(Asset, 0, asset_0, contract_address)
+      let asset_ptr := ASSET_PTR_(asset_id)
+      let unit_scale := attr(Asset, 0, sload(asset_ptr), unit_scale)
+      let asset_address := sload(pointer_attr(Asset, asset_ptr, contract_address))
 
       let withdraw := mul(quantity, unit_scale)
 
@@ -1120,9 +1122,9 @@ contract DCN {
         REVERT(3)
       }
 
-      let asset_0 := sload(ASSET_PTR_(asset_id))
-      let unit_scale := attr(Asset, 0, asset_0, unit_scale)
-      let asset_address := attr(Asset, 0, asset_0, contract_address)
+      let asset_ptr := ASSET_PTR_(asset_id)
+      let unit_scale := attr(Asset, 0, sload(asset_ptr), unit_scale)
+      let asset_address := sload(pointer_attr(Asset, asset_ptr, contract_address))
 
       let deposit := mul(quantity, unit_scale)
 
@@ -1169,9 +1171,7 @@ contract DCN {
         REVERT(3)
       }
 
-      let asset_0 := sload(ASSET_PTR_(asset_id))
-      let asset_address := attr(Asset, 0, asset_0, contract_address)
-
+      let asset_address := sload(pointer_attr(Asset, ASSET_PTR_(asset_id), contract_address))
       sstore(balance_ptr, proposed_balance)
 
       ERC_20_DEPOSIT(
@@ -1222,8 +1222,7 @@ contract DCN {
 
       sstore(balance_ptr, sub(current_balance, amount))
 
-      let asset_data := sload(ASSET_PTR_(asset_id))
-      let asset_address := attr(Asset, 0, asset_data, contract_address)
+      let asset_address := sload(pointer_attr(Asset, ASSET_PTR_(asset_id), contract_address))
 
       ERC_20_SEND(
         /* TOKEN_ADDRESS */ asset_address,
@@ -1504,9 +1503,9 @@ contract DCN {
         REVERT(3)
       }
 
-      let asset_0 := sload(ASSET_PTR_(asset_id))
-      let asset_address := attr(Asset, 0, asset_0, contract_address)
-      let unit_scale := attr(Asset, 0, asset_0, unit_scale)
+      let asset_ptr := ASSET_PTR_(asset_id)
+      let unit_scale := attr(Asset, 0, sload(asset_ptr), unit_scale)
+      let asset_address := sload(pointer_attr(Asset, asset_ptr, contract_address))
 
       let scaled_quantity := mul(quantity, unit_scale)
 

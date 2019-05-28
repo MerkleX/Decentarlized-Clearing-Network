@@ -46,7 +46,7 @@ public class UserDepositWithdrawTests {
                     BigInteger.ZERO
             );
 
-            creator.call(StaticNetwork.DCN(), DCN.add_asset("TK1 ", 10000000000L, token.value));
+            creator.call(StaticNetwork.DCN(), DCN.add_asset("TK1 1234", 10000000000L, token.value));
             tokenOwner.call(token.value, ERC20.transfer(bob.getAddress(), initialBobWalletBalance));
             bob.call(StaticNetwork.DCN(), DCN.user_create());
         });

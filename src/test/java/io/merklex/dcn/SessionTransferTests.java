@@ -56,7 +56,7 @@ public class SessionTransferTests {
             );
 
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_asset("TK1 ", 10000000000L, token.value)));
+                    DCN.add_asset("TK1 1234", 10000000000L, token.value)));
             assertSuccess(bob.sendCall(StaticNetwork.DCN(),
                     DCN.user_create()));
             assertSuccess(bob.sendCall(token.value,

@@ -45,7 +45,7 @@ public class ExchangeBalanceTests {
                     ERC20.approve(StaticNetwork.DCN(), totalSupply)));
 
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_asset("test", 10, token.value)));
+                    DCN.add_asset("test1234", 10, token.value)));
         });
 
         it("should be able to deposit into exchange", () -> {

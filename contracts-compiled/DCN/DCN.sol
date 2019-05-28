@@ -21,9 +21,9 @@ contract DCN {
     uint256[4294967296] balances;
   }
   struct Asset {
-    uint32 symbol;
-    uint64 unit_scale;
-    address contract_address;
+    uint64 symbol;
+    uint192 unit_scale;
+    uint256 contract_address;
   }
   struct MarketState {
     int64 quote_qty;
@@ -93,7 +93,7 @@ contract DCN {
   }
   
   function get_asset(uint32 asset_id) public view 
-  returns (string memory symbol, uint64 unit_scale, address contract_address) {
+  returns (string memory symbol, uint192 unit_scale, address contract_address) {
     
     uint256[5] memory return_value_mem;
     assembly {
@@ -102,15 +102,15 @@ contract DCN {
         mstore(32, 1)
         revert(63, 1)
       }
-      let asset_ptr := add(assets_slot, asset_id)
+      let asset_ptr := add(assets_slot, mul(2, asset_id))
       let asset_0 := sload(asset_ptr)
       let asset_1 := sload(add(asset_ptr, 1))
       mstore(return_value_mem, 96)
-      mstore(add(return_value_mem, 96), 4)
+      mstore(add(return_value_mem, 96), 8)
       mstore(add(return_value_mem, 128), asset_0)
-      mstore(add(return_value_mem, 32), and(div(asset_0, 0x10000000000000000000000000000000000000000), 0xffffffffffffffff))
-      mstore(add(return_value_mem, 64), and(asset_0, 0xffffffffffffffffffffffffffffffffffffffff))
-      return(return_value_mem, 132)
+      mstore(add(return_value_mem, 32), and(asset_0, 0xffffffffffffffffffffffffffffffffffffffffffffffff))
+      mstore(add(return_value_mem, 64), asset_1)
+      return(return_value_mem, 136)
     }
   }
   
@@ -531,7 +531,7 @@ contract DCN {
     }
   }
   
-  function add_asset(string memory symbol, uint64 unit_scale, address contract_address) public  {
+  function add_asset(string memory symbol, uint192 unit_scale, address contract_address) public  {
     assembly {
       {
         let locked_features := sload(security_locked_features_slot)
@@ -553,7 +553,7 @@ contract DCN {
         revert(63, 1)
       }
       let symbol_len := mload(symbol)
-      if iszero(eq(symbol_len, 4)) {
+      if iszero(eq(symbol_len, 8)) {
         mstore(32, 3)
         revert(63, 1)
       }
@@ -566,11 +566,11 @@ contract DCN {
         revert(63, 1)
       }
       let asset_symbol := mload(add(symbol, 32))
-      let asset_data := or(asset_symbol, or(
-        /* unit_scale */ mul(unit_scale, 0x10000000000000000000000000000000000000000), 
-        /* contract_address */ contract_address))
-      let asset_ptr := add(assets_slot, asset_id)
-      sstore(asset_ptr, asset_data)
+      let asset_data_0 := or(asset_symbol, 
+        /* unit_scale */ unit_scale)
+      let asset_ptr := add(assets_slot, mul(2, asset_id))
+      sstore(asset_ptr, asset_data_0)
+      sstore(add(asset_ptr, 1), contract_address)
       sstore(asset_count_slot, add(asset_id, 1))
     }
   }
@@ -632,9 +632,9 @@ contract DCN {
         revert(63, 1)
       }
       sstore(exchange_balance_ptr, sub(exchange_balance, quantity))
-      let asset_0 := sload(add(assets_slot, asset_id))
-      let unit_scale := and(div(asset_0, 0x10000000000000000000000000000000000000000), 0xffffffffffffffff)
-      let asset_address := and(asset_0, 0xffffffffffffffffffffffffffffffffffffffff)
+      let asset_ptr := add(assets_slot, mul(2, asset_id))
+      let unit_scale := and(sload(asset_ptr), 0xffffffffffffffffffffffffffffffffffffffffffffffff)
+      let asset_address := sload(add(asset_ptr, 1))
       let withdraw := mul(quantity, unit_scale)
       mstore(transfer_in_mem, /* fn_hash("transfer(address,uint256)") */ 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
       mstore(add(transfer_in_mem, 4), destination)
@@ -696,9 +696,9 @@ contract DCN {
         mstore(32, 3)
         revert(63, 1)
       }
-      let asset_0 := sload(add(assets_slot, asset_id))
-      let unit_scale := and(div(asset_0, 0x10000000000000000000000000000000000000000), 0xffffffffffffffff)
-      let asset_address := and(asset_0, 0xffffffffffffffffffffffffffffffffffffffff)
+      let asset_ptr := add(assets_slot, mul(2, asset_id))
+      let unit_scale := and(sload(asset_ptr), 0xffffffffffffffffffffffffffffffffffffffffffffffff)
+      let asset_address := sload(add(asset_ptr, 1))
       let deposit := mul(quantity, unit_scale)
       sstore(exchange_balance_ptr, updated_balance)
       mstore(transfer_in_mem, /* fn_hash("transferFrom(address,address,uint256)") */ 0x23b872dd00000000000000000000000000000000000000000000000000000000)
@@ -765,8 +765,7 @@ contract DCN {
         mstore(32, 3)
         revert(63, 1)
       }
-      let asset_0 := sload(add(assets_slot, asset_id))
-      let asset_address := and(asset_0, 0xffffffffffffffffffffffffffffffffffffffff)
+      let asset_address := sload(add(add(assets_slot, mul(2, asset_id)), 1))
       sstore(balance_ptr, proposed_balance)
       mstore(transfer_in_mem, /* fn_hash("transferFrom(address,address,uint256)") */ 0x23b872dd00000000000000000000000000000000000000000000000000000000)
       mstore(add(transfer_in_mem, 4), caller)
@@ -824,8 +823,7 @@ contract DCN {
         revert(63, 1)
       }
       sstore(balance_ptr, sub(current_balance, amount))
-      let asset_data := sload(add(assets_slot, asset_id))
-      let asset_address := and(asset_data, 0xffffffffffffffffffffffffffffffffffffffff)
+      let asset_address := sload(add(add(assets_slot, mul(2, asset_id)), 1))
       mstore(transfer_in_mem, /* fn_hash("transfer(address,uint256)") */ 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
       mstore(add(transfer_in_mem, 4), destination)
       mstore(add(transfer_in_mem, 36), amount)
@@ -949,8 +947,8 @@ contract DCN {
       if iszero(quantity) {
         stop()
       }
-      let asset_ptr := add(assets_slot, asset_id)
-      let unit_scale := and(div(sload(asset_ptr), 0x10000000000000000000000000000000000000000), 0xffffffffffffffff)
+      let asset_ptr := add(assets_slot, mul(2, asset_id))
+      let unit_scale := and(sload(asset_ptr), 0xffffffffffffffffffffffffffffffffffffffffffffffff)
       let scaled_quantity := mul(quantity, unit_scale)
       let user_ptr := add(users_slot, mul(237684487561239756867226304516, user_id))
       {
@@ -1040,8 +1038,8 @@ contract DCN {
       }
       sstore(session_balance_ptr, or(and(0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000, session_balance_0), 
         /* asset_balance */ updated_exchange_balance))
-      let asset_ptr := add(assets_slot, asset_id)
-      let unit_scale := and(div(sload(asset_ptr), 0x10000000000000000000000000000000000000000), 0xffffffffffffffff)
+      let asset_ptr := add(assets_slot, mul(2, asset_id))
+      let unit_scale := and(sload(asset_ptr), 0xffffffffffffffffffffffffffffffffffffffffffffffff)
       let scaled_quantity := mul(quantity, unit_scale)
       let user_balance_ptr := add(add(user_ptr, 4), asset_id)
       let user_balance := sload(user_balance_ptr)
@@ -1093,9 +1091,9 @@ contract DCN {
         mstore(32, 3)
         revert(63, 1)
       }
-      let asset_0 := sload(add(assets_slot, asset_id))
-      let asset_address := and(asset_0, 0xffffffffffffffffffffffffffffffffffffffff)
-      let unit_scale := and(div(asset_0, 0x10000000000000000000000000000000000000000), 0xffffffffffffffff)
+      let asset_ptr := add(assets_slot, mul(2, asset_id))
+      let unit_scale := and(sload(asset_ptr), 0xffffffffffffffffffffffffffffffffffffffffffffffff)
+      let asset_address := sload(add(asset_ptr, 1))
       let scaled_quantity := mul(quantity, unit_scale)
       let updated_total_deposit := add(and(div(session_balance_0, 0x100000000000000000000000000000000), 0xffffffffffffffffffffffffffffffff), quantity)
       sstore(session_balance_ptr, or(and(0xffffffffffffffff0000000000000000, session_balance_0), or(
@@ -1260,7 +1258,7 @@ contract DCN {
         }
         let exchange_balance_ptr := add(add(add(exchanges_slot, mul(4294967299, exchange_id)), 3), asset_id)
         let exchange_balance_remaining := sload(exchange_balance_ptr)
-        let unit_scale := and(div(sload(add(assets_slot, asset_id)), 0x10000000000000000000000000000000000000000), 0xffffffffffffffff)
+        let unit_scale := and(sload(add(assets_slot, mul(2, asset_id))), 0xffffffffffffffffffffffffffffffffffffffffffffffff)
         for {} lt(cursor, cursor_group_end) {
           cursor := add(cursor, 16)
         } {

@@ -57,7 +57,7 @@ public class LocalDCN {
                 throw new IllegalStateException();
             }
 
-            success(tx.sendCall(dcn, DCN.add_asset("test", 10, erc20)));
+            success(tx.sendCall(dcn, DCN.add_asset("test1234", 10, erc20)));
 
             success(tx.sendCall(dcn, DCN.user_create()));
 
@@ -68,7 +68,7 @@ public class LocalDCN {
             success(tx.sendCall(erc20, ERC20.approve(dcn, BigInteger.valueOf(10000000000L))));
             success(tx.sendCall(dcn, DCN.user_deposit_to_session(0, 0, 0, 100)));
 
-            success(tx.sendCall(dcn, DCN.add_asset("test", 10, erc20)));
+            success(tx.sendCall(dcn, DCN.add_asset("test1234", 10, erc20)));
         }
 
         private static void success(EthSendTransaction res) throws IOException {
