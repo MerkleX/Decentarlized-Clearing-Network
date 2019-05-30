@@ -6,7 +6,6 @@ import io.merklex.web3.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.math.BigInteger;
 import java.util.ArrayList;
 
 public class JavaContractGenerator {
@@ -123,13 +122,27 @@ public class JavaContractGenerator {
             block.line().append("EventValues values = Contract.staticExtractEventParameters(").append(eventName).append("_EVENT, log);").end();
 
             block.line().append(eventName).append(" event = new ").append(eventName).append("();").end();
+
+            int nextIndexedArg = 0;
+            int nextNonIndexedArg = 0;
+
             for (int i = 0; i < inputs.size(); i++) {
                 JsonNode input = inputs.get(i);
                 String name = input.get("name").asText();
                 String type = input.get("type").asText();
-                block.line().append("event.").append(name).append(" = ")
-                        .append(ConvertType(type, "values.getNonIndexedValues().get(" + i + ").getValue()"))
-                        .append(";").end();
+
+                if (input.get("indexed").asBoolean()) {
+                    block.line().append("event.").append(name).append(" = ")
+                            .append(ConvertType(type, "values.getIndexedValues().get(" + nextIndexedArg + ").getValue()"))
+                            .append(";").end();
+                    nextIndexedArg++;
+                }
+                else {
+                    block.line().append("event.").append(name).append(" = ")
+                            .append(ConvertType(type, "values.getNonIndexedValues().get(" + nextNonIndexedArg + ").getValue()"))
+                            .append(";").end();
+                    nextNonIndexedArg++;
+                }
             }
         }
 
@@ -465,7 +478,15 @@ public class JavaContractGenerator {
             if (i != 0) {
                 line.append(", ");
             }
-            line.append("new TypeReference<").append(ABIGeneratedType(type)).append(">() {}");
+
+            JsonNode indexed = input.get("indexed");
+            if (indexed != null && indexed.asBoolean()) {
+                line.append("new TypeReference<").append(ABIGeneratedType(type)).append(">(true) {}");
+            }
+            else {
+                line.append("new TypeReference<").append(ABIGeneratedType(type)).append(">() {}");
+            }
+
             line.end();
         }
 

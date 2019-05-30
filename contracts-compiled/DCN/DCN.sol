@@ -1,6 +1,6 @@
 pragma solidity 0.5.7;
 contract DCN {
-  event UserCreated(uint64 user_id);
+  event UserCreated(address indexed creator, uint64 user_id);
   event SessionUpdated(uint64 user_id, uint64 exchange_id);
   event ExchangeDeposit(uint64 user_id, uint64 exchange_id, uint32 asset_id);
   uint256 creator;
@@ -440,7 +440,7 @@ contract DCN {
       
       /* Log event: UserCreated */
       mstore(log_data_mem, user_id)
-      log1(log_data_mem, 32, /* UserCreated */ 0x654a5f371dd267582fdba132709448f256a549360e2ce54ccb3699d3b8ed2394)
+      log2(log_data_mem, 32, /* UserCreated */ 0x49d7af0c8ce0d26f4490c17a316a59a7a5d28599a2208862554b648ebdf193f4, caller)
     }
   }
   

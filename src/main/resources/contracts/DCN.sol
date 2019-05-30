@@ -43,7 +43,7 @@ pragma solidity 0.5.7;
  */
 
 contract DCN {
-  event UserCreated(uint64 user_id);
+  event UserCreated(address indexed creator, uint64 user_id);
   event SessionUpdated(uint64 user_id, uint64 exchange_id);
   event ExchangeDeposit(uint64 user_id, uint64 exchange_id, uint32 asset_id);
 
@@ -805,7 +805,7 @@ contract DCN {
       sstore(pointer_attr(User, user_ptr, withdraw_address), caller)
       sstore(pointer_attr(User, user_ptr, recovery_address), caller)
 
-      log_event(UserCreated, log_data_mem, user_id)
+      log_event(UserCreated, log_data_mem, caller, user_id)
     }
   }
 

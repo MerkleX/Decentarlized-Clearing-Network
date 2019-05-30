@@ -36,6 +36,7 @@ public class UserManagementTests {
             DCN.UserCreated userCreated = DCN.ExtractUserCreated(result.getLogs().get(0));
             assertNotNull(userCreated);
             assertEquals(0, userCreated.user_id);
+            assertEquals(user0.getAddress(), userCreated.creator);
 
             DCN.GetUserReturnValue user = query.query(DCN::query_get_user, DCN.get_user(0));
             assertEquals(user0.getAddress(), user.trade_address);
