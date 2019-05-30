@@ -15,7 +15,7 @@ public class GenerateContractCode {
             throw new IOException("Failed to create output directory");
         }
 
-        ProcessBuilder transpiler = new ProcessBuilder("node", "transpiler/run.js", contractSource.getAbsolutePath());
+        ProcessBuilder transpiler = new ProcessBuilder("tsol", contractSource.getAbsolutePath());
         Process transpilerProcess = transpiler.start();
 
         String contractSourceData = FileUtils.ReadAll(transpilerProcess.getInputStream());
