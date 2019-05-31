@@ -7,6 +7,7 @@ import io.merklex.dcn.utils.Accounts;
 import io.merklex.dcn.utils.Box;
 import io.merklex.dcn.utils.StaticNetwork;
 import io.merklex.web3.EtherTransactions;
+import io.merklex.web3.QueryHelper;
 import org.junit.runner.RunWith;
 
 import java.math.BigInteger;
@@ -14,6 +15,7 @@ import java.math.BigInteger;
 import static com.greghaskins.spectrum.Spectrum.*;
 import static io.merklex.dcn.utils.AssertHelpers.assertRevert;
 import static io.merklex.dcn.utils.AssertHelpers.assertSuccess;
+import static io.merklex.dcn.utils.ConsistentBalanceCheck.assertCorrectBalances;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(Spectrum.class)
@@ -27,6 +29,8 @@ public class ExchangeBalanceTests {
         Box<String> token = new Box<>();
 
         BigInteger totalSupply = BigInteger.valueOf(3).pow(64);
+
+        QueryHelper query = new QueryHelper(StaticNetwork.DCN(), creator.getWeb3());
 
         beforeAll(() -> {
             assertSuccess(creator.sendCall(StaticNetwork.DCN(),
@@ -53,7 +57,7 @@ public class ExchangeBalanceTests {
                     DCN.exchange_deposit(0, 0, 5000)));
 
             DCN.GetExchangeBalanceReturnValue balance;
-            balance = DCN.query_get_exchange_balance(StaticNetwork.DCN(), creator.getWeb3(),
+            balance = query.query(DCN::query_get_exchange_balance,
                     DCN.get_exchange_balance(0, 0));
 
             assertEquals(BigInteger.valueOf(5000),
@@ -68,6 +72,8 @@ public class ExchangeBalanceTests {
             tokenBalance = ERC20.query_balanceOf(token.value, creator.getWeb3(),
                     ERC20.balanceOf(StaticNetwork.DCN()));
             assertEquals(BigInteger.valueOf(50000), tokenBalance.balance);
+
+            assertCorrectBalances(query);
         });
 
         describe("should not be able to overflow", () -> {
@@ -104,6 +110,8 @@ public class ExchangeBalanceTests {
             tokenBalance = ERC20.query_balanceOf(token.value, creator.getWeb3(),
                     ERC20.balanceOf(exchange.getAddress()));
             assertEquals(BigInteger.valueOf(5000), tokenBalance.balance);
+
+            assertCorrectBalances(query);
         });
     }
 }

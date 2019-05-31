@@ -15,6 +15,7 @@ import java.math.BigInteger;
 import static com.greghaskins.spectrum.dsl.specification.Specification.*;
 import static io.merklex.dcn.utils.AssertHelpers.assertRevert;
 import static io.merklex.dcn.utils.AssertHelpers.assertSuccess;
+import static io.merklex.dcn.utils.ConsistentBalanceCheck.assertCorrectBalances;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(Spectrum.class)
@@ -84,6 +85,8 @@ public class UserDepositWithdrawTests {
 
             DCN.GetBalanceReturnValue balance = query.query(DCN::query_get_balance, DCN.get_balance(userId, assetId));
             assertEquals(deposit, balance.return_balance);
+
+            assertCorrectBalances(query);
         });
 
         it("other user should be able to deposit to user", () -> {
@@ -103,6 +106,8 @@ public class UserDepositWithdrawTests {
 
             DCN.GetBalanceReturnValue balance = query.query(DCN::query_get_balance, DCN.get_balance(userId, assetId));
             assertEquals(deposit.multiply(BigInteger.valueOf(2)), balance.return_balance);
+
+            assertCorrectBalances(query);
         });
 
         it("user should not be able to withdraw more than balance", () -> {
@@ -124,6 +129,8 @@ public class UserDepositWithdrawTests {
 
             DCN.GetBalanceReturnValue balance = query.query(DCN::query_get_balance, DCN.get_balance(userId, assetId));
             assertEquals(deposit, balance.return_balance);
+
+            assertCorrectBalances(query);
         });
 
         describe("only should be able to withdraw using withdraw address", () -> {

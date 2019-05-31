@@ -17,6 +17,7 @@ import java.util.function.Consumer;
 import static com.greghaskins.spectrum.Spectrum.*;
 import static io.merklex.dcn.utils.AssertHelpers.assertRevert;
 import static io.merklex.dcn.utils.AssertHelpers.assertSuccess;
+import static io.merklex.dcn.utils.ConsistentBalanceCheck.assertCorrectBalances;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(Spectrum.class)
@@ -173,6 +174,8 @@ public class ApplySettlementsTests {
 
                 assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+                assertCorrectBalances(query);
             });
 
             it("min_base_qty", () -> {
@@ -242,6 +245,8 @@ public class ApplySettlementsTests {
 
                 assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+                assertCorrectBalances(query);
             });
 
             it("quote_qty overflow protection", () -> {
@@ -311,6 +316,8 @@ public class ApplySettlementsTests {
 
                 assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+                assertCorrectBalances(query);
             });
 
             it("quote_qty underflow protection", () -> {
@@ -382,6 +389,8 @@ public class ApplySettlementsTests {
 
                 assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+                assertCorrectBalances(query);
             });
 
 
@@ -452,6 +461,8 @@ public class ApplySettlementsTests {
 
                 assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+                assertCorrectBalances(query);
             });
 
             it("base_qty underflow protection", () -> {
@@ -523,6 +534,8 @@ public class ApplySettlementsTests {
 
                 assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+                assertCorrectBalances(query);
             });
 
             it("fee_limit", () -> {
@@ -611,6 +624,8 @@ public class ApplySettlementsTests {
                 feeUserBalance = query.query(DCN::query_get_session_balance,
                         DCN.get_session_balance(userId1, exchangeId, quoteAssetId));
                 assertEquals(1000 + 3 - 100, feeUserBalance.asset_balance);
+
+                assertCorrectBalances(query);
             });
 
             it("negative position", () -> {
@@ -729,6 +744,8 @@ public class ApplySettlementsTests {
 
                 assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+                assertCorrectBalances(query);
             });
 
             it("long_max_price", () -> {
@@ -800,6 +817,8 @@ public class ApplySettlementsTests {
 
                 assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+                assertCorrectBalances(query);
             });
 
             it("short_min_price", () -> {
@@ -871,6 +890,8 @@ public class ApplySettlementsTests {
 
                 assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
                         DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+                assertCorrectBalances(query);
             });
         });
 
@@ -1026,6 +1047,8 @@ public class ApplySettlementsTests {
 
             assertSuccess(exchange.sendCall(StaticNetwork.DCN(),
                     DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+            assertCorrectBalances(query);
         });
 
         it("should fail to settle with same asset id", () -> {
@@ -1059,6 +1082,8 @@ public class ApplySettlementsTests {
 
             assertRevert("0x10", exchange.sendCall(StaticNetwork.DCN(),
                     DCN.exchange_apply_settlement_groups(settlements.payload(1))));
+
+            assertCorrectBalances(query);
         });
     }
 
