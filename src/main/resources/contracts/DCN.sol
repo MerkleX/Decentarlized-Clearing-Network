@@ -80,7 +80,10 @@ contract DCN {
     /* address used to manage exchange */
     address owner;
 
-    /* recovery address to change the owner address */
+    /* address to withdraw funds */
+    uint256 withdraw_address;
+
+    /* recovery address to change the owner and withdraw address */
     uint256 recovery_address;
 
     /* a proposed address to change recovery_address */
@@ -411,10 +414,10 @@ contract DCN {
   function get_exchange(uint32 exchange_id) public view
   returns (
     string memory name, bool locked, address owner,
-    address recovery_address, address recovery_address_proposed
+    address withdraw_address, address recovery_address, address recovery_address_proposed
   ) {
-    /* [ name_offset, owner, recovery_address, recovery_address_proposed, name_len, name_data(12) ] */
-    uint256[7] memory return_value_mem;
+    /* [ name_offset, owner, withdraw_address, recovery_address, recovery_address_proposed, name_len, name_data(12) ] */
+    uint256[8] memory return_value_mem;
 
     assembly {
       let exchange_count := sload(exchange_count_slot)
@@ -426,14 +429,16 @@ contract DCN {
       let exchange_0 := sload(exchange_ptr)
       let exchange_1 := sload(add(exchange_ptr, 1))
       let exchange_2 := sload(add(exchange_ptr, 2))
+      let exchange_3 := sload(add(exchange_ptr, 3))
 
-      MSTORE_STR(return_value_mem, WORD_5, 11, exchange_0)
+      MSTORE_STR(return_value_mem, WORD_6, 11, exchange_0)
       RETURN(WORD_1, attr(Exchange, 0, exchange_0, locked))
       RETURN(WORD_2, attr(Exchange, 0, exchange_0, owner))
-      RETURN(WORD_3, attr(Exchange, 1, exchange_1, recovery_address))
-      RETURN(WORD_4, attr(Exchange, 2, exchange_2, recovery_address_proposed))
+      RETURN(WORD_3, attr(Exchange, 1, exchange_1, withdraw_address))
+      RETURN(WORD_4, attr(Exchange, 2, exchange_2, recovery_address))
+      RETURN(WORD_5, attr(Exchange, 3, exchange_3, recovery_address_proposed))
 
-      return(return_value_mem, const_add(WORD_5, /* string header */ WORD_1, /* string data */ 12))
+      return(return_value_mem, const_add(WORD_6, /* string header */ WORD_1, /* string data */ 12))
     }
   }
 
@@ -891,6 +896,9 @@ contract DCN {
    * exchange_set_owner
    *    caller = recovery_address
    *    set primary address
+   * exchange_set_withdraw
+   *    caller = recovery_address
+   *    set withdraw address
    * exchange_propose_recovery
    *    caller = recovery_address
    *    set propose recovery address
@@ -906,7 +914,7 @@ contract DCN {
       let exchange_recovery := sload(pointer_attr(Exchange, exchange_ptr, recovery_address))
 
       /* ensure caller is recovery */
-      if iszero(eq(exchange_recovery, caller)) {
+      if iszero(eq(caller, exchange_recovery)) {
         REVERT(1)
       }
 
@@ -919,6 +927,20 @@ contract DCN {
               /* owner */ new_owner
              )
       ))
+    }
+  }
+
+  function exchange_set_withdraw(uint32 exchange_id, address new_withdraw) public {
+    assembly {
+      let exchange_ptr := EXCHANGE_PTR_(exchange_id)
+      let exchange_recovery := sload(pointer_attr(Exchange, exchange_ptr, recovery_address))
+
+      /* ensure caller is recovery */
+      if iszero(eq(caller, exchange_recovery)) {
+        REVERT(1)
+      }
+
+      sstore(pointer_attr(Exchange, exchange_ptr, withdraw_address), new_withdraw)
     }
   }
 
@@ -1045,6 +1067,9 @@ contract DCN {
       )
       sstore(exchange_ptr, exchange_0)
 
+      /* Store owner withdraw */
+      sstore(pointer_attr(Exchange, exchange_ptr, withdraw_address), addr)
+
       /* Store owner recovery */
       sstore(pointer_attr(Exchange, exchange_ptr, recovery_address), addr)
 
@@ -1065,11 +1090,10 @@ contract DCN {
 
     assembly {
       let exchange_ptr := EXCHANGE_PTR_(exchange_id)
-      let exchange_0 := sload(exchange_ptr)
 
-      /* ensure caller is owner */
-      let exchange_owner := attr(Exchange, 0, exchange_0, owner)
-      if iszero(eq(exchange_owner, caller)) {
+      /* ensure caller is withdraw_address */
+      let withdraw_address := sload(pointer_attr(Exchange, exchange_ptr, withdraw_address))
+      if iszero(eq(withdraw_address, caller)) {
         REVERT(1)
       }
 

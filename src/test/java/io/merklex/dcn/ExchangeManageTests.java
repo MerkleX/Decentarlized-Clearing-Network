@@ -23,6 +23,7 @@ public class ExchangeManageTests {
         EtherTransactions updatedExchangeOwner = Accounts.getTx(4);
         EtherTransactions updatedExchangeRecover = Accounts.getTx(5);
         EtherTransactions notExchange = Accounts.getTx(6);
+        EtherTransactions withdraw = Accounts.getTx(7);
 
         QueryHelper query = new QueryHelper(StaticNetwork.DCN(), StaticNetwork.Web3());
 
@@ -38,6 +39,7 @@ public class ExchangeManageTests {
 
             assertEquals("12345678901", exchange.name);
             assertEquals(exchangeOwner.getAddress(), exchange.owner);
+            assertEquals(exchangeOwner.getAddress(), exchange.withdraw_address);
             assertEquals(exchangeOwner.getAddress(), exchange.recovery_address);
             assertEquals("0x0000000000000000000000000000000000000000", exchange.recovery_address_proposed);
         });
@@ -53,6 +55,7 @@ public class ExchangeManageTests {
                     DCN.get_exchange(0));
 
             assertEquals(updatedExchangeOwner.getAddress(), exchange.owner);
+            assertEquals(exchangeOwner.getAddress(), exchange.withdraw_address);
             assertEquals(exchangeOwner.getAddress(), exchange.recovery_address);
             assertEquals("0x0000000000000000000000000000000000000000", exchange.recovery_address_proposed);
         });
@@ -100,6 +103,26 @@ public class ExchangeManageTests {
             assertEquals(exchangeOwner.getAddress(), exchange.owner);
             assertEquals(updatedExchangeRecover.getAddress(), exchange.recovery_address);
             assertEquals(updatedExchangeRecover.getAddress(), exchange.recovery_address_proposed);
+        });
+
+        it("recovery address should set withdraw", () -> {
+            assertRevert("0x01", notExchange.sendCall(StaticNetwork.DCN(),
+                    DCN.exchange_set_withdraw(0, withdraw.getAddress())));
+
+            assertRevert("0x01", exchangeOwner.sendCall(StaticNetwork.DCN(),
+                    DCN.exchange_set_withdraw(0, withdraw.getAddress())));
+
+            assertRevert("0x01", updatedExchangeOwner.sendCall(StaticNetwork.DCN(),
+                    DCN.exchange_set_withdraw(0, withdraw.getAddress())));
+
+            assertSuccess(updatedExchangeRecover.sendCall(StaticNetwork.DCN(),
+                    DCN.exchange_set_withdraw(0, withdraw.getAddress())));
+
+            DCN.GetExchangeReturnValue exchange = query.query(DCN::query_get_exchange,
+                    DCN.get_exchange(0));
+
+            assertEquals(exchangeOwner.getAddress(), exchange.owner);
+            assertEquals(withdraw.getAddress(), exchange.withdraw_address);
         });
     }
 }
