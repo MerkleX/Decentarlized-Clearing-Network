@@ -822,6 +822,13 @@ contract DCN {
         stop()
       }
       {
+        let user_count := sload(user_count_slot)
+        if iszero(lt(user_id, user_count)) {
+          mstore(32, 6)
+          revert(63, 1)
+        }
+      }
+      {
         let asset_count := sload(asset_count_slot)
         if iszero(lt(asset_id, asset_count)) {
           mstore(32, 1)
@@ -910,6 +917,13 @@ contract DCN {
   function user_market_reset(uint64 user_id, uint32 exchange_id,
                              uint32 quote_asset_id, uint32 base_asset_id) public  {
     assembly {
+      {
+        let locked_features := sload(security_locked_features_slot)
+        if and(locked_features, 0x400) {
+          mstore(32, 0)
+          revert(63, 1)
+        }
+      }
       {
         let exchange_count := sload(exchange_count_slot)
         if iszero(lt(exchange_id, exchange_count)) {
@@ -1160,6 +1174,13 @@ contract DCN {
   
   function recover_unsettled_withdraws(bytes memory data) public  {
     assembly {
+      {
+        let locked_features := sload(security_locked_features_slot)
+        if and(locked_features, 0x800) {
+          mstore(32, 0)
+          revert(63, 1)
+        }
+      }
       let data_len := mload(data)
       let cursor := add(data, 32)
       let cursor_end := add(cursor, data_len)
@@ -1192,14 +1213,14 @@ contract DCN {
             exchange_balance := add(exchange_balance, to_recover)
             asset_balance := sub(asset_balance, to_recover)
             unsettled_balance := sub(unsettled_balance, to_recover)
+            if gt(start_exchange_balance, exchange_balance) {
+              mstore(32, 2)
+              revert(63, 1)
+            }
             sstore(session_balance_ptr, or(and(0xffffffffffffffffffffffffffffffff00000000000000000000000000000000, session_balance_0), or(
               /* unsettled_withdraw_total */ mul(unsettled_balance, 0x10000000000000000), 
               /* asset_balance */ asset_balance)))
           }
-        }
-        if gt(start_exchange_balance, exchange_balance) {
-          mstore(32, 2)
-          revert(63, 1)
         }
         sstore(exchange_balance_ptr, exchange_balance)
       }

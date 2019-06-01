@@ -284,6 +284,8 @@ contract DCN {
   #define FEATURE_EXCHANGE_TRANSFER_FROM 0x80
   #define FEATURE_EXCHANGE_SET_LIMITS 0x100
   #define FEATURE_APPLY_SETTLEMENT_GROUPS 0x200
+  #define FEATURE_USER_MARKET_RESET 0x400
+  #define FEATURE_RECOVER_UNSETTLED_WITHDRAWS 0x800
   #define FEATURE_ALL U256_MAX
 
   #define SECURITY_FEATURE_CHECK(FEATURE, REVERT_1) \
@@ -1227,6 +1229,7 @@ contract DCN {
         stop()
       }
 
+      VALID_USER_ID(user_id, /* REVERT(6) */ 6)
       VALID_ASSET_ID(asset_id, /* REVERT(1) */ 1)
 
       let user_ptr := USER_PTR_(user_id)
@@ -1292,6 +1295,7 @@ contract DCN {
 
       let session_ptr := SESSION_PTR_(user_ptr, exchange_id)
 
+      /* only update trade_address when unlocked */
       let unlock_at_ptr := pointer_attr(ExchangeSession, session_ptr, unlock_at)
       if lt(sload(unlock_at_ptr), timestamp) {
         sstore(pointer_attr(ExchangeSession, session_ptr, trade_address), caller)
@@ -1314,6 +1318,7 @@ contract DCN {
   function user_market_reset(uint64 user_id, uint32 exchange_id,
                              uint32 quote_asset_id, uint32 base_asset_id) public {
     assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_USER_MARKET_RESET, /* REVERT(0) */ 0)
       VALID_EXCHANGE_ID(exchange_id, /* REVERT(1) */ 1)
 
       let user_ptr := USER_PTR_(user_id)
@@ -1584,6 +1589,8 @@ contract DCN {
    */
   function recover_unsettled_withdraws(bytes memory data) public {
     assembly {
+      SECURITY_FEATURE_CHECK(FEATURE_RECOVER_UNSETTLED_WITHDRAWS, /* REVERT(0) */ 0)
+
       let data_len := mload(data)
       let cursor := add(data, WORD_1)
       let cursor_end := add(cursor, data_len)
@@ -1629,6 +1636,11 @@ contract DCN {
             asset_balance := sub(asset_balance, to_recover)
             unsettled_balance := sub(unsettled_balance, to_recover)
 
+            /* ensure exchange_balance doesn't overflow */
+            if gt(start_exchange_balance, exchange_balance) {
+              REVERT(2)
+            }
+
             sstore(session_balance_ptr, or(
               and(mask_out(SessionBalance, 0, unsettled_withdraw_total, asset_balance), session_balance_0),
               build(
@@ -1638,10 +1650,6 @@ contract DCN {
                 /* asset_balance */ asset_balance)
             ))
           }
-        }
-
-        if gt(start_exchange_balance, exchange_balance) {
-          REVERT(2)
         }
 
         sstore(exchange_balance_ptr, exchange_balance)
