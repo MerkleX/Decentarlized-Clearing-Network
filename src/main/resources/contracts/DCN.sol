@@ -209,8 +209,8 @@ contract DCN {
 
   #define VALID_USER_ID(USER_ID, REVERT_1) \
     { \
-      let user_counts := sload(user_count_slot) \
-      if iszero(lt(USER_ID, user_counts)) { \
+      let user_count := sload(user_count_slot) \
+      if iszero(lt(USER_ID, user_count)) { \
         REVERT(REVERT_1) \
       } \
     }
@@ -266,7 +266,7 @@ contract DCN {
     pointer(SessionBalance, pointer_attr(ExchangeSession, SESSION_PTR, balances), ASSET_ID)
 
   #define MARKET_IDX(QUOTE_ASSET_ID, BASE_ASSET_ID) \
-    add(mul(QUOTE_ASSET_ID, ASSET_COUNT), BASE_ASSET_ID)
+    or(mul(QUOTE_ASSET_ID, ASSET_COUNT), BASE_ASSET_ID)
 
   #define MARKET_STATE_PTR_(SESSION_PTR, QUOTE_ASSET_ID, BASE_ASSET_ID) \
     pointer(MarketState, pointer_attr(ExchangeSession, SESSION_PTR, market_states), MARKET_IDX(QUOTE_ASSET_ID, BASE_ASSET_ID))
@@ -607,7 +607,7 @@ contract DCN {
   #define CREATOR_REQUIRED(REVERT_1) \
     { \
       let creator := sload(creator_slot) \
-      if iszero(eq(creator, caller)) { \
+      if iszero(eq(caller, creator)) { \
         REVERT(REVERT_1) \
       } \
     }
@@ -730,7 +730,7 @@ contract DCN {
   function creator_update(address new_creator) public {
     assembly {
       let creator_recovery := sload(creator_recovery_slot)
-      if iszero(eq(creator_recovery, caller)) {
+      if iszero(eq(caller, creator_recovery)) {
         REVERT(1)
       }
 
@@ -741,7 +741,7 @@ contract DCN {
   function creator_propose_recovery(address recovery) public {
     assembly {
       let creator_recovery := sload(creator_recovery_slot)
-      if iszero(eq(creator_recovery, caller)) {
+      if iszero(eq(caller, creator_recovery)) {
         REVERT(1)
       }
 
@@ -752,7 +752,7 @@ contract DCN {
   function creator_set_recovery() public {
     assembly {
       let creator_recovery_proposed := sload(creator_recovery_proposed_slot)
-      if or(iszero(eq(creator_recovery_proposed, caller)), iszero(caller)) {
+      if or(iszero(eq(caller, creator_recovery_proposed)), iszero(caller)) {
         REVERT(1)
       }
       sstore(creator_recovery_slot, caller)
@@ -923,7 +923,7 @@ contract DCN {
         and(exchange_0, mask_out(Exchange, 0, owner)),
         build(Exchange, 0,
               /* name */ 0,
-              /* quote_asset_id */ 0,
+              /* locked */ 0,
               /* owner */ new_owner
              )
       ))
@@ -950,7 +950,7 @@ contract DCN {
       let exchange_recovery := sload(pointer_attr(Exchange, exchange_ptr, recovery_address))
 
       /* ensure caller is proposed */
-      if iszero(eq(exchange_recovery, caller)) {
+      if iszero(eq(caller, exchange_recovery)) {
         REVERT(1)
       }
 
@@ -966,7 +966,7 @@ contract DCN {
       let exchange_recovery_proposed := sload(pointer_attr(Exchange, exchange_ptr, recovery_address_proposed))
 
       /* ensure caller is proposed recovery */
-      if or(iszero(eq(exchange_recovery_proposed, caller)), iszero(caller)) {
+      if or(iszero(eq(caller, exchange_recovery_proposed)), iszero(caller)) {
         REVERT(1)
       }
 
@@ -1093,7 +1093,7 @@ contract DCN {
 
       /* ensure caller is withdraw_address */
       let withdraw_address := sload(pointer_attr(Exchange, exchange_ptr, withdraw_address))
-      if iszero(eq(withdraw_address, caller)) {
+      if iszero(eq(caller, withdraw_address)) {
         REVERT(1)
       }
 
@@ -1394,7 +1394,7 @@ contract DCN {
         REVERT(5)
       }
 
-      /* don't care about overflow for total_deposit, is used by exchange to detect updated */
+      /* don't care about overflow for total_deposit, is used by exchange to detect update */
       let updated_total_deposit := add(attr(SessionBalance, 0, session_balance_0, total_deposit), quantity)
 
       /* update user balance */

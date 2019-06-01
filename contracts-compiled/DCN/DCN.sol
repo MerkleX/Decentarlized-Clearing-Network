@@ -266,7 +266,7 @@ contract DCN {
       quote_shift := quote_asset_id
       let user_ptr := add(users_slot, mul(237684487561239756867226304516, user_id))
       let exchange_session_ptr := add(add(user_ptr, 4294967300), mul(55340232225423622146, exchange_id))
-      let exchange_state_ptr := add(add(exchange_session_ptr, 4294967298), mul(3, add(mul(quote_shift, 4294967296), base_shift)))
+      let exchange_state_ptr := add(add(exchange_session_ptr, 4294967298), mul(3, or(mul(quote_shift, 4294967296), base_shift)))
       let state_data_0 := sload(exchange_state_ptr)
       let state_data_1 := sload(add(exchange_state_ptr, 1))
       let state_data_2 := sload(add(exchange_state_ptr, 2))
@@ -313,7 +313,7 @@ contract DCN {
     assembly {
       {
         let creator := sload(creator_slot)
-        if iszero(eq(creator, caller)) {
+        if iszero(eq(caller, creator)) {
           mstore(32, 1)
           revert(63, 1)
         }
@@ -328,7 +328,7 @@ contract DCN {
     assembly {
       {
         let creator := sload(creator_slot)
-        if iszero(eq(creator, caller)) {
+        if iszero(eq(caller, creator)) {
           mstore(32, 1)
           revert(63, 1)
         }
@@ -347,7 +347,7 @@ contract DCN {
     assembly {
       {
         let creator := sload(creator_slot)
-        if iszero(eq(creator, caller)) {
+        if iszero(eq(caller, creator)) {
           mstore(32, 1)
           revert(63, 1)
         }
@@ -364,7 +364,7 @@ contract DCN {
   function creator_update(address new_creator) public  {
     assembly {
       let creator_recovery := sload(creator_recovery_slot)
-      if iszero(eq(creator_recovery, caller)) {
+      if iszero(eq(caller, creator_recovery)) {
         mstore(32, 1)
         revert(63, 1)
       }
@@ -375,7 +375,7 @@ contract DCN {
   function creator_propose_recovery(address recovery) public  {
     assembly {
       let creator_recovery := sload(creator_recovery_slot)
-      if iszero(eq(creator_recovery, caller)) {
+      if iszero(eq(caller, creator_recovery)) {
         mstore(32, 1)
         revert(63, 1)
       }
@@ -386,7 +386,7 @@ contract DCN {
   function creator_set_recovery() public  {
     assembly {
       let creator_recovery_proposed := sload(creator_recovery_proposed_slot)
-      if or(iszero(eq(creator_recovery_proposed, caller)), iszero(caller)) {
+      if or(iszero(eq(caller, creator_recovery_proposed)), iszero(caller)) {
         mstore(32, 1)
         revert(63, 1)
       }
@@ -399,7 +399,7 @@ contract DCN {
     assembly {
       {
         let creator := sload(creator_slot)
-        if iszero(eq(creator, caller)) {
+        if iszero(eq(caller, creator)) {
           mstore(32, 1)
           revert(63, 1)
         }
@@ -527,7 +527,7 @@ contract DCN {
     assembly {
       let exchange_ptr := add(exchanges_slot, mul(4294967300, exchange_id))
       let exchange_recovery := sload(add(exchange_ptr, 2))
-      if iszero(eq(exchange_recovery, caller)) {
+      if iszero(eq(caller, exchange_recovery)) {
         mstore(32, 1)
         revert(63, 1)
       }
@@ -539,7 +539,7 @@ contract DCN {
     assembly {
       let exchange_ptr := add(exchanges_slot, mul(4294967300, exchange_id))
       let exchange_recovery_proposed := sload(add(exchange_ptr, 3))
-      if or(iszero(eq(exchange_recovery_proposed, caller)), iszero(caller)) {
+      if or(iszero(eq(caller, exchange_recovery_proposed)), iszero(caller)) {
         mstore(32, 1)
         revert(63, 1)
       }
@@ -559,7 +559,7 @@ contract DCN {
       }
       {
         let creator := sload(creator_slot)
-        if iszero(eq(creator, caller)) {
+        if iszero(eq(caller, creator)) {
           mstore(32, 1)
           revert(63, 1)
         }
@@ -604,7 +604,7 @@ contract DCN {
       }
       {
         let creator := sload(creator_slot)
-        if iszero(eq(creator, caller)) {
+        if iszero(eq(caller, creator)) {
           mstore(32, 1)
           revert(63, 1)
         }
@@ -639,7 +639,7 @@ contract DCN {
     assembly {
       let exchange_ptr := add(exchanges_slot, mul(4294967300, exchange_id))
       let withdraw_address := sload(add(exchange_ptr, 1))
-      if iszero(eq(withdraw_address, caller)) {
+      if iszero(eq(caller, withdraw_address)) {
         mstore(32, 1)
         revert(63, 1)
       }
@@ -760,8 +760,8 @@ contract DCN {
         }
       }
       {
-        let user_counts := sload(user_count_slot)
-        if iszero(lt(user_id, user_counts)) {
+        let user_count := sload(user_count_slot)
+        if iszero(lt(user_id, user_count)) {
           mstore(32, 1)
           revert(63, 1)
         }
@@ -929,7 +929,7 @@ contract DCN {
         mstore(32, 3)
         revert(63, 1)
       }
-      let market_state_ptr := add(add(session_ptr, 4294967298), mul(3, add(mul(quote_asset_id, 4294967296), base_asset_id)))
+      let market_state_ptr := add(add(session_ptr, 4294967298), mul(3, or(mul(quote_asset_id, 4294967296), base_asset_id)))
       sstore(market_state_ptr, 0)
       sstore(add(market_state_ptr, 1), 0)
       let market_state_2_ptr := add(market_state_ptr, 2)
@@ -1496,7 +1496,7 @@ contract DCN {
           }
           let user_ptr := add(users_slot, mul(237684487561239756867226304516, mload(add(set_limit_memory_space, 0))))
           let session_ptr := add(add(user_ptr, 4294967300), mul(55340232225423622146, exchange_id))
-          let market_state_ptr := add(add(session_ptr, 4294967298), mul(3, add(mul(mload(add(set_limit_memory_space, 64)), 4294967296), mload(add(set_limit_memory_space, 96)))))
+          let market_state_ptr := add(add(session_ptr, 4294967298), mul(3, or(mul(mload(add(set_limit_memory_space, 64)), 4294967296), mload(add(set_limit_memory_space, 96)))))
           let market_state_0 := sload(market_state_ptr)
           let market_state_1 := sload(add(market_state_ptr, 1))
           let market_state_2 := sload(add(market_state_ptr, 2))
@@ -1632,7 +1632,7 @@ contract DCN {
           let settlement_0 := mload(cursor)
           let user_ptr := add(users_slot, mul(237684487561239756867226304516, and(div(settlement_0, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff)))
           let session_ptr := add(add(user_ptr, 4294967300), mul(55340232225423622146, exchange_id))
-          let market_state_ptr := add(add(session_ptr, 4294967298), mul(3, add(mul(quote_asset_id, 4294967296), base_asset_id)))
+          let market_state_ptr := add(add(session_ptr, 4294967298), mul(3, or(mul(quote_asset_id, 4294967296), base_asset_id)))
           let quote_delta := and(div(settlement_0, 0x100000000000000000000000000000000), 0xffffffffffffffff)
           quote_delta := signextend(7, quote_delta)
           let base_delta := and(div(settlement_0, 0x10000000000000000), 0xffffffffffffffff)
