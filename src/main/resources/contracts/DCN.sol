@@ -44,6 +44,7 @@ pragma solidity 0.5.7;
 
 contract DCN {
   event UserCreated(address indexed creator, uint64 user_id);
+  event UserTradeAddressUpdated(uint64 user_id);
   event SessionUpdated(uint64 user_id, uint64 exchange_id);
   event ExchangeDeposit(uint64 user_id, uint64 exchange_id, uint32 asset_id);
 
@@ -835,6 +836,8 @@ contract DCN {
    *******************/
 
   function user_set_trade_address(uint64 user_id, address trade_address) public {
+    uint256[1] memory log_data_mem;
+
     assembly {
       let user_ptr := USER_PTR_(user_id)
 
@@ -845,6 +848,8 @@ contract DCN {
 
       sstore(pointer_attr(User, user_ptr, trade_address),
              trade_address)
+
+      log_event(UserTradeAddressUpdated, log_data_mem, user_id)
     }
   }
 

@@ -1,6 +1,7 @@
 pragma solidity 0.5.7;
 contract DCN {
   event UserCreated(address indexed creator, uint64 user_id);
+  event UserTradeAddressUpdated(uint64 user_id);
   event SessionUpdated(uint64 user_id, uint64 exchange_id);
   event ExchangeDeposit(uint64 user_id, uint64 exchange_id, uint32 asset_id);
   uint256 creator;
@@ -448,6 +449,8 @@ contract DCN {
   }
   
   function user_set_trade_address(uint64 user_id, address trade_address) public  {
+    
+    uint256[1] memory log_data_mem;
     assembly {
       let user_ptr := add(users_slot, mul(237684487561239756867226304516, user_id))
       let recovery_address := sload(add(user_ptr, 2))
@@ -456,6 +459,10 @@ contract DCN {
         revert(63, 1)
       }
       sstore(add(user_ptr, 0), trade_address)
+      
+      /* Log event: UserTradeAddressUpdated */
+      mstore(log_data_mem, user_id)
+      log1(log_data_mem, 32, /* UserTradeAddressUpdated */ 0x0dcac7e45506b3812319ae528c780b9035570ee3b3557272431dce5b397d880a)
     }
   }
   

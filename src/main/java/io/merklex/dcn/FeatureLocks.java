@@ -13,5 +13,7 @@ public class FeatureLocks {
     public static final BigInteger EXCHANGE_TRANSFER_FROM = BigInteger.ONE.shiftLeft(7);
     public static final BigInteger EXCHANGE_SET_LIMITS = BigInteger.ONE.shiftLeft(8);
     public static final BigInteger APPLY_SETTLEMENT_GROUPS = BigInteger.ONE.shiftLeft(9);
+    public static final BigInteger USER_MARKET_RESET = BigInteger.ONE.shiftLeft(10);
+    public static final BigInteger RECOVER_UNSETTLED_WITHDRAWS = BigInteger.ONE.shiftLeft(11);
     public static final BigInteger ALL = BigInteger.ONE.shiftLeft(256).subtract(BigInteger.ONE);
 }
