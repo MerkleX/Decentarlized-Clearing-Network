@@ -1338,11 +1338,13 @@ contract DCN {
       sstore(market_state_ptr, 0)
       sstore(add(market_state_ptr, 1), 0)
 
-      /* keep limit_version, so mask out quote_shift & base_shift */
+      /* increment limit_version */
       let market_state_2_ptr := add(market_state_ptr, 2)
-      sstore(market_state_2_ptr, and(
-        mask_out(MarketState, 2, quote_shift, base_shift),
-        sload(market_state_2_ptr)
+      let market_state_2 := sload(market_state_2_ptr)
+      let limit_version := add(attr(MarketState, 2, market_state_2, limit_version), 1)
+
+      sstore(market_state_2_ptr, build(MarketState, 2, 
+        /* limit_version */ limit_version
       ))
     }
   }

@@ -109,12 +109,22 @@ public class EtherDebugNet implements Web3Provider {
         }
     }
 
+    public static class NumberResponse extends Response<String> {
+        public BigInteger getValue() {
+            return new BigInteger(getResult());
+        }
+    }
+
     public Request<Void, CheckpointResponse> checkpoint() {
         return new Request<>("evm_snapshot", Collections.emptyList(), httpServer, CheckpointResponse.class);
     }
 
     public Request<BigInteger, BooleanResponse> revert(BigInteger id) {
         return new Request<>("evm_revert", Collections.singletonList(id), httpServer, BooleanResponse.class);
+    }
+
+    public Request<BigInteger, NumberResponse> increaseTime(BigInteger seconds) {
+        return new Request<>("evm_increaseTime", Collections.singletonList(seconds), httpServer, NumberResponse.class);
     }
 
     @Override

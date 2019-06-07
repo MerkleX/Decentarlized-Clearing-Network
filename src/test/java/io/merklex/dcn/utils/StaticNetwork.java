@@ -89,4 +89,8 @@ public class StaticNetwork {
     public static void main(String[] args) {
         System.out.println(DCN());
     }
+
+    public static long IncreaseTime(long seconds) throws IOException {
+        return network.increaseTime(BigInteger.valueOf(seconds)).send().getValue().longValueExact();
+    }
 }

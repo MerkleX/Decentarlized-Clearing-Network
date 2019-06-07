@@ -947,7 +947,10 @@ contract DCN {
       sstore(market_state_ptr, 0)
       sstore(add(market_state_ptr, 1), 0)
       let market_state_2_ptr := add(market_state_ptr, 2)
-      sstore(market_state_2_ptr, and(0xffffffffffffffff000000000000000000000000000000000000000000000000, sload(market_state_2_ptr)))
+      let market_state_2 := sload(market_state_2_ptr)
+      let limit_version := add(and(div(market_state_2, 0x1000000000000000000000000000000000000000000000000), 0xffffffffffffffff), 1)
+      sstore(market_state_2_ptr, 
+        /* limit_version */ mul(limit_version, 0x1000000000000000000000000000000000000000000000000))
     }
   }
   
