@@ -160,6 +160,18 @@ public class SecurityLockTests {
                 assertRevert("0x02", creator.sendCall(StaticNetwork.DCN(),
                         DCN.security_set_proposed()));
             });
+
+            it("should to set proposed when unlocked", () -> {
+                StaticNetwork.IncreaseTime(172800 + 100);
+
+                assertSuccess(creator.sendCall(StaticNetwork.DCN(),
+                        DCN.security_set_proposed()));
+
+                DCN.GetSecurityStateReturnValue securityState = DCN.query_get_security_state(StaticNetwork.DCN(),
+                        creator.getWeb3(), DCN.get_security_state());
+
+                assertEquals(BigInteger.ZERO, securityState.locked_features);
+            });
         });
 
         describe("functions should be locked", () -> {
@@ -213,6 +225,16 @@ public class SecurityLockTests {
             it("apply_settlement_groups", () -> testLock(FeatureLocks.APPLY_SETTLEMENT_GROUPS, () ->
                     creator.sendCall(StaticNetwork.DCN(),
                             DCN.exchange_apply_settlement_groups("0x000"))
+            ));
+
+            it("user_market_reset", () -> testLock(FeatureLocks.USER_MARKET_RESET, () ->
+                    creator.sendCall(StaticNetwork.DCN(),
+                            DCN.user_market_reset(0, 0, 1, 2))
+            ));
+
+            it("recover_unsettled_funds", () -> testLock(FeatureLocks.RECOVER_UNSETTLED_WITHDRAWS, () ->
+                    creator.sendCall(StaticNetwork.DCN(),
+                            DCN.recover_unsettled_withdraws("0x000"))
             ));
         });
     }

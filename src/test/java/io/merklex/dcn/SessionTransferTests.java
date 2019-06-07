@@ -229,11 +229,13 @@ public class SessionTransferTests {
             });
         });
 
+        int unlockDelay = 30000;
+
         it("should not be able to transfer from if session is locked", () -> {
             assertSuccess(bobBackup.sendCall(StaticNetwork.DCN(),
                     DCN.transfer_to_session(userId, exchangeId, assetId, transferAmount)));
 
-            BigInteger unlockAt = BigInteger.valueOf(System.currentTimeMillis() / 1000 + 30000);
+            BigInteger unlockAt = BigInteger.valueOf(System.currentTimeMillis() / 1000 + unlockDelay);
             assertSuccess(bob.sendCall(StaticNetwork.DCN(),
                     DCN.user_session_set_unlock_at(userId, exchangeId, unlockAt)));
 
@@ -261,11 +263,18 @@ public class SessionTransferTests {
             ERC20.BalanceofReturnValue userBalance = ERC20.query_balanceOf(token.value, StaticNetwork.Web3(),
                     ERC20.balanceOf(bob.getAddress()));
             assertEquals(totalSupply
-                    .subtract(bobDCNBalance)
-                    .subtract(exchangeDepositScaled)
-                    .subtract(scaledTransfer),
+                            .subtract(bobDCNBalance)
+                            .subtract(exchangeDepositScaled)
+                            .subtract(scaledTransfer),
                     userBalance.balance
             );
+        });
+
+        it("should be able to transfer from session when unlocked", () -> {
+            StaticNetwork.IncreaseTime(unlockDelay + 100);
+
+            assertSuccess(bob.sendCall(StaticNetwork.DCN(),
+                    DCN.transfer_from_session(userId, exchangeId, assetId, transferAmount)));
         });
     }
 }

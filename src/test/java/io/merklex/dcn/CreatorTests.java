@@ -14,7 +14,7 @@ import static com.greghaskins.spectrum.Spectrum.beforeAll;
 import static com.greghaskins.spectrum.Spectrum.it;
 import static io.merklex.dcn.utils.AssertHelpers.assertRevert;
 import static io.merklex.dcn.utils.AssertHelpers.assertSuccess;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 @RunWith(Spectrum.class)
 public class CreatorTests {

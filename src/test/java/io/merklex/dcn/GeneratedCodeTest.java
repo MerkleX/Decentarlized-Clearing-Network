@@ -5,7 +5,9 @@ import io.merklex.web3.gen.GenerateContractCode;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Arrays;
 
 public class GeneratedCodeTest {

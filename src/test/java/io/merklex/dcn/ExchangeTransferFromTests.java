@@ -7,10 +7,8 @@ import io.merklex.dcn.utils.Accounts;
 import io.merklex.dcn.utils.Box;
 import io.merklex.dcn.utils.StaticNetwork;
 import io.merklex.web3.EtherTransactions;
-import io.merklex.web3.QueryHelper;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.junit.runner.RunWith;
-import org.web3j.abi.FunctionEncoder;
 import org.web3j.utils.Numeric;
 
 import java.math.BigInteger;
@@ -19,7 +17,6 @@ import static com.greghaskins.spectrum.Spectrum.beforeAll;
 import static com.greghaskins.spectrum.Spectrum.it;
 import static io.merklex.dcn.utils.AssertHelpers.assertRevert;
 import static io.merklex.dcn.utils.AssertHelpers.assertSuccess;
-import static org.junit.Assert.assertEquals;
 
 @RunWith(Spectrum.class)
 public class ExchangeTransferFromTests {
@@ -28,18 +25,14 @@ public class ExchangeTransferFromTests {
 
         EtherTransactions creator = Accounts.getTx(0);
         EtherTransactions bob = Accounts.getTx(13);
-        EtherTransactions bobBackup = Accounts.getTx(14);
         Box<String> token = new Box<>();
 
         long unitScale = 10000000000L;
-        BigInteger unitScaleBig = BigInteger.valueOf(unitScale);
 
         BigInteger totalSupply = BigInteger.valueOf(100000000_0000000000L);
 
         int bobDeposit = 10;
         long exchangeDepositAmount = 2000;
-
-        QueryHelper query = new QueryHelper(StaticNetwork.DCN(), StaticNetwork.Web3());
 
         final int assetId = 0;
         final int exchangeId = 0;
