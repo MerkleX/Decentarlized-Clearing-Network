@@ -1,4 +1,6 @@
-#import "../../src/main/resources/contracts/DCN.sol"
+#define TRANSPILE
+
+#include "../../src/main/resources/contracts/DCN.sol"
 
 #define CONFLICT(TYPE1, TYPE2, ptr1, ptr2) \
   switch gt(ptr1, ptr2) \
