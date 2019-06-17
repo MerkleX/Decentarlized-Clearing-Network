@@ -1,0 +1,13 @@
+{
+  "src": {
+    "specification": "src/spec.md",
+    "smt_prelude": "src/prelude.smt2.md",
+    "rules": [
+    ]
+  },
+  "implementations": {
+    "TEST": {"solc_output": "dapp/out/source.sol.json"}
+  },
+  "dapp_root": "dapp"
+}
+

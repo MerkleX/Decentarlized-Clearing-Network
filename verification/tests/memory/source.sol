@@ -1,16 +1,16 @@
 #define TRANSPILE
 
-#include "../../src/main/resources/contracts/DCN.sol"
+#include "../../../src/main/resources/contracts/DCN.sol"
 
 #define CONFLICT(TYPE1, TYPE2, ptr1, ptr2) \
   switch gt(ptr1, ptr2) \
-  case 0 { /* ptr1 < ptr2 */ \
-    if iszero(ln(add(ptr1, sizeof(TYPE1)), ptr2)) { \
+  case 0 { /* ptr1 <= ptr2 */ \
+    if iszero(lt(add(ptr1, sizeof(TYPE1)), ptr2)) { \
       REVERT(1) \
     } \
   } \
   default { \
-    if iszero(ln(add(ptr2, sizeof(TYPE2)), ptr1)) { \
+    if iszero(lt(add(ptr2, sizeof(TYPE2)), ptr1)) { \
       REVERT(2) \
     } \
   }
@@ -19,7 +19,7 @@
   if lt(inner_ptr, outer_ptr) { REVERT(1) } \
   if gt(add(inner_ptr, sizeof(INNER_TYPE)), add(outer_ptr, sizeof(OUTER_TYPE))) { REVERT(2) }
 
-contract DCNMemoryConflict is DCN {
+contract TEST is DCN {
   function test_asset_exchange_no_conflict(uint32 asset_id, uint64 exchange_id) public {
     assembly {
       let asset_ptr := ASSET_PTR_(asset_id)
