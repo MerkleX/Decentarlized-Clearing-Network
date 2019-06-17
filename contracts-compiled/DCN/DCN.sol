@@ -59,9 +59,9 @@ contract DCN {
     uint256[4294967296] balances;
     ExchangeSession[4294967296] exchange_sessions;
   }
-  User[18446744073709551616 /* 2^64 */] users;
-  Asset[4294967296 /* 2^32 */] assets;
-  Exchange[4294967296 /* 2^32 */] exchanges;
+  User[18446744073709551616] users;
+  Asset[4294967296] assets;
+  Exchange[4294967296] exchanges;
   
   constructor() public  {
     assembly {
@@ -1503,10 +1503,10 @@ contract DCN {
             }
           }
           uint256 recovered_address = uint256(ecrecover(
-          /* hash */ limit_hash,
-          /* v */ sig_v,
-          /* r */ sig_r,
-          /* s */ sig_s
+                     limit_hash,
+                  sig_v,
+                  sig_r,
+                  sig_s
         ));
           assembly {
             let user_ptr := add(users_slot, mul(237684487561239756867226304516, mload(add(set_limit_memory_space, 0))))
