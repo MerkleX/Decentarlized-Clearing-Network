@@ -48,81 +48,81 @@ public class ApplySettlementBugFix {
             "6d8400000000001312d000000000000000000000000000000000020" +
             "000000000927c00ffffffffeced30000000000000000000";
 
-    {
-        StaticNetwork.DescribeCheckpoint();
-
-
-        System.out.println("USER1: " + user1.getAddress());
-        System.out.println("USER2: " + user2.getAddress());
-
-        Box<String> token1 = new Box<>();
-        Box<String> token2 = new Box<>();
-
-        long quant = 1000000000000000L;
-
-        beforeAll(() -> {
-            BigInteger deposit = BigInteger.valueOf(10).pow(30);
-            token1.value = creator.deployContract(BigInteger.ZERO, StaticNetwork.GAS_LIMIT, ERC20.DeployData(
-                    deposit, "test", 18, "TX"),
-                    BigInteger.ZERO);
-            token2.value = creator.deployContract(BigInteger.ZERO, StaticNetwork.GAS_LIMIT, ERC20.DeployData(
-                    deposit, "test", 18, "TX"),
-                    BigInteger.ZERO);
-
-            assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_exchange("merklex    ", creator.getAddress())));
-            assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.user_create()));
-            assertSuccess(user1.sendCall(StaticNetwork.DCN(),
-                    DCN.user_create()));
-            assertSuccess(user2.sendCall(StaticNetwork.DCN(),
-                    DCN.user_create()));
-
-            assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_asset("test1234", 1, token1.value)));
-            assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_asset("test1234", 1, token2.value)));
-            assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_asset("test1234", 1, token2.value)));
-            assertSuccess(creator.sendCall(StaticNetwork.DCN(),
-                    DCN.add_asset("test1234", 1, token1.value)));
-
-            assertSuccess(user1.sendCall(StaticNetwork.DCN(),
-                    DCN.user_session_set_unlock_at(1, 0,
-                            BigInteger.valueOf(System.currentTimeMillis() / 1000 + 30_000))));
-
-            assertSuccess(user2.sendCall(StaticNetwork.DCN(),
-                    DCN.user_session_set_unlock_at(2, 0,
-                            BigInteger.valueOf(System.currentTimeMillis() / 1000 + 30_000))));
-
-            assertSuccess(creator.sendCall(token1.value, ERC20.approve(StaticNetwork.DCN(), deposit)));
-            assertSuccess(creator.sendCall(token2.value, ERC20.approve(StaticNetwork.DCN(), deposit)));
-
-            assertSuccess(creator.sendCall(StaticNetwork.DCN(), DCN.user_deposit_to_session(1, 0, 1, quant)));
-            assertSuccess(creator.sendCall(StaticNetwork.DCN(), DCN.user_deposit_to_session(1, 0, 3, quant)));
-            assertSuccess(creator.sendCall(StaticNetwork.DCN(), DCN.user_deposit_to_session(2, 0, 1, quant)));
-            assertSuccess(creator.sendCall(StaticNetwork.DCN(), DCN.user_deposit_to_session(2, 0, 3, quant)));
-        });
-
-        it("apply set limit", () -> {
-            assertSuccess(creator.sendCall(BigInteger.ZERO, StaticNetwork.GAS_LIMIT, StaticNetwork.DCN(),
-                    APPLY_LIMIT_TX, BigInteger.ZERO));
-
-            DCN.GetMarketStateReturnValue state;
-
-            state = DCN.query_get_market_state(StaticNetwork.DCN(), creator.getWeb3(),
-                    DCN.get_market_state(1, 0, 1, 3));
-            assertEquals(0, state.quote_qty);
-            assertEquals(0, state.base_qty);
-
-            state = DCN.query_get_market_state(StaticNetwork.DCN(), creator.getWeb3(),
-                    DCN.get_market_state(2, 0, 1, 3));
-            assertEquals(0, state.quote_qty);
-            assertEquals(0, state.base_qty);
-        });
-
-        ApplySettlement("should apply settlement", APPLY_SETTLEMENT_PAYLOAD);
-    }
+//    {
+//        StaticNetwork.DescribeCheckpoint();
+//
+//
+//        System.out.println("USER1: " + user1.getAddress());
+//        System.out.println("USER2: " + user2.getAddress());
+//
+//        Box<String> token1 = new Box<>();
+//        Box<String> token2 = new Box<>();
+//
+//        long quant = 1000000000000000L;
+//
+//        beforeAll(() -> {
+//            BigInteger deposit = BigInteger.valueOf(10).pow(30);
+//            token1.value = creator.deployContract(BigInteger.ZERO, StaticNetwork.GAS_LIMIT, ERC20.DeployData(
+//                    deposit, "test", 18, "TX"),
+//                    BigInteger.ZERO);
+//            token2.value = creator.deployContract(BigInteger.ZERO, StaticNetwork.GAS_LIMIT, ERC20.DeployData(
+//                    deposit, "test", 18, "TX"),
+//                    BigInteger.ZERO);
+//
+//            assertSuccess(creator.sendCall(StaticNetwork.DCN(),
+//                    DCN.add_exchange("merklex    ", creator.getAddress())));
+//            assertSuccess(creator.sendCall(StaticNetwork.DCN(),
+//                    DCN.user_create()));
+//            assertSuccess(user1.sendCall(StaticNetwork.DCN(),
+//                    DCN.user_create()));
+//            assertSuccess(user2.sendCall(StaticNetwork.DCN(),
+//                    DCN.user_create()));
+//
+//            assertSuccess(creator.sendCall(StaticNetwork.DCN(),
+//                    DCN.add_asset("test1234", 1, token1.value)));
+//            assertSuccess(creator.sendCall(StaticNetwork.DCN(),
+//                    DCN.add_asset("test1234", 1, token2.value)));
+//            assertSuccess(creator.sendCall(StaticNetwork.DCN(),
+//                    DCN.add_asset("test1234", 1, token2.value)));
+//            assertSuccess(creator.sendCall(StaticNetwork.DCN(),
+//                    DCN.add_asset("test1234", 1, token1.value)));
+//
+//            assertSuccess(user1.sendCall(StaticNetwork.DCN(),
+//                    DCN.user_session_set_unlock_at(1, 0,
+//                            BigInteger.valueOf(System.currentTimeMillis() / 1000 + 30_000))));
+//
+//            assertSuccess(user2.sendCall(StaticNetwork.DCN(),
+//                    DCN.user_session_set_unlock_at(2, 0,
+//                            BigInteger.valueOf(System.currentTimeMillis() / 1000 + 30_000))));
+//
+//            assertSuccess(creator.sendCall(token1.value, ERC20.approve(StaticNetwork.DCN(), deposit)));
+//            assertSuccess(creator.sendCall(token2.value, ERC20.approve(StaticNetwork.DCN(), deposit)));
+//
+//            assertSuccess(creator.sendCall(StaticNetwork.DCN(), DCN.user_deposit_to_session(1, 0, 1, quant)));
+//            assertSuccess(creator.sendCall(StaticNetwork.DCN(), DCN.user_deposit_to_session(1, 0, 3, quant)));
+//            assertSuccess(creator.sendCall(StaticNetwork.DCN(), DCN.user_deposit_to_session(2, 0, 1, quant)));
+//            assertSuccess(creator.sendCall(StaticNetwork.DCN(), DCN.user_deposit_to_session(2, 0, 3, quant)));
+//        });
+//
+//        it("apply set limit", () -> {
+//            assertSuccess(creator.sendCall(BigInteger.ZERO, StaticNetwork.GAS_LIMIT, StaticNetwork.DCN(),
+//                    APPLY_LIMIT_TX, BigInteger.ZERO));
+//
+//            DCN.GetMarketStateReturnValue state;
+//
+//            state = DCN.query_get_market_state(StaticNetwork.DCN(), creator.getWeb3(),
+//                    DCN.get_market_state(1, 0, 1, 3));
+//            assertEquals(0, state.quote_qty);
+//            assertEquals(0, state.base_qty);
+//
+//            state = DCN.query_get_market_state(StaticNetwork.DCN(), creator.getWeb3(),
+//                    DCN.get_market_state(2, 0, 1, 3));
+//            assertEquals(0, state.quote_qty);
+//            assertEquals(0, state.base_qty);
+//        });
+//
+//        ApplySettlement("should apply settlement", APPLY_SETTLEMENT_PAYLOAD);
+//    }
 
     private static void ApplySettlement(String name, String settleData) {
         byte[] bytes = Numeric.hexStringToByteArray(settleData);

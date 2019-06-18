@@ -1,12 +1,10 @@
 package io.merklex.dcn;
 
-import org.web3j.utils.Numeric;
-
 import java.nio.ByteBuffer;
 
 public class DCNHasher {
-    private static final String VERSION = "0.1";
-    private static final long CHAIN_ID = 3 /* Ropsten Network */;
+    private static final String VERSION = "1";
+    private static final long CHAIN_ID = 1 /* Main Network */;
 
     private static final byte[] RAW_HEADER = new byte[]{0x19, 0x01};
 

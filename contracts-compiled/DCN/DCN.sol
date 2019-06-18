@@ -1484,7 +1484,7 @@ contract DCN {
           }
           limit_hash := keccak256(to_hash_mem, 448)
           mstore(to_hash_mem, 0x1901000000000000000000000000000000000000000000000000000000000000)
-          mstore(add(to_hash_mem, 2), 0xe3d3073cc59e3a3126c17585a7e516a048e61a9a1c82144af982d1c194b18710)
+          mstore(add(to_hash_mem, 2), 0x6c1a0baa584339032b4ed0d2fdb53c23d290c0b8a7da5a9e05ce919faa986a59)
           mstore(add(to_hash_mem, 34), limit_hash)
           limit_hash := keccak256(to_hash_mem, 66)
         }

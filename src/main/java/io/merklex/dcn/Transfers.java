@@ -18,6 +18,39 @@ public class Transfers extends ExchangeTransferFrom.ExchangeTransfersHeader {
         return group.wrap(messageMemoryBuffer(), messageMemoryOffset() + BYTES);
     }
 
+    public String toString(int length) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Transfers { exchange_id: ").append(super.exchangeId()).append(",");
+        Group group = firstGroup(new Group());
+        Transfer transfer = group.firstTransfer(new Transfer());
+
+        length -= Transfers.BYTES;
+
+        while (length > 0) {
+            sb.append(" Group { transfer_count: ").append(group.transferCount())
+                    .append(", asset_id: ").append(group.assetId()).append(",");
+
+            length -= Group.BYTES;
+
+            for (byte i = 0; i < group.transferCount(); i++) {
+                sb.append(" Transfer { user_id: ").append(transfer.userId())
+                        .append(", quantity: ").append(Long.toUnsignedString(transfer.quantity()))
+                        .append(" }");
+                transfer.nextTransfer(transfer);
+            }
+
+            length -= Transfer.BYTES * group.transferCount();
+            sb.append(" }");
+
+            group.nextGroup(group);
+            group.firstTransfer(transfer);
+        }
+
+        sb.append(" }");
+
+        return sb.toString();
+    }
+
     public int bytes(int groups, Group group) {
         int transfers = 0;
 
