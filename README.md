@@ -7,6 +7,7 @@ Provides low cost, fast, and secure settlement for hybrid decentralized exchange
 
 | Network | Contract Address |
 | -- | -- |
+| Main Net | [0x51382330280f5198ff415d54646cbea59593973c](https://etherscan.io/address/0x51382330280f5198ff415d54646cbea59593973c) |
 | Ropsten | [0xa204740391ca4dae59bc1d86625899b3a42dcd72](https://ropsten.etherscan.io/address/0xa204740391ca4dae59bc1d86625899b3a42dcd72) |
 
 ### Noteworthy Files
