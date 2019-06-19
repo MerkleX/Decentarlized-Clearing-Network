@@ -30,6 +30,7 @@ public class JavaContractGenerator {
             "org.web3j.abi.datatypes.generated.*;",
             "org.web3j.protocol.Web3j;",
             "org.web3j.protocol.core.DefaultBlockParameterName;",
+            "org.web3j.protocol.core.DefaultBlockParameter;",
             "org.web3j.protocol.core.methods.request.Transaction;",
             "org.web3j.protocol.core.methods.request.Transaction;",
             "org.web3j.protocol.core.methods.response.Log;",
@@ -349,6 +350,7 @@ public class JavaContractGenerator {
         args.arg("contractAddress", "String");
         args.arg("web3j", "Web3j");
         args.arg("function", "Function");
+        args.arg("block", "DefaultBlockParameter");
 
         args.Throws("IOException");
 
@@ -359,7 +361,7 @@ public class JavaContractGenerator {
 
         JavaCodeGen.Block body = fn.tabbed();
         body.line().append("Transaction.createEthCallTransaction(\"0x0000000000000000000000000000000000000000\", contractAddress, encodedFunction),").end();
-        body.line().append("DefaultBlockParameterName.LATEST").end();
+        body.line().append("block").end();
         fn.line().append(").send();").end();
 
         fn.line().append("String value = ethCall.getValue();").end();
@@ -379,6 +381,20 @@ public class JavaContractGenerator {
 
         fn.line().append("return returnValue;").end();
 
+        fn.end();
+
+        // caller without block number
+
+        args = block.publicStaticMethod("query_" + fnName, returnType);
+        args.arg("contractAddress", "String");
+        args.arg("web3j", "Web3j");
+        args.arg("function", "Function");
+
+        args.Throws("IOException");
+
+        fn = args.end();
+
+        fn.line().append("return query_").append(fnName).append("(contractAddress, web3j, function, DefaultBlockParameterName.LATEST);").end();
         fn.end();
     }
 
