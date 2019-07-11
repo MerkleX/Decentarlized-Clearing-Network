@@ -15,7 +15,7 @@ public class SignatureHelper {
     public static boolean Verify(byte[] hash, String signatureHex, String publicKeyHex) {
         try {
             String recovered = RecoverKey(hash, Parse(signatureHex));
-            return recovered.equals(Numeric.prependHexPrefix(publicKeyHex));
+            return recovered.equalsIgnoreCase(Numeric.prependHexPrefix(publicKeyHex));
         } catch (Exception e) {
             return false;
         }
