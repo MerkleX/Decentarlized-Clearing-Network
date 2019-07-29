@@ -92,6 +92,12 @@ public class GenerateContractCode {
                 "io.merklex.dcn.contracts"
         );
 
+        ContractToJava(
+                new File("src/main/resources/contracts/WethDeposit.sol"),
+                new File("src/main/generated"),
+                "io.merklex.dcn.contracts"
+        );
+
         CompileContract(
                 new File("src/main/resources/contracts/DCN.sol"),
                 new File("contracts-compiled/DCN")
@@ -100,6 +106,11 @@ public class GenerateContractCode {
         CompileContract(
                 new File("src/main/resources/contracts/ERC20.sol"),
                 new File("contracts-compiled/ERC20")
+        );
+
+        CompileContract(
+                new File("src/main/resources/contracts/WethDeposit.sol"),
+                new File("contracts-compiled/WethDeposit")
         );
     }
 }
